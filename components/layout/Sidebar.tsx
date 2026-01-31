@@ -7,11 +7,12 @@ import { LayoutDashboard, Wallet, Repeat, LogOut, FileText, Settings, Users, Cal
 
 interface SidebarProps {
     className?: string; // For mobile visibility classes
+    onNavigate?: () => void;
 }
 
 import { signOut } from "next-auth/react";
 
-export function Sidebar({ className }: SidebarProps) {
+export function Sidebar({ className, onNavigate }: SidebarProps) {
     const pathname = usePathname();
 
     const menuItems = [
@@ -39,6 +40,7 @@ export function Sidebar({ className }: SidebarProps) {
                         <Link
                             key={item.href}
                             href={item.href}
+                            onClick={onNavigate}
                             className={cn(
                                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors",
                                 pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))
