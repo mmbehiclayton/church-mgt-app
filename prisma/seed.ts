@@ -70,15 +70,33 @@ async function main() {
             const date = new Date(today)
             date.setDate(date.getDate() - t.daysAgo)
 
+            // Generate realistic M-PESA message with account number
+            const accountNumber = `131***${Math.floor(1000 + Math.random() * 9000)}`
+            const hour = Math.floor(Math.random() * 12) + 1
+            const minute = Math.floor(Math.random() * 60).toString().padStart(2, '0')
+            const ampm = Math.random() > 0.5 ? 'AM' : 'PM'
+            const timeStr = `${hour}:${minute} ${ampm}`
+
+            const day = date.getDate()
+            const month = date.getMonth() + 1
+            const year = date.getFullYear()
+            const dateStr = `${day}/${month}/${year}`
+
+            const refCode = `U${String.fromCharCode(65 + Math.floor(Math.random() * 26))}${Math.random().toString(36).substring(2, 9).toUpperCase()}`
+
+            const rawMessage = `Ksh ${t.amt.toFixed(2)} sent to KCB Pay Bill 522522 for account ${accountNumber} REPENTANCE AND HOLINESS MISSIONS has been received on ${dateStr} at ${timeStr}. M-PESA ref ${refCode}`
+
             await prisma.transaction.create({
                 data: {
-                    reference: t.ref,
+                    reference: refCode,
                     amount: t.amt,
                     categoryId: getCatId(t.cat),
                     transactionDate: date,
-                    transactionTime: '10:00 AM',
-                    rawMessage: 'Seeded Transaction',
-                    bank: 'M-PESA',
+                    transactionTime: timeStr,
+                    rawMessage: rawMessage,
+                    bank: 'KCB',
+                    account: accountNumber,
+                    accountName: 'REPENTANCE AND HOLINESS MISSIONS',
                 }
             })
         }

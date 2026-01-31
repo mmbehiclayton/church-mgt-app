@@ -352,3 +352,227 @@ export async function updateOrganization(data: {
         return { error: "Failed to update settings" };
     }
 }
+
+// --- User Management ---
+
+import bcrypt from 'bcryptjs';
+
+// Helper to sanitize user data (remove password)
+function sanitizeUser(user: any) {
+    const { password, passwordResetToken, passwordResetExpiry, ...sanitized } = user;
+    return sanitized;
+}
+
+export async function getUsers() {
+    try {
+        const users = await prisma.user.findMany({
+            orderBy: { createdAt: 'desc' }
+        });
+        return users.map(sanitizeUser);
+    } catch (error) {
+        console.error("Get Users Error:", error);
+        return [];
+    }
+}
+
+export async function getUserById(id: string) {
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id }
+        });
+        if (!user) return null;
+        return sanitizeUser(user);
+    } catch (error) {
+        console.error("Get User Error:", error);
+        return null;
+    }
+}
+
+export async function createUser(data: {
+    email: string;
+    password: string;
+    name?: string;
+    role?: string;
+    isActive?: boolean;
+}) {
+    try {
+        // Validate email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(data.email)) {
+            return { error: "Invalid email format" };
+        }
+
+        // Check if user already exists
+        const existing = await prisma.user.findUnique({
+            where: { email: data.email }
+        });
+
+        if (existing) {
+            return { error: "User with this email already exists" };
+        }
+
+        // Validate password strength (minimum 6 characters)
+        if (data.password.length < 6) {
+            return { error: "Password must be at least 6 characters long" };
+        }
+
+        // Hash password
+        const hashedPassword = await bcrypt.hash(data.password, 10);
+
+        // Create user
+        const user = await prisma.user.create({
+            data: {
+                email: data.email,
+                password: hashedPassword,
+                name: data.name || null,
+                role: data.role || 'ADMIN',
+                isActive: data.isActive !== undefined ? data.isActive : true,
+            }
+        });
+
+        revalidatePath("/dashboard/users");
+        return { success: true, user: sanitizeUser(user) };
+    } catch (error) {
+        console.error("Create User Error:", error);
+        return { error: "Failed to create user" };
+    }
+}
+
+export async function updateUser(id: string, data: {
+    name?: string;
+    role?: string;
+    isActive?: boolean;
+}) {
+    try {
+        const user = await prisma.user.update({
+            where: { id },
+            data: {
+                name: data.name,
+                role: data.role,
+                isActive: data.isActive,
+            }
+        });
+
+        revalidatePath("/dashboard/users");
+        return { success: true, user: sanitizeUser(user) };
+    } catch (error) {
+        console.error("Update User Error:", error);
+        return { error: "Failed to update user" };
+    }
+}
+
+export async function deleteUser(id: string, currentUserId: string) {
+    try {
+        // Prevent self-deletion
+        if (id === currentUserId) {
+            return { error: "You cannot delete your own account" };
+        }
+
+        // Check if this is the last admin
+        const adminCount = await prisma.user.count({
+            where: { role: 'ADMIN', isActive: true }
+        });
+
+        const userToDelete = await prisma.user.findUnique({
+            where: { id }
+        });
+
+        if (userToDelete?.role === 'ADMIN' && adminCount <= 1) {
+            return { error: "Cannot delete the last active admin user" };
+        }
+
+        await prisma.user.delete({
+            where: { id }
+        });
+
+        revalidatePath("/dashboard/users");
+        return { success: true };
+    } catch (error) {
+        console.error("Delete User Error:", error);
+        return { error: "Failed to delete user" };
+    }
+}
+
+export async function resetUserPassword(id: string, newPassword: string) {
+    try {
+        // Validate password strength
+        if (newPassword.length < 6) {
+            return { error: "Password must be at least 6 characters long" };
+        }
+
+        // Hash new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        await prisma.user.update({
+            where: { id },
+            data: {
+                password: hashedPassword,
+                passwordResetToken: null,
+                passwordResetExpiry: null,
+            }
+        });
+
+        revalidatePath("/dashboard/users");
+        return { success: true };
+    } catch (error) {
+        console.error("Reset Password Error:", error);
+        return { error: "Failed to reset password" };
+    }
+}
+
+export async function toggleUserStatus(id: string, currentUserId: string) {
+    try {
+        // Prevent self-deactivation
+        if (id === currentUserId) {
+            return { error: "You cannot deactivate your own account" };
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { id }
+        });
+
+        if (!user) {
+            return { error: "User not found" };
+        }
+
+        // If deactivating an admin, check if there's at least one other active admin
+        if (user.isActive && user.role === 'ADMIN') {
+            const activeAdminCount = await prisma.user.count({
+                where: { role: 'ADMIN', isActive: true }
+            });
+
+            if (activeAdminCount <= 1) {
+                return { error: "Cannot deactivate the last active admin user" };
+            }
+        }
+
+        const updatedUser = await prisma.user.update({
+            where: { id },
+            data: {
+                isActive: !user.isActive
+            }
+        });
+
+        revalidatePath("/dashboard/users");
+        return { success: true, user: sanitizeUser(updatedUser) };
+    } catch (error) {
+        console.error("Toggle User Status Error:", error);
+        return { error: "Failed to toggle user status" };
+    }
+}
+
+// Get current user from session (placeholder - you'll need to implement proper session management)
+export async function getCurrentUserId() {
+    // TODO: Implement proper session management
+    // For now, return the first admin user
+    try {
+        const user = await prisma.user.findFirst({
+            where: { role: 'ADMIN' }
+        });
+        return user?.id || null;
+    } catch (error) {
+        console.error("Get Current User Error:", error);
+        return null;
+    }
+}
+

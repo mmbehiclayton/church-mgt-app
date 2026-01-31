@@ -43,10 +43,12 @@ export default function DashboardClientLayout({
             {/* Main Content */}
             <div className="flex-1 flex flex-col h-full overflow-hidden">
                 <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} organization={organization} />
-                <main className="flex-1 overflow-y-auto p-4 md:p-6 scroll-smooth">
+                <main className="flex-1 overflow-y-auto p-4 md:p-6 scroll-smooth pb-0">
                     {children}
                 </main>
-                <Footer />
+                <div className="flex-shrink-0">
+                    <Footer />
+                </div>
             </div>
         </div>
     );
