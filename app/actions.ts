@@ -969,3 +969,225 @@ export async function deleteMembers(ids: string[]) {
         return { error: "Failed to delete members" };
     }
 }
+
+// ==================== ATTENDANCE MODULE ====================
+
+// --- Attendance Sessions ---
+
+export async function getAttendanceSessions() {
+    try {
+        const sessions = await prisma.attendanceSession.findMany({
+            orderBy: { date: 'desc' },
+            include: {
+                _count: {
+                    select: { records: true }
+                }
+            }
+        });
+        return sessions;
+    } catch (error) {
+        console.error("Get Attendance Sessions Error:", error);
+        return [];
+    }
+}
+
+export async function getAttendanceSessionById(id: string) {
+    try {
+        const session = await prisma.attendanceSession.findUnique({
+            where: { id },
+            include: {
+                records: {
+                    include: {
+                        member: true
+                    },
+                    orderBy: {
+                        member: { fullName: 'asc' }
+                    }
+                }
+            }
+        });
+        return session;
+    } catch (error) {
+        console.error("Get Attendance Session Error:", error);
+        return null;
+    }
+}
+
+export async function createAttendanceSession(data: {
+    date: Date;
+    type: 'SUNDAY_SERVICE' | 'MIDWEEK_SERVICE' | 'EVENT' | 'OTHER';
+    description?: string;
+}) {
+    try {
+        const session = await prisma.attendanceSession.create({
+            data: {
+                date: data.date,
+                type: data.type,
+                description: data.description || null,
+                status: 'DRAFT'
+            }
+        });
+
+        revalidatePath("/dashboard/attendance");
+        return { success: true, session };
+    } catch (error) {
+        console.error("Create Attendance Session Error:", error);
+        return { error: "Failed to create attendance session" };
+    }
+}
+
+export async function updateAttendanceSession(id: string, data: {
+    date?: Date;
+    type?: 'SUNDAY_SERVICE' | 'MIDWEEK_SERVICE' | 'EVENT' | 'OTHER';
+    description?: string;
+    status?: 'DRAFT' | 'SUBMITTED';
+}) {
+    try {
+        const session = await prisma.attendanceSession.update({
+            where: { id },
+            data: {
+                date: data.date,
+                type: data.type,
+                description: data.description,
+                status: data.status
+            }
+        });
+
+        revalidatePath("/dashboard/attendance");
+        return { success: true, session };
+    } catch (error) {
+        console.error("Update Attendance Session Error:", error);
+        return { error: "Failed to update attendance session" };
+    }
+}
+
+export async function deleteAttendanceSession(id: string) {
+    try {
+        await prisma.attendanceSession.delete({
+            where: { id }
+        });
+        revalidatePath("/dashboard/attendance");
+        return { success: true };
+    } catch (error) {
+        console.error("Delete Attendance Session Error:", error);
+        return { error: "Failed to delete attendance session" };
+    }
+}
+
+// --- Attendance Records ---
+
+export async function upsertAttendanceRecords(sessionId: string, records: { memberId: string; status: 'PRESENT' | 'ABSENT' | 'EXCUSED'; notes?: string }[]) {
+    try {
+        // Use transaction for bulk operations
+        await prisma.$transaction(
+            records.map(record =>
+                prisma.attendanceRecord.upsert({
+                    where: {
+                        sessionId_memberId: {
+                            sessionId,
+                            memberId: record.memberId
+                        }
+                    },
+                    update: {
+                        status: record.status,
+                        notes: record.notes
+                    },
+                    create: {
+                        sessionId,
+                        memberId: record.memberId,
+                        status: record.status,
+                        notes: record.notes
+                    }
+                })
+            )
+        );
+
+        revalidatePath(`/dashboard/attendance/${sessionId}`);
+        return { success: true };
+    } catch (error) {
+        console.error("Upsert Attendance Records Error:", error);
+        return { error: "Failed to save attendance records" };
+    }
+}
+
+// --- Analytics ---
+
+export async function getAttendanceAnalytics() {
+    try {
+        // 1. Recent Trends (Last 12 weeks of Sunday Services)
+        const recentSessions = await prisma.attendanceSession.findMany({
+            where: {
+                type: 'SUNDAY_SERVICE',
+                status: 'SUBMITTED' // Only count submitted sessions
+            },
+            orderBy: { date: 'desc' },
+            take: 12,
+            include: {
+                records: {
+                    where: { status: 'PRESENT' }
+                }
+            }
+        });
+
+        const trends = recentSessions.map(session => ({
+            date: session.date.toISOString().split('T')[0],
+            count: session.records.length
+        })).reverse();
+
+        // 2. Watchlist (Absent for last 2 consecutive Sunday sessions)
+        // Get last 2 submitted Sunday sessions
+        const lastTwoSessions = await prisma.attendanceSession.findMany({
+            where: {
+                type: 'SUNDAY_SERVICE',
+                status: 'SUBMITTED'
+            },
+            orderBy: { date: 'desc' },
+            take: 2,
+            select: { id: true }
+        });
+
+        let watchlist: any[] = [];
+
+        if (lastTwoSessions.length === 2) {
+            const sessionIds = lastTwoSessions.map(s => s.id);
+
+            // Find members who have ABSENT records for BOTH sessions
+            // OR members who have NO records (implicitly absent if not in list? No, explicitly recorded as absent usually)
+            // Let's assume we mark everyone. So check for explicit ABSENT.
+
+            const absenteeRecords = await prisma.attendanceRecord.findMany({
+                where: {
+                    sessionId: { in: sessionIds },
+                    status: 'ABSENT'
+                },
+                select: { memberId: true }
+            });
+
+            // Count absences per member
+            const memberAbsenceCount = new Map<string, number>();
+            absenteeRecords.forEach(r => {
+                memberAbsenceCount.set(r.memberId, (memberAbsenceCount.get(r.memberId) || 0) + 1);
+            });
+
+            // Filter for members with 2 absences
+            const watchlistMemberIds = Array.from(memberAbsenceCount.entries())
+                .filter(([_, count]) => count === 2)
+                .map(([id, _]) => id);
+
+            if (watchlistMemberIds.length > 0) {
+                watchlist = await prisma.member.findMany({
+                    where: { id: { in: watchlistMemberIds } },
+                    include: {
+                        homeFellowship: true
+                    }
+                });
+            }
+        }
+
+        return { trends, watchlist };
+
+    } catch (error) {
+        console.error("Get Attendance Analytics Error:", error);
+        return { trends: [], watchlist: [] };
+    }
+}

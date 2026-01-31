@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Wallet, Repeat, LogOut, FileText, Settings, Users } from "lucide-react";
+import { LayoutDashboard, Wallet, Repeat, LogOut, FileText, Settings, Users, Calendar } from "lucide-react";
 
 interface SidebarProps {
     className?: string; // For mobile visibility classes
@@ -18,6 +18,7 @@ export function Sidebar({ className }: SidebarProps) {
         { name: "Finance", href: "/dashboard", icon: LayoutDashboard },
         { name: "Transactions", href: "/dashboard?view=transactions", icon: Repeat },
         { name: "Membership", href: "/dashboard/membership", icon: Users },
+        { name: "Attendance", href: "/dashboard/attendance", icon: Calendar },
         // { name: "Reports", href: "/dashboard/reports", icon: FileText },
         { name: "User Management", href: "/dashboard/users", icon: Users },
         { name: "Settings", href: "/dashboard/settings", icon: Settings },

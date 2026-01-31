@@ -74,6 +74,7 @@ model Member {
   homeFellowshipId String?
   homeFellowship HomeFellowship? @relation(fields: [homeFellowshipId], references: [id])
   departments  MemberDepartment[]
+  attendance   AttendanceRecord[]
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 }
@@ -86,6 +87,49 @@ model HomeFellowship {
   members     Member[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model AttendanceSession {
+  id          String             @id @default(cuid())
+  date        DateTime
+  type        AttendanceType     @default(SUNDAY_SERVICE)
+  description String?
+  status      SessionStatus      @default(DRAFT)
+  records     AttendanceRecord[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+model AttendanceRecord {
+  id        String           @id @default(cuid())
+  session   AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId String
+  member    Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId  String
+  status    AttendanceStatus @default(PRESENT)
+  notes     String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([sessionId, memberId])
+}
+
+enum AttendanceType {
+  SUNDAY_SERVICE
+  MIDWEEK_SERVICE
+  EVENT
+  OTHER
+}
+
+enum SessionStatus {
+  DRAFT
+  SUBMITTED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  EXCUSED
 }
 
 model MemberDepartment {
