@@ -39,9 +39,15 @@ interface Category {
     name: string;
 }
 
-export default function ExportButtons({ categories }: { categories: Category[] }) {
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+
+export default function ExportButtons({ categories, asMenuItem = false }: { categories: Category[], asMenuItem?: boolean }) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+
+    // ... (rest of logic)
+
+    // Using same strategy as ImportButton to replace header and wrapper
 
     // Separate states for start and end date
     const [startDate, setStartDate] = useState<Date | undefined>(
@@ -250,11 +256,19 @@ export default function ExportButtons({ categories }: { categories: Category[] }
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                    <Download className="mr-2 h-4 w-4" /> Export
-                </Button>
-            </DialogTrigger>
+            {asMenuItem ? (
+                <DialogTrigger asChild>
+                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                        <Download className="mr-2 h-4 w-4" /> Export
+                    </DropdownMenuItem>
+                </DialogTrigger>
+            ) : (
+                <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                        <Download className="mr-2 h-4 w-4" /> Export
+                    </Button>
+                </DialogTrigger>
+            )}
             <DialogContent className="sm:max-w-[450px]">
                 <DialogHeader>
                     <DialogTitle>Export Transactions</DialogTitle>

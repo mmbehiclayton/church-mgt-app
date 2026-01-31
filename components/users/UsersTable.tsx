@@ -153,7 +153,7 @@ export default function UsersTable({ users }: UsersTableProps) {
         <>
             <div className="bg-white rounded-lg shadow">
                 <div className="p-6 border-b border-gray-200">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
                             <h2 className="text-lg font-semibold text-gray-900">Users</h2>
                             {selectedIds.length > 0 && (

@@ -32,7 +32,16 @@ interface ExportMembersButtonProps {
     homeFellowships: HomeFellowship[];
 }
 
-export default function ExportMembersButton({ members, departments, homeFellowships }: ExportMembersButtonProps) {
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+
+interface ExportMembersButtonProps {
+    members: Member[];
+    departments: Department[];
+    homeFellowships: HomeFellowship[];
+    asMenuItem?: boolean;
+}
+
+export default function ExportMembersButton({ members, departments, homeFellowships, asMenuItem = false }: ExportMembersButtonProps) {
     const [showDialog, setShowDialog] = useState(false);
     const [exportType, setExportType] = useState<"all" | "department" | "gender" | "fellowship">("all");
     const [selectedDepartment, setSelectedDepartment] = useState("");
@@ -152,15 +161,27 @@ export default function ExportMembersButton({ members, departments, homeFellowsh
 
     return (
         <>
-            <Button
-                onClick={() => setShowDialog(true)}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-            >
-                <Download className="h-4 w-4" />
-                Export
-            </Button>
+            {asMenuItem ? (
+                <DropdownMenuItem
+                    onSelect={(e) => {
+                        e.preventDefault();
+                        setShowDialog(true);
+                    }}
+                >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export Members
+                </DropdownMenuItem>
+            ) : (
+                <Button
+                    onClick={() => setShowDialog(true)}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2"
+                >
+                    <Download className="h-4 w-4" />
+                    Export
+                </Button>
+            )}
 
             {showDialog && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">

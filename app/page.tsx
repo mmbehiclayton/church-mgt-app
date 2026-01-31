@@ -44,7 +44,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Church Finance App</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center">Church Management System</CardTitle>
           <CardDescription className="text-center">
             Enter your email and password to access the dashboard
           </CardDescription>

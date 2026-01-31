@@ -9,6 +9,16 @@ import KPIGrid from "@/components/dashboard/KPIGrid";
 import AnalyticsCharts from "@/components/dashboard/AnalyticsCharts";
 import CollapsibleSection from "@/components/dashboard/CollapsibleSection";
 import { CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Menu } from "lucide-react";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export const dynamic = 'force-dynamic';
 
@@ -40,8 +50,32 @@ export default async function DashboardPage(props: PageProps) {
     return (
         <div className="space-y-6 pb-20">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <h2 className="text-3xl font-bold tracking-tight text-gray-900">Finance Overview</h2>
-                <div className="flex gap-2 flex-wrap">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-3xl font-bold tracking-tight text-gray-900">Finance Overview</h2>
+
+                    {/* Mobile Actions Menu */}
+                    <div className="md:hidden">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="icon">
+                                    <Menu className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <TransactionModal categories={categories} asMenuItem />
+                                <CategoryModal initialCategories={categories} asMenuItem />
+                                <DropdownMenuSeparator />
+                                <ImportButton asMenuItem />
+                                <ExportButtons categories={categories} asMenuItem />
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                </div>
+
+                {/* Desktop Actions */}
+                <div className="hidden md:flex gap-2 flex-wrap">
                     <TransactionModal categories={categories} />
                     <CategoryModal initialCategories={categories} />
                     <ImportButton />

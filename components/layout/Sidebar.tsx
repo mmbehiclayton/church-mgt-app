@@ -33,7 +33,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
         <div className={cn("pb-12 h-full w-64 border-r bg-white space-y-4 py-4 flex flex-col", className)}>
             <div className="px-3 py-2">
                 <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight text-primary">
-                    Church Finance
+                    Church Management System
                 </h2>
                 <div className="space-y-1">
                     {menuItems.map((item) => (

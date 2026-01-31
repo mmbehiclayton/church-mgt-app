@@ -13,24 +13,35 @@ import {
 import { Settings } from "lucide-react";
 import CategoriesManager from "@/components/CategoriesManager";
 
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+
 interface Category {
     id: string;
     name: string;
     createdAt: Date;
 }
 
-export default function CategoryModal({ initialCategories }: { initialCategories: Category[] }) {
+export default function CategoryModal({ initialCategories, asMenuItem = false }: { initialCategories: Category[], asMenuItem?: boolean }) {
     const [open, setOpen] = useState(false);
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2">
-                    <Settings className="h-4 w-4" />
-                    <span className="sm:hidden">Categories</span>
-                    <span className="hidden sm:inline">Manage Categories</span>
-                </Button>
-            </DialogTrigger>
+            {asMenuItem ? (
+                <DialogTrigger asChild>
+                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                        <Settings className="mr-2 h-4 w-4" />
+                        Manage Categories
+                    </DropdownMenuItem>
+                </DialogTrigger>
+            ) : (
+                <DialogTrigger asChild>
+                    <Button variant="outline" className="flex items-center gap-2">
+                        <Settings className="h-4 w-4" />
+                        <span className="sm:hidden">Categories</span>
+                        <span className="hidden sm:inline">Manage Categories</span>
+                    </Button>
+                </DialogTrigger>
+            )}
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Manage Categories</DialogTitle>

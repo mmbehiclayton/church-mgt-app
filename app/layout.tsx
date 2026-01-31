@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Church Finance App",
-  description: "Church Finance App",
+  title: "Church Management System",
+  description: "Church Management System",
 };
 
 export default function RootLayout({

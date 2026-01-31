@@ -1184,10 +1184,39 @@ export async function getAttendanceAnalytics() {
             }
         }
 
-        return { trends, watchlist };
+        // 3. Stats for Cards (Latest Session)
+        let stats = {
+            present: 0,
+            absent: 0,
+            watchlist: watchlist.length
+        };
+
+        if (recentSessions.length > 0) {
+            const latestSession = recentSessions[0];
+            // We need to fetch full stats for this session to get absent count correctly
+            // Or just check records. content of recentSessions includes records where status=PRESENT
+            // We need to know TOTAL records to know absent?
+            // "Absent" usually means 'Total Members' - 'Present'.
+            // But we only have 'records' where status='PRESENT' in the query above.
+
+            // Let's refetch the latest session fully to be accurate
+            const latestSessionFull = await prisma.attendanceSession.findUnique({
+                where: { id: latestSession.id },
+                include: {
+                    records: true
+                }
+            });
+
+            if (latestSessionFull) {
+                stats.present = latestSessionFull.records.filter(r => r.status === 'PRESENT').length;
+                stats.absent = latestSessionFull.records.filter(r => r.status === 'ABSENT').length;
+            }
+        }
+
+        return { trends, watchlist, stats };
 
     } catch (error) {
         console.error("Get Attendance Analytics Error:", error);
-        return { trends: [], watchlist: [] };
+        return { trends: [], watchlist: [], stats: { present: 0, absent: 0, watchlist: 0 } };
     }
 }

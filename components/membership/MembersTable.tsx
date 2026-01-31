@@ -2,8 +2,16 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { UserPlus, Pencil, Trash2, Download, Filter, User, Building2 } from "lucide-react";
+import { UserPlus, Pencil, Trash2, Download, Filter, User, Building2, Menu, MoreHorizontal, Layers } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import AddMemberModal from "@/components/membership/AddMemberModal";
 import EditMemberModal from "@/components/membership/EditMemberModal";
 import DeleteMemberDialog from "@/components/membership/DeleteMemberDialog";
@@ -185,33 +193,72 @@ export default function MembersTable({ members, departments, homeFellowships }: 
                                 </Button>
                             )}
 
-                            <ExportMembersButton
-                                members={members}
-                                departments={departments}
-                                homeFellowships={homeFellowships}
-                            />
+                            <div className="flex items-center gap-2">
+                                {/* Mobile Actions Menu */}
+                                <div className="md:hidden">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="outline" size="icon">
+                                                <Menu className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-56">
+                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem onClick={() => setShowAddModal(true)}>
+                                                <UserPlus className="mr-2 h-4 w-4" />
+                                                Add Member
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setShowAddDepartmentModal(true)}>
+                                                <Layers className="mr-2 h-4 w-4" />
+                                                Add Department
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setShowAddHomeFellowshipModal(true)}>
+                                                <Building2 className="mr-2 h-4 w-4" />
+                                                Add Fellowship
+                                            </DropdownMenuItem>
+                                            <ExportMembersButton
+                                                members={members}
+                                                departments={departments}
+                                                homeFellowships={homeFellowships}
+                                                asMenuItem={true}
+                                            />
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
 
-                            <Button
-                                onClick={() => setShowAddDepartmentModal(true)}
-                                variant="outline"
-                                className="flex items-center gap-2"
-                            >
-                                Add Department
-                            </Button>
+                                {/* Desktop Actions */}
+                                <div className="hidden md:flex items-center gap-2">
+                                    <ExportMembersButton
+                                        members={members}
+                                        departments={departments}
+                                        homeFellowships={homeFellowships}
+                                    />
 
-                            <Button
-                                onClick={() => setShowAddHomeFellowshipModal(true)}
-                                variant="outline"
-                                className="flex items-center gap-2"
-                            >
-                                <Building2 className="h-4 w-4" />
-                                Add Fellowship
-                            </Button>
+                                    <Button
+                                        onClick={() => setShowAddDepartmentModal(true)}
+                                        variant="outline"
+                                        className="flex items-center gap-2"
+                                    >
+                                        <Layers className="h-4 w-4" />
+                                        Add Department
+                                    </Button>
 
-                            <Button onClick={() => setShowAddModal(true)} className="flex items-center gap-2">
-                                <UserPlus className="h-4 w-4" />
-                                Add Member
-                            </Button>
+                                    <Button
+                                        onClick={() => setShowAddHomeFellowshipModal(true)}
+                                        variant="outline"
+                                        className="flex items-center gap-2"
+                                    >
+                                        <Building2 className="h-4 w-4" />
+                                        Add Fellowship
+                                    </Button>
+
+                                    <Button onClick={() => setShowAddModal(true)} className="flex items-center gap-2">
+                                        <UserPlus className="h-4 w-4" />
+                                        Add Member
+                                    </Button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

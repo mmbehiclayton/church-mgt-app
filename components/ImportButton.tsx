@@ -19,11 +19,24 @@ import { importTransactions } from "@/app/actions";
 import { format } from "date-fns";
 import { useToast } from "@/components/ui/toast";
 
-export default function ImportButton() {
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+
+export default function ImportButton({ asMenuItem = false }: { asMenuItem?: boolean }) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [file, setFile] = useState<File | null>(null);
     const { addToast } = useToast();
+
+    // ... (rest of logic)
+
+    // Using a simpler render strategy for the change
+
+    // We need to return the full component logic, but I can't see the middle part in the Replace call context easily unless I include it.
+    // However, I can target the component signature and Return statement.
+    // But since I have to wrap the whole Dialog, I should replace large chunk.
+
+    // Wait, the tool definition says "To edit a single contiguous block of lines". I should be careful not to replace the logic inside unless I have it.
+    // I have the file content from the previous turn.
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -141,11 +154,19 @@ export default function ImportButton() {
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                    <Upload className="mr-2 h-4 w-4" /> Import
-                </Button>
-            </DialogTrigger>
+            {asMenuItem ? (
+                <DialogTrigger asChild>
+                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                        <Upload className="mr-2 h-4 w-4" /> Import
+                    </DropdownMenuItem>
+                </DialogTrigger>
+            ) : (
+                <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                        <Upload className="mr-2 h-4 w-4" /> Import
+                    </Button>
+                </DialogTrigger>
+            )}
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
                     <DialogTitle>Import Transactions</DialogTitle>
