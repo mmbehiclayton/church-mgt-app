@@ -17,7 +17,6 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
 
     const menuItems = [
         { name: "Finance", href: "/dashboard", icon: LayoutDashboard },
-        { name: "Transactions", href: "/dashboard?view=transactions", icon: Repeat },
         { name: "Membership", href: "/dashboard/membership", icon: Users },
         { name: "Attendance", href: "/dashboard/attendance", icon: Calendar },
         // { name: "Reports", href: "/dashboard/reports", icon: FileText },
