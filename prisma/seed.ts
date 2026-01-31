@@ -104,6 +104,53 @@ async function main() {
     } else {
         console.log('Transactions already exist, skipping seed.')
     }
+
+    // 4. Create Departments
+    const departments = [
+        { name: 'Youth', description: 'Youth ministry and activities' },
+        { name: 'Choir', description: 'Music and worship team' },
+        { name: 'Ushers', description: 'Welcoming and seating congregation' },
+        { name: 'Sunday School', description: 'Children and adult education' },
+        { name: 'Intercessory', description: 'Prayer and intercession ministry' }
+    ]
+
+    const createdDepts = []
+    for (const dept of departments) {
+        const d = await prisma.department.upsert({
+            where: { name: dept.name },
+            update: {},
+            create: { name: dept.name, description: dept.description },
+        })
+        createdDepts.push(d)
+    }
+    console.log(`Created ${createdDepts.length} departments`)
+
+    // 5. Create Sample Members (if none exist)
+    const memberCount = await prisma.member.count()
+    if (memberCount === 0) {
+        console.log('Seeding members...')
+        const sampleMembers = [
+            { fullName: 'John Kamau', phoneNumber: '0712345678', gender: 'Male', departmentId: createdDepts[0].id },
+            { fullName: 'Mary Wanjiru', phoneNumber: '0723456789', gender: 'Female', departmentId: createdDepts[1].id },
+            { fullName: 'Peter Omondi', phoneNumber: '0734567890', gender: 'Male', departmentId: createdDepts[2].id },
+            { fullName: 'Grace Akinyi', phoneNumber: '0745678901', gender: 'Female', departmentId: createdDepts[3].id },
+            { fullName: 'David Mwangi', phoneNumber: '0756789012', gender: 'Male', departmentId: createdDepts[4].id },
+            { fullName: 'Sarah Njeri', phoneNumber: '0767890123', gender: 'Female', departmentId: createdDepts[0].id },
+            { fullName: 'James Otieno', phoneNumber: '0778901234', gender: 'Male', departmentId: createdDepts[1].id },
+            { fullName: 'Ruth Wambui', phoneNumber: '0789012345', gender: 'Female', departmentId: createdDepts[2].id },
+            { fullName: 'Samuel Kipchoge', phoneNumber: '0790123456', gender: 'Male', departmentId: createdDepts[3].id },
+            { fullName: 'Esther Chebet', phoneNumber: '0701234567', gender: 'Female', departmentId: createdDepts[4].id },
+        ]
+
+        for (const member of sampleMembers) {
+            await prisma.member.create({
+                data: member
+            })
+        }
+        console.log(`Created ${sampleMembers.length} sample members`)
+    } else {
+        console.log('Members already exist, skipping seed.')
+    }
 }
 
 main()

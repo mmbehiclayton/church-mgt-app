@@ -80,7 +80,7 @@ export async function importTransactions(data: {
 
         // 3. Bulk Insert
         const result = await prisma.transaction.createMany({
-            // @ts-ignore - CreateMany input type issue with Relations, but valid in Prisma
+            // @ts-expect-error - CreateMany input type issue with Relations, but valid in Prisma
             data: validTransactions,
             skipDuplicates: true
         });
@@ -576,3 +576,396 @@ export async function getCurrentUserId() {
     }
 }
 
+// ==================== MEMBERSHIP MODULE ====================
+
+// Department Actions
+export async function getDepartments() {
+    try {
+        const departments = await prisma.department.findMany({
+            include: {
+                _count: {
+                    select: { members: true }
+                }
+            },
+            orderBy: { name: 'asc' }
+        });
+        return departments;
+    } catch (error) {
+        console.error("Get Departments Error:", error);
+        return [];
+    }
+}
+
+export async function getDepartmentById(id: string) {
+    try {
+        const department = await prisma.department.findUnique({
+            where: { id },
+            include: {
+                members: {
+                    include: {
+                        member: true
+                    }
+                },
+                _count: {
+                    select: { members: true }
+                }
+            }
+        });
+        return department;
+    } catch (error) {
+        console.error("Get Department Error:", error);
+        return null;
+    }
+}
+
+export async function createDepartment(data: { name: string; description?: string }) {
+    try {
+        // Validate name
+        if (!data.name || data.name.trim().length < 2) {
+            return { error: "Department name must be at least 2 characters" };
+        }
+
+        // Check if department already exists
+        const existing = await prisma.department.findUnique({
+            where: { name: data.name.trim() }
+        });
+
+        if (existing) {
+            return { error: "Department with this name already exists" };
+        }
+
+        const department = await prisma.department.create({
+            data: {
+                name: data.name.trim(),
+                description: data.description?.trim() || null
+            }
+        });
+
+        revalidatePath("/dashboard/membership");
+        return { success: true, department };
+    } catch (error) {
+        console.error("Create Department Error:", error);
+        return { error: "Failed to create department" };
+    }
+}
+
+export async function updateDepartment(id: string, data: { name?: string; description?: string }) {
+    try {
+        if (data.name && data.name.trim().length < 2) {
+            return { error: "Department name must be at least 2 characters" };
+        }
+
+        const department = await prisma.department.update({
+            where: { id },
+            data: {
+                name: data.name?.trim(),
+                description: data.description?.trim()
+            }
+        });
+
+        revalidatePath("/dashboard/membership");
+        return { success: true, department };
+    } catch (error) {
+        console.error("Update Department Error:", error);
+        return { error: "Failed to update department" };
+    }
+}
+
+// --- Home Fellowship Actions ---
+
+export async function getHomeFellowships() {
+    try {
+        const fellowships = await prisma.homeFellowship.findMany({
+            include: {
+                _count: {
+                    select: { members: true }
+                }
+            },
+            orderBy: { name: 'asc' }
+        });
+        return fellowships;
+    } catch (error) {
+        console.error("Get Home Fellowships Error:", error);
+        return [];
+    }
+}
+
+export async function createHomeFellowship(data: { name: string; leader?: string; location?: string }) {
+    try {
+        if (!data.name || data.name.trim().length < 2) {
+            return { error: "Name must be at least 2 characters" };
+        }
+
+        const existing = await prisma.homeFellowship.findUnique({
+            where: { name: data.name.trim() }
+        });
+
+        if (existing) {
+            return { error: "Home Fellowship with this name already exists" };
+        }
+
+        const homeFellowship = await prisma.homeFellowship.create({
+            data: {
+                name: data.name.trim(),
+                leader: data.leader?.trim() || null,
+                location: data.location?.trim() || null
+            }
+        });
+
+        revalidatePath("/dashboard/membership");
+        return { success: true, homeFellowship };
+    } catch (error) {
+        console.error("Create Home Fellowship Error:", error);
+        return { error: "Failed to create Home Fellowship" };
+    }
+}
+
+export async function updateHomeFellowship(id: string, data: { name?: string; leader?: string; location?: string }) {
+    try {
+        if (data.name && data.name.trim().length < 2) {
+            return { error: "Name must be at least 2 characters" };
+        }
+
+        const homeFellowship = await prisma.homeFellowship.update({
+            where: { id },
+            data: {
+                name: data.name?.trim(),
+                leader: data.leader?.trim(),
+                location: data.location?.trim()
+            }
+        });
+
+        revalidatePath("/dashboard/membership");
+        return { success: true, homeFellowship };
+    } catch (error) {
+        console.error("Update Home Fellowship Error:", error);
+        return { error: "Failed to update Home Fellowship" };
+    }
+}
+
+export async function deleteHomeFellowship(id: string) {
+    try {
+        const fellowship = await prisma.homeFellowship.findUnique({
+            where: { id },
+            include: {
+                _count: {
+                    select: { members: true }
+                }
+            }
+        });
+
+        if (!fellowship) return { error: "Home Fellowship not found" };
+
+        if (fellowship._count.members > 0) {
+            return { error: "Cannot delete fellowship with assigned members" };
+        }
+
+        await prisma.homeFellowship.delete({ where: { id } });
+        revalidatePath("/dashboard/membership");
+        return { success: true };
+    } catch (error) {
+        console.error("Delete Home Fellowship Error:", error);
+        return { error: "Failed to delete Home Fellowship" };
+    }
+}
+
+export async function deleteHomeFellowships(ids: string[]) {
+    try {
+        // Optional: Check for members constraint for bulk delete if strict safety is needed
+        await prisma.homeFellowship.deleteMany({
+            where: { id: { in: ids } }
+        });
+        revalidatePath("/dashboard/membership");
+        return { success: true };
+    } catch (error) {
+        console.error("Delete Home Fellowships Error:", error);
+        return { error: "Failed to delete Home Fellowships" };
+    }
+}
+
+// Member Actions
+
+// Member Actions
+export async function getMembers(filters?: { departmentId?: string; gender?: string }) {
+    try {
+        const where: any = {};
+
+        if (filters?.departmentId) {
+            where.departments = {
+                some: {
+                    departmentId: filters.departmentId
+                }
+            };
+        }
+
+        if (filters?.gender) {
+            where.gender = filters.gender;
+        }
+
+        const members = await prisma.member.findMany({
+            where,
+            include: {
+                homeFellowship: true,
+                departments: {
+                    include: {
+                        department: true
+                    }
+                }
+            },
+            orderBy: { fullName: 'asc' }
+        });
+
+        return members;
+    } catch (error) {
+        console.error("Get Members Error:", error);
+        return [];
+    }
+}
+
+export async function getMemberById(id: string) {
+    try {
+        const member = await prisma.member.findUnique({
+            where: { id },
+            include: {
+                homeFellowship: true,
+                departments: {
+                    include: {
+                        department: true
+                    }
+                }
+            }
+        });
+        return member;
+    } catch (error) {
+        console.error("Get Member Error:", error);
+        return null;
+    }
+}
+
+export async function createMember(data: {
+    fullName: string;
+    phoneNumber: string;
+    gender: string;
+    departmentIds?: string[];
+    homeFellowshipId?: string;
+}) {
+    try {
+        // Validate full name
+        if (!data.fullName || data.fullName.trim().length < 2) {
+            return { error: "Full name must be at least 2 characters" };
+        }
+
+        // Validate phone number (basic validation)
+        if (!data.phoneNumber || data.phoneNumber.trim().length < 10) {
+            return { error: "Please provide a valid phone number" };
+        }
+
+        // Validate gender
+        if (!data.gender || !['Male', 'Female'].includes(data.gender)) {
+            return { error: "Gender must be either Male or Female" };
+        }
+
+        const member = await prisma.member.create({
+            data: {
+                fullName: data.fullName.trim(),
+                phoneNumber: data.phoneNumber.trim(),
+                gender: data.gender,
+                homeFellowshipId: data.homeFellowshipId || null,
+                departments: {
+                    create: (data.departmentIds || []).map(deptId => ({
+                        departmentId: deptId
+                    }))
+                }
+            }
+        });
+
+        revalidatePath("/dashboard/membership");
+        return { success: true, member };
+    } catch (error) {
+        console.error("Create Member Error:", error);
+        return { error: "Failed to create member" };
+    }
+}
+
+export async function updateMember(id: string, data: {
+    fullName?: string;
+    phoneNumber?: string;
+    gender?: string;
+    departmentIds?: string[];
+    homeFellowshipId?: string | null;
+}) {
+    try {
+        if (data.fullName && data.fullName.trim().length < 2) {
+            return { error: "Full name must be at least 2 characters" };
+        }
+
+        if (data.phoneNumber && data.phoneNumber.trim().length < 10) {
+            return { error: "Please provide a valid phone number" };
+        }
+
+        if (data.gender && !['Male', 'Female'].includes(data.gender)) {
+            return { error: "Gender must be either Male or Female" };
+        }
+
+        const updateData: any = {
+            fullName: data.fullName?.trim(),
+            phoneNumber: data.phoneNumber?.trim(),
+            gender: data.gender,
+        };
+
+        if (data.homeFellowshipId !== undefined) {
+            updateData.homeFellowshipId = data.homeFellowshipId;
+        }
+
+        if (data.departmentIds !== undefined) {
+            // Delete existing relationships and create new ones
+            updateData.departments = {
+                deleteMany: {},
+                create: data.departmentIds.map(deptId => ({
+                    departmentId: deptId
+                }))
+            };
+        }
+
+        const member = await prisma.member.update({
+            where: { id },
+            data: updateData
+        });
+
+        revalidatePath("/dashboard/membership");
+        return { success: true, member };
+    } catch (error) {
+        console.error("Update Member Error:", error);
+        return { error: "Failed to update member" };
+    }
+}
+
+export async function deleteMember(id: string) {
+    try {
+        await prisma.member.delete({
+            where: { id }
+        });
+
+        revalidatePath("/dashboard/membership");
+        return { success: true };
+    } catch (error) {
+        console.error("Delete Member Error:", error);
+        return { error: "Failed to delete member" };
+    }
+}
+
+export async function deleteMembers(ids: string[]) {
+    try {
+        await prisma.member.deleteMany({
+            where: {
+                id: { in: ids }
+            }
+        });
+
+        revalidatePath("/dashboard/membership");
+        return { success: true };
+    } catch (error) {
+        console.error("Delete Members Error:", error);
+        return { error: "Failed to delete members" };
+    }
+}

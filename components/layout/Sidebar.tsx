@@ -17,6 +17,7 @@ export function Sidebar({ className }: SidebarProps) {
     const menuItems = [
         { name: "Finance", href: "/dashboard", icon: LayoutDashboard },
         { name: "Transactions", href: "/dashboard?view=transactions", icon: Repeat },
+        { name: "Membership", href: "/dashboard/membership", icon: Users },
         // { name: "Reports", href: "/dashboard/reports", icon: FileText },
         { name: "User Management", href: "/dashboard/users", icon: Users },
         { name: "Settings", href: "/dashboard/settings", icon: Settings },
