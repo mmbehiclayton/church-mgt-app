@@ -11,79 +11,90 @@ export interface ParsedTransaction {
 
 export function parseMpesaMessage(message: string): ParsedTransaction | null {
   try {
-    // Example: "Ksh 500.00 sent to KCB Pay Bill 522522 for account 131***4378 REPENTANCE AND HOLINESS MISSIONS has been received on 30/01/2026 at 06:18 AM. M-PESA ref UAUEB59H97"
+    // Example 1: "Ksh 500.00 sent to KCB Pay Bill 522522 for account 131***4378 REPENTANCE AND HOLINESS MISSIONS has been received on 30/01/2026 at 06:18 AM. M-PESA ref UAUEB59H97"
+    // Example 2: "UB1GT5MML6 Confirmed. KSH250.00 sent to KCB Paybill AC for account 1304431959 on 1/2/26 at 1:32 PM"
 
     // 1. Clean message
     const cleanMsg = message.replace(/\r?\n|\r/g, " ").trim();
 
-    // 2. Extract Amount
+    // 2. Extract Reference
+    // Check for "M-PESA ref REF" OR Start with "REF Confirmed"
+    let reference = "";
+    const refMatchTrailing = cleanMsg.match(/M-PESA\s+ref\s+([A-Z0-9]+)/i);
+    if (refMatchTrailing) {
+      reference = refMatchTrailing[1];
+    } else {
+      // Check for leading "REF Confirmed"
+      const refMatchLeading = cleanMsg.match(/^([A-Z0-9]+)\s+Confirmed/i);
+      if (refMatchLeading) {
+        reference = refMatchLeading[1];
+      }
+    }
+
+    if (!reference) return null;
+
+    // 3. Extract Amount
+    // Matches "Ksh 250.00" or "KSH250.00"
     const amountMatch = cleanMsg.match(/Ksh\s*([0-9,.]+)\s+sent\s+to/i);
     if (!amountMatch) return null;
     const amountStr = amountMatch[1].replace(/,/g, '');
     const amount = parseFloat(amountStr);
 
-    // 3. Extract Paybill / Bank
-    // "sent to KCB Pay Bill 522522 for account"
-    // 3. Extract Paybill / Bank
-    // "sent to KCB Pay Bill 522522 for account"
-    // "sent to Equity Bank"
-
-    // Default to KCB as requested by user if not explicitly another bank
+    // 4. Extract Paybill / Bank
     let paymentMethod = "KCB"; // Default
 
-    const recipientMatch = cleanMsg.match(/sent\s+to\s+(.*?)(?:\s+Pay\s+Bill|\s+for\s+account)/i);
+    // Look for "sent to X"
+    const recipientMatch = cleanMsg.match(/sent\s+to\s+(.*?)(?:\s+Pay\s*Bill|\s+for\s+account)/i);
     if (recipientMatch) {
       const potentialName = recipientMatch[1].trim();
-      // If we captured something valid that isn't just digits/dates
       if (potentialName && potentialName.length > 1) {
         paymentMethod = potentialName;
       }
-    } else {
-      // Fallback: Check for "KCB Pay Bill" specifically or other knowns?
-      // But user said "default to KCB". logic above does that if match fails?
-      // well, let's keep it simple.
-      if (cleanMsg.includes("Pay Bill")) {
-        const payBillMatch = cleanMsg.match(/sent\s+to\s+(.*?)\s+Pay\s+Bill/i);
-        if (payBillMatch) paymentMethod = payBillMatch[1].trim();
-      }
+    } else if (cleanMsg.includes("Pay Bill") || cleanMsg.includes("Paybill")) {
+      // Fallback for "KCB Paybill AC" -> Extract anything before "Paybill" or just assume from context
+      const payBillMatch = cleanMsg.match(/sent\s+to\s+(.*?)\s+Pay\s*Bill/i);
+      if (payBillMatch) paymentMethod = payBillMatch[1].trim();
     }
 
-    // Ensure we don't return "Pay Bill" as the bank name if regex slipped
-    if (paymentMethod.toLowerCase().includes("pay bill")) {
-      paymentMethod = paymentMethod.replace(/pay\s+bill/i, "").trim();
+    // Cleanup payment method
+    if (paymentMethod.toLowerCase().includes("pay bill") || paymentMethod.toLowerCase().includes("paybill")) {
+      paymentMethod = paymentMethod.replace(/pay\s*bill/i, "").trim();
     }
     if (!paymentMethod) paymentMethod = "KCB";
 
-    // 4. Extract Account
+    // 5. Extract Account
     // "for account 131***4378"
     const accountMatch = cleanMsg.match(/for\s+account\s+(\S+)/i);
     const account = accountMatch ? accountMatch[1] : "";
 
-    // 5. Extract Account Name
+    // 6. Extract Account Name
+    // In the second format, account name might not be present or is just "AC" (which we might ignore?)
     // "131***4378 REPENTANCE AND HOLINESS MISSIONS has been received"
+    let accountName = "";
     const nameMatch = cleanMsg.match(/account\s+\S+\s+(.*?)\s+has\s+been\s+received/i);
-    const accountName = nameMatch ? nameMatch[1].trim() : "";
+    if (nameMatch) {
+      accountName = nameMatch[1].trim();
+    }
 
-    // 6. Extract Date & Time
-    // "on 30/01/2026 at 06:18 AM"
-    const dateTimeMatch = cleanMsg.match(/on\s+(\d{1,2}\/\d{1,2}\/\d{4})\s+at\s+(\d{1,2}:\d{2}\s*[AP]M)/i);
+    // 7. Extract Date & Time
+    // "on 30/01/2026 at 06:18 AM" OR "on 1/2/26 at 1:32 PM"
+    // Regex Update: (\d{1,2}\/\d{1,2}\/\d{2,4})
+    const dateTimeMatch = cleanMsg.match(/on\s+(\d{1,2}\/\d{1,2}\/\d{2,4})\s+at\s+(\d{1,2}:\d{2}\s*[AP]M)/i);
     if (!dateTimeMatch) return null;
 
     const datePart = dateTimeMatch[1];
     const timePart = dateTimeMatch[2];
 
     // Convert to Date object
-    const [day, month, year] = datePart.split('/');
+    const [day, month, yearStr] = datePart.split('/');
+    let year = parseInt(yearStr);
+    if (year < 100) {
+      year += 2000; // Assume 21st century for 2-digit years
+    }
     const dateString = `${year}-${month}-${day} ${timePart}`;
     const transactionDate = new Date(dateString);
 
     if (isNaN(transactionDate.getTime())) return null;
-
-    // 7. Extract Reference
-    // "M-PESA ref UAUEB59H97"
-    const refMatch = cleanMsg.match(/M-PESA\s+ref\s+([A-Z0-9]+)/i);
-    if (!refMatch) return null;
-    const reference = refMatch[1];
 
     return {
       reference,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,21 +9,42 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { parseMpesaMessage, ParsedTransaction } from "@/lib/parser";
-import { saveTransaction } from "@/app/actions";
+import { saveTransaction, updateTransaction } from "@/app/actions";
 
 interface Category {
     id: string;
     name: string;
 }
 
-export default function TransactionForm({ categories, onSuccess }: { categories: Category[], onSuccess?: () => void }) {
+interface TransactionData {
+    id?: string;
+    reference: string;
+    amount: number;
+    transactionDate: Date;
+    transactionTime?: string | null;
+    bank?: string | null;
+    paybill?: string | null;
+    account?: string | null;
+    accountName?: string | null;
+    rawMessage: string;
+    categoryId: string;
+}
+
+export default function TransactionForm({
+    categories,
+    onSuccess,
+    initialData
+}: {
+    categories: Category[],
+    onSuccess?: () => void,
+    initialData?: TransactionData
+}) {
     const router = useRouter();
-    const [message, setMessage] = useState("");
-    const [categoryId, setCategoryId] = useState("");
+    const [message, setMessage] = useState(initialData?.rawMessage || "");
+    const [categoryId, setCategoryId] = useState(initialData?.categoryId || "");
     const [loading, setLoading] = useState(false);
 
-    // Auto-parse when message changes. Using a derived value instead of effect + state
-    // helps avoid "set state in effect" warning and extra renders.
+    // Auto-parse when message changes. 
     const parsed: Partial<ParsedTransaction> = useMemo(() => {
         if (message.trim().length > 10) {
             return parseMpesaMessage(message) || {};
@@ -31,36 +52,53 @@ export default function TransactionForm({ categories, onSuccess }: { categories:
         return {};
     }, [message]);
 
+    // If initialData is provided, we might want to ensure fields are consistent
+    // But relying on rawMessage parsing is the core behavior here.
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!categoryId || !parsed.reference) {
+
+        // Use parsed data OR initial data fallback if message hasn't changed? 
+        // Actually, if user edits raw message, we want new parsed data.
+        // If user is just changing category, parsed data should still be valid.
+
+        const effectiveRef = parsed.reference || initialData?.reference;
+
+        if (!categoryId || !effectiveRef) {
             alert("Please select a category and ensure message is valid.");
             return;
         }
 
         setLoading(true);
-        // We know these are present because of the check above
+
         const payload = {
             categoryId,
-            amount: parsed.amount!,
-            reference: parsed.reference!,
-            transactionDate: parsed.transactionDate!,
-            transactionTime: parsed.transactionTime,
-            bank: parsed.paymentMethod || "KCB", // Ensure it defaults if parser misses
-            paybill: parsed.paymentMethod?.includes("Pay Bill") ? parsed.paymentMethod : null,
-            account: parsed.account,
-            accountName: parsed.accountName,
+            amount: parsed.amount ?? initialData?.amount ?? 0,
+            reference: parsed.reference ?? initialData?.reference ?? "",
+            transactionDate: parsed.transactionDate ?? initialData?.transactionDate ?? new Date(),
+            transactionTime: parsed.transactionTime ?? initialData?.transactionTime,
+            bank: (parsed.paymentMethod || initialData?.bank) || "KCB",
+            paybill: parsed.paymentMethod?.includes("Pay Bill") ? parsed.paymentMethod : (initialData?.paybill || null),
+            account: parsed.account ?? initialData?.account,
+            accountName: parsed.accountName ?? initialData?.accountName,
             rawMessage: message
         };
 
-        const res = await saveTransaction(payload);
+        let res;
+        if (initialData?.id) {
+            res = await updateTransaction(initialData.id, payload);
+        } else {
+            res = await saveTransaction(payload);
+        }
+
         setLoading(false);
 
         if (res.success) {
-            alert("Transaction saved!");
-            setMessage("");
-            // parsed derived state clears automatically when message clears
-            setCategoryId("");
+            alert(initialData ? "Transaction updated!" : "Transaction saved!");
+            if (!initialData) {
+                setMessage("");
+                setCategoryId("");
+            }
             router.refresh();
             onSuccess?.();
         } else {
@@ -69,11 +107,13 @@ export default function TransactionForm({ categories, onSuccess }: { categories:
     };
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>New Transaction</CardTitle>
-            </CardHeader>
-            <CardContent>
+        <Card className="border-0 shadow-none">
+            {!initialData && (
+                <CardHeader className="px-0 pt-0">
+                    <CardTitle>New Transaction</CardTitle>
+                </CardHeader>
+            )}
+            <CardContent className="px-0">
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
                         <Label>M-Pesa Message</Label>
@@ -81,7 +121,7 @@ export default function TransactionForm({ categories, onSuccess }: { categories:
                             placeholder="Paste M-Pesa message here..."
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
-                            className="h-32"
+                            className="h-32 font-mono text-sm"
                         />
                     </div>
 
@@ -101,24 +141,28 @@ export default function TransactionForm({ categories, onSuccess }: { categories:
                         </div>
                         <div className="space-y-2">
                             <Label>Amount</Label>
-                            <Input value={parsed.amount || ""} readOnly className="bg-gray-100" />
+                            <Input value={parsed.amount ?? initialData?.amount ?? ""} readOnly className="bg-muted" />
                         </div>
                         <div className="space-y-2">
                             <Label>Date</Label>
                             <Input
-                                value={parsed.transactionDate ? parsed.transactionDate.toLocaleDateString() : ""}
+                                value={
+                                    parsed.transactionDate
+                                        ? parsed.transactionDate.toLocaleDateString()
+                                        : (initialData?.transactionDate ? new Date(initialData.transactionDate).toLocaleDateString() : "")
+                                }
                                 readOnly
-                                className="bg-gray-100"
+                                className="bg-muted"
                             />
                         </div>
                         <div className="space-y-2">
                             <Label>Ref</Label>
-                            <Input value={parsed.reference || ""} readOnly className="bg-gray-100" />
+                            <Input value={parsed.reference ?? initialData?.reference ?? ""} readOnly className="bg-muted" />
                         </div>
                     </div>
 
-                    <Button type="submit" className="w-full" disabled={loading || !parsed.reference}>
-                        {loading ? "Saving..." : "Save Transaction"}
+                    <Button type="submit" className="w-full" disabled={loading || (!parsed.reference && !initialData?.reference)}>
+                        {loading ? "Saving..." : (initialData ? "Update Transaction" : "Save Transaction")}
                     </Button>
                 </form>
             </CardContent>

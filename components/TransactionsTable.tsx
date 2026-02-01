@@ -6,9 +6,23 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
-import { Trash2 } from "lucide-react";
+import { Trash2, Pencil, MoreHorizontal } from "lucide-react";
 import { deleteTransactions } from "@/app/actions";
 import { useRouter } from "next/navigation";
+import TransactionModal from "@/components/finance/TransactionModal";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+interface Category {
+    id: string;
+    name: string;
+}
 
 interface Transaction {
     id: string;
@@ -18,10 +32,14 @@ interface Transaction {
     transactionTime: string | null;
     bank: string | null;
     category: { name: string } | null;
+    categoryId: string;
     account: string | null;
+    accountName: string | null;
+    paybill: string | null;
+    rawMessage: string;
 }
 
-export default function TransactionsTable({ transactions }: { transactions: Transaction[] }) {
+export default function TransactionsTable({ transactions, categories }: { transactions: Transaction[], categories: Category[] }) {
     const router = useRouter();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
@@ -56,8 +74,18 @@ export default function TransactionsTable({ transactions }: { transactions: Tran
         setLoading(false);
     };
 
+    const handleDeleteSingle = async (id: string) => {
+        if (!confirm("Are you sure you want to delete this transaction?")) return;
+        const res = await deleteTransactions([id]);
+        if (res.success) {
+            router.refresh();
+        } else {
+            alert(res.error);
+        }
+    }
+
     return (
-        <Card>
+        <Card className="border-0 shadow-none">
             <CardContent className="p-0">
                 {selectedIds.length > 0 && (
                     <div className="bg-muted/50 p-2 flex items-center justify-between border-b px-4">
@@ -93,6 +121,7 @@ export default function TransactionsTable({ transactions }: { transactions: Tran
                                 <TableHead>Date</TableHead>
                                 <TableHead>Time</TableHead>
                                 <TableHead>Category</TableHead>
+                                <TableHead className="w-[50px]"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -118,11 +147,49 @@ export default function TransactionsTable({ transactions }: { transactions: Tran
                                             {t.category?.name || "Uncategorized"}
                                         </span>
                                     </TableCell>
+                                    <TableCell>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                                    <span className="sr-only">Open menu</span>
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                <TransactionModal
+                                                    categories={categories}
+                                                    asMenuItem
+                                                    initialData={{
+                                                        id: t.id,
+                                                        reference: t.reference,
+                                                        amount: t.amount,
+                                                        transactionDate: t.transactionDate,
+                                                        transactionTime: t.transactionTime,
+                                                        bank: t.bank,
+                                                        paybill: t.paybill,
+                                                        account: t.account,
+                                                        accountName: t.accountName,
+                                                        rawMessage: t.rawMessage,
+                                                        categoryId: t.categoryId
+                                                    }}
+                                                />
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem
+                                                    className="text-red-600"
+                                                    onClick={() => handleDeleteSingle(t.id)}
+                                                >
+                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                    Delete
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
                                 </TableRow>
                             ))}
                             {transactions.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                                         No transactions found.
                                     </TableCell>
                                 </TableRow>

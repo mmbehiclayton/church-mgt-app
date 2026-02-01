@@ -199,6 +199,53 @@ export async function saveTransaction(data: {
     }
 }
 
+export async function updateTransaction(id: string, data: {
+    categoryId: string;
+    amount: number;
+    reference: string;
+    transactionDate: Date;
+    transactionTime?: string | null;
+    bank?: string | null;
+    paybill?: string | null;
+    account?: string | null;
+    accountName?: string | null;
+    rawMessage: string;
+}) {
+    try {
+        // Check if reference conflicts with ANOTHER transaction
+        const existing = await prisma.transaction.findFirst({
+            where: {
+                reference: data.reference,
+                id: { not: id }
+            }
+        });
+
+        if (existing) return { error: "Duplicate transaction reference" };
+
+        await prisma.transaction.update({
+            where: { id },
+            data: {
+                categoryId: data.categoryId,
+                amount: data.amount,
+                reference: data.reference,
+                transactionDate: new Date(data.transactionDate),
+                transactionTime: data.transactionTime,
+                bank: data.bank || null,
+                paybill: data.paybill || null,
+                account: data.account || null,
+                accountName: data.accountName || null,
+                rawMessage: data.rawMessage
+            }
+        });
+
+        revalidatePath("/dashboard");
+        return { success: true };
+    } catch (error) {
+        console.error("Update Transaction Error:", error);
+        return { error: "Failed to update transaction" };
+    }
+}
+
 export async function getTransactions(filter?: { categoryIds?: string[], startDate?: Date, endDate?: Date }) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {};

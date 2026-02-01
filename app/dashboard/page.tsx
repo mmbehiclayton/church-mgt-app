@@ -111,7 +111,7 @@ export default async function DashboardPage(props: PageProps) {
             {/* Recent Transactions List */}
             <CollapsibleSection title="Recent Transactions" defaultOpen={true}>
                 <CardContent className="p-0">
-                    <TransactionsTable transactions={transactions} />
+                    <TransactionsTable transactions={transactions} categories={categories} />
                 </CardContent>
             </CollapsibleSection>
         </div>
