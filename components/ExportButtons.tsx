@@ -190,12 +190,26 @@ export default function ExportButtons({ categories, asMenuItem = false }: { cate
             const buffer = await workbook.xlsx.writeBuffer();
             const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
+            // Construct Filename
+            // Format: MWIKI MAIN ALTAR {CATEGORY} SUPPORT {YEAR}
+            const year = new Date().getFullYear();
+            let fileCategoryName = "GENERAL"; // Default for all
+
+            if (selectedCategories.length === 1) {
+                const cat = categories.find(c => c.id === selectedCategories[0]);
+                if (cat) fileCategoryName = cat.name.toUpperCase();
+            } else if (selectedCategories.length > 1) {
+                fileCategoryName = "COMBINED";
+            }
+
+            const fileName = `MWIKI MAIN ALTAR ${fileCategoryName} SUPPORT ${year}.xlsx`;
+
             // Create download link
             const url = window.URL.createObjectURL(blob);
             const anchor = document.createElement('a');
             document.body.appendChild(anchor);
             anchor.href = url;
-            anchor.download = `transactions_${format(new Date(), "yyyy-MM-dd")}.xlsx`;
+            anchor.download = fileName;
             anchor.click();
             document.body.removeChild(anchor);
             window.URL.revokeObjectURL(url);
