@@ -8,7 +8,9 @@ export default async function DashboardLayout({
 }) {
     const organization = await getOrganization();
 
-    <DashboardClientLayout organization={organization}>
-        {children}
-    </DashboardClientLayout>
+    return (
+        <DashboardClientLayout organization={organization}>
+            {children}
+        </DashboardClientLayout>
+    );
 }
