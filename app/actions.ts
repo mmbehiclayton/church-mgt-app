@@ -142,6 +142,33 @@ export async function deleteCategory(id: string) {
     }
 }
 
+export async function editCategory(id: string, newName: string) {
+    try {
+        if (!newName || !newName.trim()) {
+            return { error: "Category name cannot be empty" };
+        }
+
+        const trimmedName = newName.trim();
+        const existing = await prisma.category.findUnique({
+            where: { name: trimmedName }
+        });
+
+        if (existing && existing.id !== id) {
+            return { error: "Category with this name already exists" };
+        }
+
+        await prisma.category.update({
+            where: { id },
+            data: { name: trimmedName }
+        });
+
+        revalidatePath("/dashboard");
+        return { success: true };
+    } catch (_error) {
+        return { error: "Failed to edit category" };
+    }
+}
+
 // --- Transactions ---
 
 export async function deleteTransactions(ids: string[]) {
