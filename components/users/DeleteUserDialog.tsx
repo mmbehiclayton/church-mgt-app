@@ -4,7 +4,7 @@ import { useState } from "react";
 import { deleteUser, getCurrentUserId } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { X, AlertTriangle } from "lucide-react";
-import { useToast } from "@/components/ui/toast";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
 interface User {
@@ -22,7 +22,6 @@ interface DeleteUserDialogProps {
 
 export default function DeleteUserDialog({ user, open, onClose }: DeleteUserDialogProps) {
     const [loading, setLoading] = useState(false);
-    const { addToast } = useToast();
     const router = useRouter();
 
     const handleDelete = async () => {
@@ -32,10 +31,8 @@ export default function DeleteUserDialog({ user, open, onClose }: DeleteUserDial
         const currentUserId = await getCurrentUserId();
 
         if (!currentUserId) {
-            addToast({
-                title: "Error",
+            toast.error("Error", {
                 description: "Unable to verify current user",
-                variant: "error"
             });
             setLoading(false);
             return;
@@ -46,16 +43,12 @@ export default function DeleteUserDialog({ user, open, onClose }: DeleteUserDial
         setLoading(false);
 
         if (result.error) {
-            addToast({
-                title: "Error",
+            toast.error("Error", {
                 description: result.error,
-                variant: "error"
             });
         } else {
-            addToast({
-                title: "Success",
+            toast.success("Success", {
                 description: "User deleted successfully",
-                variant: "success"
             });
             router.refresh();
             onClose();

@@ -20,7 +20,8 @@ import AddDepartmentModal from "@/components/membership/AddDepartmentModal";
 import AddHomeFellowshipModal from "@/components/membership/AddHomeFellowshipModal";
 import { deleteMembers } from "@/app/actions";
 import { useRouter } from "next/navigation";
-import { useToast } from "@/components/ui/toast";
+import { toast } from "sonner";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 interface Department {
     id: string;
@@ -59,7 +60,6 @@ interface MembersTableProps {
 
 export default function MembersTable({ members, departments, homeFellowships }: MembersTableProps) {
     const router = useRouter();
-    const { addToast } = useToast();
     const [showAddModal, setShowAddModal] = useState(false);
     const [showAddDepartmentModal, setShowAddDepartmentModal] = useState(false);
     const [showAddHomeFellowshipModal, setShowAddHomeFellowshipModal] = useState(false);
@@ -67,6 +67,7 @@ export default function MembersTable({ members, departments, homeFellowships }: 
     const [deletingMember, setDeletingMember] = useState<Member | null>(null);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [bulkDeleting, setBulkDeleting] = useState(false);
+    const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
     const [filterDepartment, setFilterDepartment] = useState<string>("");
     const [filterGender, setFilterGender] = useState<string>("");
 
@@ -93,29 +94,28 @@ export default function MembersTable({ members, departments, homeFellowships }: 
         }
     };
 
-    const handleBulkDelete = async () => {
-        if (!confirm(`Are you sure you want to delete ${selectedIds.length} member(s)?`)) return;
-
+    const executeBulkDelete = async () => {
         setBulkDeleting(true);
         const result = await deleteMembers(selectedIds);
 
         if (result.error) {
-            addToast({
-                title: "Error",
+            toast.error("Error", {
                 description: result.error,
-                variant: "error"
             });
         } else {
-            addToast({
-                title: "Success",
+            toast.success("Success", {
                 description: `Deleted ${selectedIds.length} member(s)`,
-                variant: "success"
             });
             setSelectedIds([]);
         }
 
         setBulkDeleting(false);
+        setShowBulkDeleteDialog(false);
         router.refresh();
+    };
+
+    const handleBulkDelete = () => {
+        setShowBulkDeleteDialog(true);
     };
 
     // Generate avatar color based on name
@@ -436,6 +436,18 @@ export default function MembersTable({ members, departments, homeFellowships }: 
                     onClose={() => setDeletingMember(null)}
                 />
             )}
+
+            <ConfirmationDialog
+                open={showBulkDeleteDialog}
+                onOpenChange={setShowBulkDeleteDialog}
+                title="Delete Members"
+                description={`Are you sure you want to delete ${selectedIds.length} member(s)?`}
+                confirmText="Delete"
+                cancelText="Cancel"
+                onConfirm={executeBulkDelete}
+                variant="danger"
+                loading={bulkDeleting}
+            />
         </>
     );
 }

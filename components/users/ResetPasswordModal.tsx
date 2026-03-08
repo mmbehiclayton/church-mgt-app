@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { X } from "lucide-react";
-import { useToast } from "@/components/ui/toast";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
 interface User {
@@ -27,7 +27,6 @@ export default function ResetPasswordModal({ user, open, onClose }: ResetPasswor
         confirmPassword: "",
     });
     const [loading, setLoading] = useState(false);
-    const { addToast } = useToast();
     const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -36,10 +35,8 @@ export default function ResetPasswordModal({ user, open, onClose }: ResetPasswor
 
         // Validate passwords match
         if (formData.newPassword !== formData.confirmPassword) {
-            addToast({
-                title: "Error",
+            toast.error("Error", {
                 description: "Passwords do not match",
-                variant: "error"
             });
             setLoading(false);
             return;
@@ -50,16 +47,12 @@ export default function ResetPasswordModal({ user, open, onClose }: ResetPasswor
         setLoading(false);
 
         if (result.error) {
-            addToast({
-                title: "Error",
+            toast.error("Error", {
                 description: result.error,
-                variant: "error"
             });
         } else {
-            addToast({
-                title: "Success",
+            toast.success("Success", {
                 description: "Password reset successfully",
-                variant: "success"
             });
             setFormData({ newPassword: "", confirmPassword: "" });
             router.refresh();

@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { CalendarIcon, Search } from "lucide-react";
 import { getMembers, createAttendanceSession, updateAttendanceSession, upsertAttendanceRecords } from "@/app/actions";
-import { useToast } from "@/components/ui/toast";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
 // Types
@@ -28,7 +28,6 @@ interface MarkAttendanceFormProps {
 }
 
 export default function MarkAttendanceForm({ onSuccess, initialData }: MarkAttendanceFormProps) {
-    const { addToast } = useToast();
     const router = useRouter();
 
     // Steps: 1 = Session Details, 2 = Roll Call
@@ -137,10 +136,8 @@ export default function MarkAttendanceForm({ onSuccess, initialData }: MarkAtten
                 throw new Error(recordsResult.error);
             }
 
-            addToast({
-                title: "Success",
+            toast.success("Success", {
                 description: `Attendance ${submitStatus === 'DRAFT' ? 'saved as draft' : 'submitted'} successfully!`,
-                variant: "success"
             });
 
             if (onSuccess) onSuccess();
@@ -148,10 +145,8 @@ export default function MarkAttendanceForm({ onSuccess, initialData }: MarkAtten
             router.refresh();
 
         } catch (error: any) {
-            addToast({
-                title: "Error",
+            toast.error("Error", {
                 description: error.message,
-                variant: "error"
             });
         } finally {
             setLoading(false);

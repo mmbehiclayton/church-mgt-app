@@ -716,6 +716,7 @@ export async function createDepartment(data: { name: string; description?: strin
         });
 
         revalidatePath("/dashboard/membership");
+        revalidatePath("/dashboard/settings/structure");
         return { success: true, department };
     } catch (error) {
         console.error("Create Department Error:", error);
@@ -738,10 +739,45 @@ export async function updateDepartment(id: string, data: { name?: string; descri
         });
 
         revalidatePath("/dashboard/membership");
+        revalidatePath("/dashboard/settings/structure");
         return { success: true, department };
     } catch (error) {
         console.error("Update Department Error:", error);
         return { error: "Failed to update department" };
+    }
+}
+
+export async function deleteDepartment(id: string) {
+    try {
+        await prisma.department.delete({
+            where: { id }
+        });
+
+        revalidatePath("/dashboard/membership");
+        revalidatePath("/dashboard/settings/structure");
+        return { success: true };
+    } catch (error) {
+        console.error("Delete Department Error:", error);
+        return { error: "Failed to delete department" };
+    }
+}
+
+export async function deleteDepartments(ids: string[]) {
+    try {
+        await prisma.department.deleteMany({
+            where: {
+                id: {
+                    in: ids
+                }
+            }
+        });
+
+        revalidatePath("/dashboard/membership");
+        revalidatePath("/dashboard/settings/structure");
+        return { success: true };
+    } catch (error) {
+        console.error("Delete Departments Error:", error);
+        return { error: "Failed to delete departments" };
     }
 }
 
@@ -850,6 +886,7 @@ export async function deleteHomeFellowships(ids: string[]) {
             where: { id: { in: ids } }
         });
         revalidatePath("/dashboard/membership");
+        revalidatePath("/dashboard/settings/structure");
         return { success: true };
     } catch (error) {
         console.error("Delete Home Fellowships Error:", error);

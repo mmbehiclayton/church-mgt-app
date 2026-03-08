@@ -11,7 +11,8 @@ import DeleteUserDialog from "./DeleteUserDialog";
 import { formatDistanceToNow } from "date-fns";
 import { deleteUser, getCurrentUserId } from "@/app/actions";
 import { useRouter } from "next/navigation";
-import { useToast } from "@/components/ui/toast";
+import { toast } from "sonner";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
 interface User {
     id: string;
@@ -29,13 +30,13 @@ interface UsersTableProps {
 
 export default function UsersTable({ users }: UsersTableProps) {
     const router = useRouter();
-    const { addToast } = useToast();
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
     const [deletingUser, setDeletingUser] = useState<User | null>(null);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [bulkDeleting, setBulkDeleting] = useState(false);
+    const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
@@ -53,19 +54,16 @@ export default function UsersTable({ users }: UsersTableProps) {
         }
     };
 
-    const handleBulkDelete = async () => {
-        if (!confirm(`Are you sure you want to delete ${selectedIds.length} user(s)?`)) return;
-
+    const executeBulkDelete = async () => {
         setBulkDeleting(true);
         const currentUserId = await getCurrentUserId();
 
         if (!currentUserId) {
-            addToast({
-                title: "Error",
+            toast.error("Error", {
                 description: "Unable to verify current user",
-                variant: "error"
             });
             setBulkDeleting(false);
+            setShowBulkDeleteDialog(false);
             return;
         }
 
@@ -82,25 +80,26 @@ export default function UsersTable({ users }: UsersTableProps) {
         }
 
         setBulkDeleting(false);
+        setShowBulkDeleteDialog(false);
         setSelectedIds([]);
 
         if (successCount > 0) {
-            addToast({
-                title: "Success",
+            toast.success("Success", {
                 description: `Deleted ${successCount} user(s)`,
-                variant: "success"
             });
         }
 
         if (errorCount > 0) {
-            addToast({
-                title: "Warning",
+            toast.error("Warning", {
                 description: `Failed to delete ${errorCount} user(s)`,
-                variant: "error"
             });
         }
 
         router.refresh();
+    };
+
+    const handleBulkDelete = () => {
+        setShowBulkDeleteDialog(true);
     };
 
     const getRoleBadgeColor = (role: string) => {
@@ -330,6 +329,18 @@ export default function UsersTable({ users }: UsersTableProps) {
                     onClose={() => setDeletingUser(null)}
                 />
             )}
+
+            <ConfirmationDialog
+                open={showBulkDeleteDialog}
+                onOpenChange={setShowBulkDeleteDialog}
+                title="Delete Users"
+                description={`Are you sure you want to delete ${selectedIds.length} user(s)?`}
+                confirmText="Delete"
+                cancelText="Cancel"
+                onConfirm={executeBulkDelete}
+                variant="danger"
+                loading={bulkDeleting}
+            />
         </>
     );
 }

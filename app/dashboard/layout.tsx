@@ -1,6 +1,5 @@
 import DashboardClientLayout from "@/components/layout/DashboardClientLayout";
 import { getOrganization } from "@/app/actions";
-import { ToastProvider } from "@/components/ui/toast";
 
 export default async function DashboardLayout({
     children,
@@ -9,11 +8,7 @@ export default async function DashboardLayout({
 }) {
     const organization = await getOrganization();
 
-    return (
-        <ToastProvider>
-            <DashboardClientLayout organization={organization}>
-                {children}
-            </DashboardClientLayout>
-        </ToastProvider>
-    );
+    <DashboardClientLayout organization={organization}>
+        {children}
+    </DashboardClientLayout>
 }

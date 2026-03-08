@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { AlertTriangle } from "lucide-react";
 import { deleteMember } from "@/app/actions";
 import { useRouter } from "next/navigation";
-import { useToast } from "@/components/ui/toast";
+import { toast } from "sonner";
 
 interface Member {
     id: string;
@@ -21,7 +21,6 @@ interface DeleteMemberDialogProps {
 
 export default function DeleteMemberDialog({ member, open, onClose }: DeleteMemberDialogProps) {
     const router = useRouter();
-    const { addToast } = useToast();
     const [loading, setLoading] = useState(false);
 
     const handleDelete = async () => {
@@ -30,16 +29,12 @@ export default function DeleteMemberDialog({ member, open, onClose }: DeleteMemb
         const result = await deleteMember(member.id);
 
         if (result.error) {
-            addToast({
-                title: "Error",
+            toast.error("Error", {
                 description: result.error,
-                variant: "error"
             });
         } else {
-            addToast({
-                title: "Success",
+            toast.success("Success", {
                 description: "Member deleted successfully",
-                variant: "success"
             });
             router.refresh();
             onClose();

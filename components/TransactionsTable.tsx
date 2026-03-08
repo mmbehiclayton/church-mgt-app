@@ -10,6 +10,8 @@ import { Trash2, Pencil, MoreHorizontal } from "lucide-react";
 import { deleteTransactions } from "@/app/actions";
 import { useRouter } from "next/navigation";
 import TransactionModal from "@/components/finance/TransactionModal";
+import { toast } from "sonner";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -43,6 +45,8 @@ export default function TransactionsTable({ transactions, categories }: { transa
     const router = useRouter();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
+    const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+    const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
 
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
@@ -60,29 +64,39 @@ export default function TransactionsTable({ transactions, categories }: { transa
         }
     };
 
-    const handleBulkDelete = async () => {
-        if (!confirm(`Are you sure you want to delete ${selectedIds.length} transactions?`)) return;
-
+    const executeBulkDelete = async () => {
         setLoading(true);
         const res = await deleteTransactions(selectedIds);
         if (res.success) {
+            toast.success(`Successfully deleted ${selectedIds.length} transactions`);
             setSelectedIds([]);
             router.refresh();
         } else {
-            alert(res.error);
+            toast.error(res.error || "Failed to delete transactions");
         }
         setLoading(false);
+        setShowBulkDeleteDialog(false);
     };
 
-    const handleDeleteSingle = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this transaction?")) return;
-        const res = await deleteTransactions([id]);
+    const handleBulkDelete = () => {
+        setShowBulkDeleteDialog(true);
+    };
+
+    const executeDeleteSingle = async () => {
+        if (!transactionToDelete) return;
+        const res = await deleteTransactions([transactionToDelete]);
         if (res.success) {
+            toast.success("Transaction deleted successfully");
             router.refresh();
         } else {
-            alert(res.error);
+            toast.error(res.error || "Failed to delete transaction");
         }
-    }
+        setTransactionToDelete(null);
+    };
+
+    const handleDeleteSingle = (id: string) => {
+        setTransactionToDelete(id);
+    };
 
     return (
         <Card className="border-0 shadow-none">
@@ -198,6 +212,29 @@ export default function TransactionsTable({ transactions, categories }: { transa
                     </Table>
                 </div>
             </CardContent>
+
+            <ConfirmationDialog
+                open={showBulkDeleteDialog}
+                onOpenChange={setShowBulkDeleteDialog}
+                title="Delete Transactions"
+                description={`Are you sure you want to delete ${selectedIds.length} transactions? This action cannot be undone.`}
+                confirmText="Delete"
+                cancelText="Cancel"
+                onConfirm={executeBulkDelete}
+                variant="danger"
+                loading={loading}
+            />
+
+            <ConfirmationDialog
+                open={!!transactionToDelete}
+                onOpenChange={(open) => !open && setTransactionToDelete(null)}
+                title="Delete Transaction"
+                description="Are you sure you want to delete this transaction? This action cannot be undone."
+                confirmText="Delete"
+                cancelText="Cancel"
+                onConfirm={executeDeleteSingle}
+                variant="danger"
+            />
         </Card>
     );
 }

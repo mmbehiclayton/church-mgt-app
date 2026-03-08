@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { X } from "lucide-react";
-import { useToast } from "@/components/ui/toast";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
 interface AddUserModalProps {
@@ -24,7 +24,6 @@ export default function AddUserModal({ open, onClose }: AddUserModalProps) {
         isActive: true,
     });
     const [loading, setLoading] = useState(false);
-    const { addToast } = useToast();
     const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -33,10 +32,8 @@ export default function AddUserModal({ open, onClose }: AddUserModalProps) {
 
         // Validate passwords match
         if (formData.password !== formData.confirmPassword) {
-            addToast({
-                title: "Error",
+            toast.error("Error", {
                 description: "Passwords do not match",
-                variant: "error"
             });
             setLoading(false);
             return;
@@ -53,16 +50,12 @@ export default function AddUserModal({ open, onClose }: AddUserModalProps) {
         setLoading(false);
 
         if (result.error) {
-            addToast({
-                title: "Error",
+            toast.error("Error", {
                 description: result.error,
-                variant: "error"
             });
         } else {
-            addToast({
-                title: "Success",
+            toast.success("Success", {
                 description: "User created successfully",
-                variant: "success"
             });
             setFormData({
                 name: "",

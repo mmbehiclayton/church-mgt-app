@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { createDepartment } from "@/app/actions";
 import { useRouter } from "next/navigation";
-import { useToast } from "@/components/ui/toast";
+import { toast } from "sonner";
 
 interface AddDepartmentModalProps {
     open: boolean;
@@ -14,7 +14,6 @@ interface AddDepartmentModalProps {
 
 export default function AddDepartmentModal({ open, onClose }: AddDepartmentModalProps) {
     const router = useRouter();
-    const { addToast } = useToast();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         name: "",
@@ -31,16 +30,12 @@ export default function AddDepartmentModal({ open, onClose }: AddDepartmentModal
         });
 
         if (result.error) {
-            addToast({
-                title: "Error",
+            toast.error("Error", {
                 description: result.error,
-                variant: "error"
             });
         } else {
-            addToast({
-                title: "Success",
+            toast.success("Success", {
                 description: "Department created successfully",
-                variant: "success"
             });
             router.refresh();
             onClose();

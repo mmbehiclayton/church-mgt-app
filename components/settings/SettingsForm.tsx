@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { updateOrganization } from "@/app/actions";
+import { toast } from "sonner";
 
 interface SettingsFormProps {
     organization: {
@@ -32,7 +33,6 @@ interface FormData {
 export default function SettingsForm({ organization }: SettingsFormProps) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
-    const [successMessage, setSuccessMessage] = useState("");
 
     const [preview, setPreview] = useState<string | null>(organization.logoUrl);
 
@@ -51,7 +51,7 @@ export default function SettingsForm({ organization }: SettingsFormProps) {
         if (!file) return;
 
         if (file.size > 500 * 1024) {
-            alert("File is too large. Maximum size is 500KB.");
+            toast.error("File is too large. Maximum size is 500KB.");
             e.target.value = ""; // Reset input
             return;
         }
@@ -67,7 +67,6 @@ export default function SettingsForm({ organization }: SettingsFormProps) {
 
     const onSubmit = async (data: FormData) => {
         setLoading(true);
-        setSuccessMessage("");
 
         try {
             const result = await updateOrganization({
@@ -76,12 +75,14 @@ export default function SettingsForm({ organization }: SettingsFormProps) {
             });
 
             if (result.success) {
-                setSuccessMessage("Settings updated successfully!");
+                toast.success("Settings updated successfully!");
                 router.refresh();
             } else {
+                toast.error(result.error || "Failed to update settings");
                 console.error(result.error);
             }
         } catch (error) {
+            toast.error("Failed to update settings");
             console.error("Failed to update settings", error);
         } finally {
             setLoading(false);
@@ -152,10 +153,6 @@ export default function SettingsForm({ organization }: SettingsFormProps) {
                         {/* Hidden input to store the URL/Base64 string for form submission */}
                         <input type="hidden" {...register("logoUrl")} />
                     </div>
-
-                    {successMessage && (
-                        <p className="text-sm text-green-600 font-medium">{successMessage}</p>
-                    )}
 
                     <Button type="submit" disabled={loading}>
                         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

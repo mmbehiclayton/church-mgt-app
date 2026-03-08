@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { parseMpesaMessage, ParsedTransaction } from "@/lib/parser";
 import { saveTransaction, updateTransaction } from "@/app/actions";
+import { toast } from "sonner";
 
 interface Category {
     id: string;
@@ -65,7 +66,7 @@ export default function TransactionForm({
         const effectiveRef = parsed.reference || initialData?.reference;
 
         if (!categoryId || !effectiveRef) {
-            alert("Please select a category and ensure message is valid.");
+            toast.error("Please select a category and ensure message is valid.");
             return;
         }
 
@@ -94,7 +95,7 @@ export default function TransactionForm({
         setLoading(false);
 
         if (res.success) {
-            alert(initialData ? "Transaction updated!" : "Transaction saved!");
+            toast.success(initialData ? "Transaction updated!" : "Transaction saved!");
             if (!initialData) {
                 setMessage("");
                 setCategoryId("");
@@ -102,7 +103,7 @@ export default function TransactionForm({
             router.refresh();
             onSuccess?.();
         } else {
-            alert(res.error);
+            toast.error(res.error || "Failed to save transaction");
         }
     };
 

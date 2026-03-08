@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { updateMember } from "@/app/actions";
 import { useRouter } from "next/navigation";
-import { useToast } from "@/components/ui/toast";
+import { toast } from "sonner";
 
 interface Department {
     id: string;
@@ -41,7 +41,6 @@ interface EditMemberModalProps {
 
 export default function EditMemberModal({ member, open, onClose, departments, homeFellowships }: EditMemberModalProps) {
     const router = useRouter();
-    const { addToast } = useToast();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         fullName: member.fullName,
@@ -64,16 +63,12 @@ export default function EditMemberModal({ member, open, onClose, departments, ho
         });
 
         if (result.error) {
-            addToast({
-                title: "Error",
+            toast.error("Error", {
                 description: result.error,
-                variant: "error"
             });
         } else {
-            addToast({
-                title: "Success",
+            toast.success("Success", {
                 description: "Member updated successfully",
-                variant: "success"
             });
             router.refresh();
             onClose();

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { X, Check, ChevronsUpDown } from "lucide-react";
 import { createHomeFellowship } from "@/app/actions";
 import { useRouter } from "next/navigation";
-import { useToast } from "@/components/ui/toast";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
     Command,
@@ -29,7 +29,6 @@ interface AddHomeFellowshipModalProps {
 
 export default function AddHomeFellowshipModal({ open, onClose, members }: AddHomeFellowshipModalProps) {
     const router = useRouter();
-    const { addToast } = useToast();
     const [loading, setLoading] = useState(false);
     const [openCombobox, setOpenCombobox] = useState(false);
     const [formData, setFormData] = useState({
@@ -49,16 +48,12 @@ export default function AddHomeFellowshipModal({ open, onClose, members }: AddHo
         });
 
         if (result.error) {
-            addToast({
-                title: "Error",
+            toast.error("Error", {
                 description: result.error,
-                variant: "error"
             });
         } else {
-            addToast({
-                title: "Success",
+            toast.success("Success", {
                 description: "Home Fellowship created successfully",
-                variant: "success"
             });
             router.refresh();
             onClose();

@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import ExcelJS from "exceljs";
 import { importTransactions } from "@/app/actions";
 import { format } from "date-fns";
-import { useToast } from "@/components/ui/toast";
+import { toast } from "sonner";
 
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
@@ -25,7 +25,6 @@ export default function ImportButton({ asMenuItem = false }: { asMenuItem?: bool
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [file, setFile] = useState<File | null>(null);
-    const { addToast } = useToast();
 
     // ... (rest of logic)
 
@@ -46,10 +45,8 @@ export default function ImportButton({ asMenuItem = false }: { asMenuItem?: bool
 
     const handleImport = async () => {
         if (!file) {
-            addToast({
-                title: "No file selected",
+            toast.error("No file selected", {
                 description: "Please select an Excel file to import.",
-                variant: "error",
             });
             return;
         }
@@ -63,10 +60,8 @@ export default function ImportButton({ asMenuItem = false }: { asMenuItem?: bool
 
             const worksheet = workbook.worksheets[0];
             if (!worksheet) {
-                addToast({
-                    title: "Invalid file",
+                toast.error("Invalid file", {
                     description: "No worksheet found in the Excel file.",
-                    variant: "error",
                 });
                 setLoading(false);
                 return;
@@ -111,10 +106,8 @@ export default function ImportButton({ asMenuItem = false }: { asMenuItem?: bool
             });
 
             if (data.length === 0) {
-                addToast({
-                    title: "No data found",
+                toast.error("No data found", {
                     description: "No valid transactions found in the file.",
-                    variant: "error",
                 });
                 setLoading(false);
                 return;
@@ -123,17 +116,13 @@ export default function ImportButton({ asMenuItem = false }: { asMenuItem?: bool
             const result = await importTransactions(data);
 
             if (result.error) {
-                addToast({
-                    title: "Import failed",
+                toast.error("Import failed", {
                     description: result.error,
-                    variant: "error",
                     duration: 7000,
                 });
             } else {
-                addToast({
-                    title: "Import successful!",
+                toast.success("Import successful!", {
                     description: `Successfully imported ${result.count} transactions.`,
-                    variant: "success",
                     duration: 5000,
                 });
                 setFile(null);
@@ -141,10 +130,8 @@ export default function ImportButton({ asMenuItem = false }: { asMenuItem?: bool
             }
         } catch (err) {
             console.error(err);
-            addToast({
-                title: "Import failed",
+            toast.error("Import failed", {
                 description: "Failed to parse Excel file. Please ensure it follows the correct format.",
-                variant: "error",
                 duration: 7000,
             });
         } finally {
