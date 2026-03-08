@@ -319,42 +319,36 @@ export async function getDashboardStats(filters?: DashboardFilters) {
         where.categoryId = { in: filters.categoryIds };
     }
 
-    // 1. Aggregates
-    const totalAmount = await prisma.transaction.aggregate({
-        where,
-        _sum: { amount: true },
-        _count: { id: true },
-        _avg: { amount: true }
-    });
+    // Run all aggregates and fetch queries concurrently
+    const [totalAmount, byCategory, categories, trendDataRaw] = await Promise.all([
+        prisma.transaction.aggregate({
+            where,
+            _sum: { amount: true },
+            _count: { id: true },
+            _avg: { amount: true }
+        }),
+        prisma.transaction.groupBy({
+            by: ['categoryId'],
+            where,
+            _sum: { amount: true },
+            orderBy: {
+                _sum: { amount: 'desc' }
+            }
+        }),
+        prisma.category.findMany(),
+        prisma.transaction.findMany({
+            where,
+            select: { transactionDate: true, amount: true },
+            orderBy: { transactionDate: 'asc' }
+        })
+    ]);
 
-    // 2. Category Breakdown
-    const byCategory = await prisma.transaction.groupBy({
-        by: ['categoryId'],
-        where,
-        _sum: { amount: true },
-        orderBy: {
-            _sum: { amount: 'desc' }
-        }
-    });
-
-    // Optimized: Fetch all categories at once to avoid N+1 queries
-    const categories = await prisma.category.findMany();
     const categoryMap = new Map(categories.map(c => [c.id, c.name]));
 
     const enrichedByCategory = byCategory.map((item: { categoryId: string; _sum: { amount: number | null } }) => ({
         name: categoryMap.get(item.categoryId) || "Unknown",
         amount: item._sum.amount || 0
     }));
-
-    // 3. Trend (Group by Date)
-    const trendDataRaw = await prisma.transaction.findMany({
-        where,
-        select: {
-            transactionDate: true,
-            amount: true
-        },
-        orderBy: { transactionDate: 'asc' }
-    });
 
     // Group by Date text (YYYY-MM-DD)
     const trendMap = new Map<string, number>();
