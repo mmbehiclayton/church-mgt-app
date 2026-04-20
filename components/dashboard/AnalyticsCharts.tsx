@@ -46,7 +46,7 @@ export default function AnalyticsCharts({ revenueTrend, categoryStats }: Analyti
                                     tickFormatter={(value) => `Ksh${value}`}
                                 />
                                 <Tooltip
-                                    formatter={(value: number | undefined) => [`Ksh ${value?.toLocaleString() ?? 0}`, "Revenue"]}
+                                    formatter={(value: number | undefined) => [`Ksh ${value?.toLocaleString() ?? 0}`, "Contributions"]}
                                 />
                                 <Line
                                     type="monotone"

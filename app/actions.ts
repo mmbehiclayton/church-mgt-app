@@ -907,12 +907,21 @@ export async function getMembers(filters?: {
     gender?: string
     page?: number
     limit?: number
+    search?: string
 }) {
     try {
         const where: any = {}
         const page = filters?.page || 1
         const limit = filters?.limit || 50
         const skip = (page - 1) * limit
+
+        if (filters?.search && filters.search.trim()) {
+            where.OR = [
+                { fullName: { contains: filters.search.trim(), mode: 'insensitive' } },
+                { phoneNumber: { contains: filters.search.trim(), mode: 'insensitive' } },
+                { estate: { contains: filters.search.trim(), mode: 'insensitive' } }
+            ]
+        }
 
         if (filters?.departmentId) {
             where.departments = {

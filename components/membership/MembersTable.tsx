@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { UserPlus, Pencil, Trash2, Download, Filter, User, Building2, Menu, MoreHorizontal, Layers } from "lucide-react";
+import { UserPlus, Pencil, Trash2, Download, Filter, User, Building2, Menu, MoreHorizontal, Layers, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -18,7 +19,7 @@ import DeleteMemberDialog from "@/components/membership/DeleteMemberDialog";
 import ExportMembersButton from "@/components/membership/ExportMembersButton";
 import AddDepartmentModal from "@/components/membership/AddDepartmentModal";
 import AddHomeFellowshipModal from "@/components/membership/AddHomeFellowshipModal";
-import { deleteMembers } from "@/app/actions";
+import { deleteMembers, getMembers } from "@/app/actions";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
@@ -67,8 +68,17 @@ interface MembersTableProps {
     };
 }
 
-export default function MembersTable({ members, departments, homeFellowships, pagination }: MembersTableProps) {
+export default function MembersTable({ members: initialMembers, departments, homeFellowships, pagination: initialPagination }: MembersTableProps) {
     const router = useRouter();
+    const [isPending, startTransition] = useTransition();
+    
+    // Search and pagination state
+    const [searchQuery, setSearchQuery] = useState("");
+    const [currentPage, setCurrentPage] = useState(initialPagination?.page || 1);
+    const [members, setMembers] = useState<Member[]>(initialMembers);
+    const [pagination, setPagination] = useState(initialPagination || { total: 0, page: 1, limit: 50, pages: 0 });
+    
+    // Other state
     const [showAddModal, setShowAddModal] = useState(false);
     const [showAddDepartmentModal, setShowAddDepartmentModal] = useState(false);
     const [showAddHomeFellowshipModal, setShowAddHomeFellowshipModal] = useState(false);
@@ -81,12 +91,43 @@ export default function MembersTable({ members, departments, homeFellowships, pa
     const [filterDepartment, setFilterDepartment] = useState<string>("");
     const [filterGender, setFilterGender] = useState<string>("");
 
-    // Filter members based on selected filters
+    // Filter members based on client-side filters
     const filteredMembers = members.filter(member => {
         if (filterDepartment && !member.departments.some(d => d.department.id === filterDepartment)) return false;
         if (filterGender && member.gender !== filterGender) return false;
         return true;
     });
+
+    // Handle search
+    const handleSearch = (query: string) => {
+        setSearchQuery(query);
+        setCurrentPage(1);
+        startTransition(async () => {
+            const result = await getMembers({
+                search: query,
+                page: 1,
+                limit: 50
+            });
+            setMembers(result.data);
+            setPagination(result.pagination);
+        });
+    };
+
+    // Handle pagination
+    const handlePageChange = (newPage: number) => {
+        setCurrentPage(newPage);
+        startTransition(async () => {
+            const result = await getMembers({
+                search: searchQuery,
+                page: newPage,
+                limit: 50
+            });
+            setMembers(result.data);
+            setPagination(result.pagination);
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    };
 
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
@@ -128,31 +169,6 @@ export default function MembersTable({ members, departments, homeFellowships, pa
         setShowBulkDeleteDialog(true);
     };
 
-    // Generate avatar color based on name
-    const getAvatarColor = (name: string) => {
-        const colors = [
-            "bg-blue-500",
-            "bg-green-500",
-            "bg-purple-500",
-            "bg-pink-500",
-            "bg-indigo-500",
-            "bg-yellow-500",
-            "bg-red-500",
-            "bg-teal-500",
-        ];
-        const index = name.charCodeAt(0) % colors.length;
-        return colors[index];
-    };
-
-    // Get initials from name
-    const getInitials = (name: string) => {
-        const parts = name.split(" ");
-        if (parts.length >= 2) {
-            return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-        }
-        return name.substring(0, 2).toUpperCase();
-    };
-
     return (
         <>
             <div className="bg-white rounded-lg shadow">
@@ -160,126 +176,139 @@ export default function MembersTable({ members, departments, homeFellowships, pa
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
                             <h2 className="text-lg font-semibold text-gray-900">Members</h2>
-                            {selectedIds.length > 0 && (
-                                <p className="text-sm text-gray-500 mt-1">
-                                    {selectedIds.length} member(s) selected
-                                </p>
-                            )}
+                            <p className="text-sm text-gray-500 mt-1">
+                                {pagination.total} total member(s)
+                                {selectedIds.length > 0 && ` • ${selectedIds.length} selected`}
+                            </p>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2">
-                            {/* Filters */}
-                            <select
-                                value={filterDepartment}
-                                onChange={(e) => setFilterDepartment(e.target.value)}
-                                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                                <option value="">All Departments</option>
-                                {departments.map(dept => (
-                                    <option key={dept.id} value={dept.id}>{dept.name}</option>
-                                ))}
-                            </select>
+                        <div className="flex flex-col gap-4 w-full md:w-auto">
+                            {/* Search Input */}
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <Input
+                                    placeholder="Search by name, phone, or estate..."
+                                    value={searchQuery}
+                                    onChange={(e) => handleSearch(e.target.value)}
+                                    disabled={isPending}
+                                    className="pl-10 w-full md:w-80"
+                                />
+                            </div>
 
-                            <select
-                                value={filterGender}
-                                onChange={(e) => setFilterGender(e.target.value)}
-                                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                                <option value="">All Genders</option>
-                                <option value="Male">Male</option>
-                                <option value="Female">Female</option>
-                            </select>
-
-                            {selectedIds.length > 0 && (
-                                <Button
-                                    onClick={handleBulkDelete}
-                                    disabled={bulkDeleting}
-                                    variant="destructive"
-                                    size="sm"
-                                    className="flex items-center gap-2"
+                            <div className="flex flex-wrap items-center gap-2">
+                                {/* Filters */}
+                                <select
+                                    value={filterDepartment}
+                                    onChange={(e) => setFilterDepartment(e.target.value)}
+                                    className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 >
-                                    <Trash2 className="h-4 w-4" />
-                                    Delete Selected
-                                </Button>
-                            )}
+                                    <option value="">All Departments</option>
+                                    {departments.map(dept => (
+                                        <option key={dept.id} value={dept.id}>{dept.name}</option>
+                                    ))}
+                                </select>
 
-                            <div className="flex items-center gap-2">
-                                {/* Mobile Actions Menu */}
-                                <div className="md:hidden">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="outline" size="icon">
-                                                <Menu className="h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="w-56">
-                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem onClick={() => setShowAddModal(true)}>
-                                                <UserPlus className="mr-2 h-4 w-4" />
-                                                Add Member
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => setShowAddDepartmentModal(true)}>
-                                                <Layers className="mr-2 h-4 w-4" />
-                                                Add Department
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => setShowAddHomeFellowshipModal(true)}>
-                                                <Building2 className="mr-2 h-4 w-4" />
-                                                Add Fellowship
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => setShowUploadModal(true)}>
-                                                <Upload className="mr-2 h-4 w-4" />
-                                                Import Members
-                                            </DropdownMenuItem>
-                                            <ExportMembersButton
-                                                members={members}
-                                                departments={departments}
-                                                homeFellowships={homeFellowships}
-                                                asMenuItem={true}
-                                            />
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </div>
+                                <select
+                                    value={filterGender}
+                                    onChange={(e) => setFilterGender(e.target.value)}
+                                    className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="">All Genders</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                </select>
 
-                                {/* Desktop Actions */}
-                                <div className="hidden md:flex items-center gap-2">
-                                    <ExportMembersButton
-                                        members={members}
-                                        departments={departments}
-                                        homeFellowships={homeFellowships}
-                                    />
-
+                                {selectedIds.length > 0 && (
                                     <Button
-                                        onClick={() => setShowAddDepartmentModal(true)}
-                                        variant="outline"
+                                        onClick={handleBulkDelete}
+                                        disabled={bulkDeleting}
+                                        variant="destructive"
+                                        size="sm"
                                         className="flex items-center gap-2"
                                     >
-                                        <Layers className="h-4 w-4" />
-                                        Add Department
+                                        <Trash2 className="h-4 w-4" />
+                                        Delete Selected
                                     </Button>
+                                )}
 
-                                    <Button
-                                        onClick={() => setShowAddHomeFellowshipModal(true)}
-                                        variant="outline"
-                                        className="flex items-center gap-2"
-                                    >
-                                        <Building2 className="h-4 w-4" />
-                                        Add Fellowship
-                                    </Button>
+                                <div className="flex items-center gap-2">
+                                    {/* Mobile Actions Menu */}
+                                    <div className="md:hidden">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="outline" size="icon">
+                                                    <Menu className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end" className="w-56">
+                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem onClick={() => setShowAddModal(true)}>
+                                                    <UserPlus className="mr-2 h-4 w-4" />
+                                                    Add Member
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => setShowAddDepartmentModal(true)}>
+                                                    <Layers className="mr-2 h-4 w-4" />
+                                                    Add Department
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => setShowAddHomeFellowshipModal(true)}>
+                                                    <Building2 className="mr-2 h-4 w-4" />
+                                                    Add Fellowship
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => setShowUploadModal(true)}>
+                                                    <Upload className="mr-2 h-4 w-4" />
+                                                    Import Members
+                                                </DropdownMenuItem>
+                                                <ExportMembersButton
+                                                    members={members}
+                                                    departments={departments}
+                                                    homeFellowships={homeFellowships}
+                                                    asMenuItem={true}
+                                                />
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
 
-                                    <Button 
-                                        onClick={() => setShowUploadModal(true)} 
-                                        variant="outline" 
-                                        className="flex items-center gap-2"
-                                    >
-                                        <Upload className="h-4 w-4" />
-                                        Import
-                                    </Button>
+                                    {/* Desktop Actions */}
+                                    <div className="hidden md:flex items-center gap-2">
+                                        <ExportMembersButton
+                                            members={members}
+                                            departments={departments}
+                                            homeFellowships={homeFellowships}
+                                        />
 
-                                    <Button onClick={() => setShowAddModal(true)} className="flex items-center gap-2">
-                                        <UserPlus className="h-4 w-4" />
-                                        Add Member
-                                    </Button>
+                                        <Button
+                                            onClick={() => setShowAddDepartmentModal(true)}
+                                            variant="outline"
+                                            className="flex items-center gap-2"
+                                        >
+                                            <Layers className="h-4 w-4" />
+                                            Add Department
+                                        </Button>
+
+                                        <Button
+                                            onClick={() => setShowAddHomeFellowshipModal(true)}
+                                            variant="outline"
+                                            className="flex items-center gap-2"
+                                        >
+                                            <Building2 className="h-4 w-4" />
+                                            Add Fellowship
+                                        </Button>
+
+                                        <Button 
+                                            onClick={() => setShowUploadModal(true)} 
+                                            variant="outline" 
+                                            className="flex items-center gap-2"
+                                        >
+                                            <Upload className="h-4 w-4" />
+                                            Import
+                                        </Button>
+
+                                        <Button onClick={() => setShowAddModal(true)} className="flex items-center gap-2">
+                                            <UserPlus className="h-4 w-4" />
+                                            Add Member
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -290,34 +319,34 @@ export default function MembersTable({ members, departments, homeFellowships, pa
                     <table className="w-full">
                         <thead className="bg-gray-50 border-b border-gray-200">
                             <tr>
-                                <th className="px-6 py-3 text-left">
+                                <th className="px-6 py-2 text-left">
                                     <Checkbox
                                         checked={selectedIds.length === filteredMembers.length && filteredMembers.length > 0}
                                         onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
                                     />
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     #
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Member
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Phone Number
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Gender
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Department
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Fellowship
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Estate
                                 </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Actions
                                 </th>
                             </tr>
@@ -329,29 +358,22 @@ export default function MembersTable({ members, departments, homeFellowships, pa
                                     className={`hover:bg-gray-50 transition-colors ${selectedIds.includes(member.id) ? "bg-blue-50" : ""
                                         }`}
                                 >
-                                    <td className="px-6 py-4">
+                                    <td className="px-6 py-2">
                                         <Checkbox
                                             checked={selectedIds.includes(member.id)}
                                             onCheckedChange={(checked) => handleSelectRow(member.id, checked as boolean)}
                                         />
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-500">
                                         {index + 1}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-full ${getAvatarColor(member.fullName)} flex items-center justify-center text-white font-semibold`}>
-                                                {getInitials(member.fullName)}
-                                            </div>
-                                            <div className="text-sm font-medium text-gray-900">
-                                                {member.fullName}
-                                            </div>
-                                        </div>
+                                    <td className="px-6 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                                        {member.fullName}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-500">
                                         {member.phoneNumber}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
+                                    <td className="px-6 py-2 whitespace-nowrap">
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${member.gender === "Male"
                                             ? "bg-blue-100 text-blue-800 border-blue-200"
                                             : "bg-pink-100 text-pink-800 border-pink-200"
@@ -359,7 +381,7 @@ export default function MembersTable({ members, departments, homeFellowships, pa
                                             {member.gender}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-500">
                                         {member.departments.length > 0 ? (
                                             <div className="flex flex-wrap gap-1">
                                                 {member.departments.map(({ department }) => (
@@ -376,13 +398,13 @@ export default function MembersTable({ members, departments, homeFellowships, pa
                                         )}
 
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-500">
                                         {member.homeFellowship?.name || <span className="text-gray-400">-</span>}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">
+                                    <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-500 font-medium">
                                         {member.estate || <span className="text-gray-400">-</span>}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <td className="px-6 py-2 whitespace-nowrap text-right text-sm font-medium">
                                         <div className="flex items-center justify-end gap-2">
                                             <Button
                                                 variant="ghost"
@@ -422,6 +444,37 @@ export default function MembersTable({ members, departments, homeFellowships, pa
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination */}
+                {pagination && pagination.pages > 1 && (
+                    <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                        <div className="text-sm text-gray-600">
+                            Page {pagination.page} of {pagination.pages} ({pagination.total} total)
+                        </div>
+                        <div className="flex gap-2">
+                            <Button
+                                onClick={() => handlePageChange(pagination.page - 1)}
+                                disabled={pagination.page === 1 || isPending}
+                                variant="outline"
+                                size="sm"
+                                className="flex items-center gap-1"
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                                Previous
+                            </Button>
+                            <Button
+                                onClick={() => handlePageChange(pagination.page + 1)}
+                                disabled={pagination.page === pagination.pages || isPending}
+                                variant="outline"
+                                size="sm"
+                                className="flex items-center gap-1"
+                            >
+                                Next
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {showAddModal && (

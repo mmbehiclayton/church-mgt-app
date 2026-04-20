@@ -50,10 +50,8 @@ export default function ExportButtons({ categories, asMenuItem = false }: { cate
     // Using same strategy as ImportButton to replace header and wrapper
 
     // Separate states for start and end date
-    const [startDate, setStartDate] = useState<Date | undefined>(
-        new Date(new Date().getFullYear(), new Date().getMonth(), 1) // Start of current month
-    );
-    const [endDate, setEndDate] = useState<Date | undefined>(new Date());
+    const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+    const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
     const [openStartDate, setOpenStartDate] = useState(false);
     const [openEndDate, setOpenEndDate] = useState(false);
@@ -287,14 +285,26 @@ export default function ExportButtons({ categories, asMenuItem = false }: { cate
                 <DialogHeader>
                     <DialogTitle>Export Transactions</DialogTitle>
                     <DialogDescription>
-                        Filter the data you want to export. Leave categories empty to export all.
+                        Select categories to export. Leave dates empty to export all records for the selected categories.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     {/* Date Fields Split */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
-                            <Label>Start Date</Label>
+                            <div className="flex items-center justify-between">
+                                <Label>Start Date</Label>
+                                {startDate && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setStartDate(undefined)}
+                                        className="h-auto p-0 text-xs text-gray-500 hover:text-gray-700"
+                                    >
+                                        Clear
+                                    </Button>
+                                )}
+                            </div>
                             <Popover open={openStartDate} onOpenChange={setOpenStartDate}>
                                 <PopoverTrigger asChild>
                                     <Button
@@ -305,7 +315,7 @@ export default function ExportButtons({ categories, asMenuItem = false }: { cate
                                         )}
                                     >
                                         <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {startDate ? format(startDate, "PPP") : <span>Pick a date</span>}
+                                        {startDate ? format(startDate, "PPP") : <span>No filter</span>}
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0" align="start">
@@ -326,7 +336,19 @@ export default function ExportButtons({ categories, asMenuItem = false }: { cate
                             </Popover>
                         </div>
                         <div className="grid gap-2">
-                            <Label>End Date</Label>
+                            <div className="flex items-center justify-between">
+                                <Label>End Date</Label>
+                                {endDate && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setEndDate(undefined)}
+                                        className="h-auto p-0 text-xs text-gray-500 hover:text-gray-700"
+                                    >
+                                        Clear
+                                    </Button>
+                                )}
+                            </div>
                             <Popover open={openEndDate} onOpenChange={setOpenEndDate}>
                                 <PopoverTrigger asChild>
                                     <Button
@@ -337,7 +359,7 @@ export default function ExportButtons({ categories, asMenuItem = false }: { cate
                                         )}
                                     >
                                         <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {endDate ? format(endDate, "PPP") : <span>Pick a date</span>}
+                                        {endDate ? format(endDate, "PPP") : <span>No filter</span>}
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0" align="start">
