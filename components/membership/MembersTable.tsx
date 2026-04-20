@@ -22,6 +22,8 @@ import { deleteMembers } from "@/app/actions";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import BulkUploadModal from "@/components/membership/BulkUploadModal";
+import { Upload } from "lucide-react";
 
 interface Department {
     id: string;
@@ -42,6 +44,7 @@ interface Member {
     fullName: string;
     phoneNumber: string;
     gender: string;
+    estate: string | null;
     homeFellowshipId: string | null;
     homeFellowship: HomeFellowship | null;
     departments: {
@@ -56,13 +59,20 @@ interface MembersTableProps {
     members: Member[];
     departments: Department[];
     homeFellowships: HomeFellowship[];
+    pagination?: {
+        total: number;
+        page: number;
+        limit: number;
+        pages: number;
+    };
 }
 
-export default function MembersTable({ members, departments, homeFellowships }: MembersTableProps) {
+export default function MembersTable({ members, departments, homeFellowships, pagination }: MembersTableProps) {
     const router = useRouter();
     const [showAddModal, setShowAddModal] = useState(false);
     const [showAddDepartmentModal, setShowAddDepartmentModal] = useState(false);
     const [showAddHomeFellowshipModal, setShowAddHomeFellowshipModal] = useState(false);
+    const [showUploadModal, setShowUploadModal] = useState(false);
     const [editingMember, setEditingMember] = useState<Member | null>(null);
     const [deletingMember, setDeletingMember] = useState<Member | null>(null);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -217,6 +227,10 @@ export default function MembersTable({ members, departments, homeFellowships }: 
                                                 <Building2 className="mr-2 h-4 w-4" />
                                                 Add Fellowship
                                             </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setShowUploadModal(true)}>
+                                                <Upload className="mr-2 h-4 w-4" />
+                                                Import Members
+                                            </DropdownMenuItem>
                                             <ExportMembersButton
                                                 members={members}
                                                 departments={departments}
@@ -251,6 +265,15 @@ export default function MembersTable({ members, departments, homeFellowships }: 
                                     >
                                         <Building2 className="h-4 w-4" />
                                         Add Fellowship
+                                    </Button>
+
+                                    <Button 
+                                        onClick={() => setShowUploadModal(true)} 
+                                        variant="outline" 
+                                        className="flex items-center gap-2"
+                                    >
+                                        <Upload className="h-4 w-4" />
+                                        Import
                                     </Button>
 
                                     <Button onClick={() => setShowAddModal(true)} className="flex items-center gap-2">
@@ -290,6 +313,9 @@ export default function MembersTable({ members, departments, homeFellowships }: 
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Fellowship
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Estate
                                 </th>
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Actions
@@ -352,6 +378,9 @@ export default function MembersTable({ members, departments, homeFellowships }: 
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {member.homeFellowship?.name || <span className="text-gray-400">-</span>}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">
+                                        {member.estate || <span className="text-gray-400">-</span>}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <div className="flex items-center justify-end gap-2">
@@ -448,6 +477,13 @@ export default function MembersTable({ members, departments, homeFellowships }: 
                 variant="danger"
                 loading={bulkDeleting}
             />
+
+            {showUploadModal && (
+                <BulkUploadModal 
+                    open={showUploadModal} 
+                    onClose={() => setShowUploadModal(false)} 
+                />
+            )}
         </>
     );
 }

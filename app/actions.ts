@@ -650,7 +650,12 @@ export async function getCurrentUserId() {
 export async function getDepartments() {
     try {
         const departments = await prisma.department.findMany({
-            include: {
+            select: {
+                id: true,
+                name: true,
+                description: true,
+                createdAt: true,
+                updatedAt: true,
                 _count: {
                     select: { members: true }
                 }
@@ -780,7 +785,13 @@ export async function deleteDepartments(ids: string[]) {
 export async function getHomeFellowships() {
     try {
         const fellowships = await prisma.homeFellowship.findMany({
-            include: {
+            select: {
+                id: true,
+                name: true,
+                leader: true,
+                location: true,
+                createdAt: true,
+                updatedAt: true,
                 _count: {
                     select: { members: true }
                 }
@@ -891,39 +902,71 @@ export async function deleteHomeFellowships(ids: string[]) {
 // Member Actions
 
 // Member Actions
-export async function getMembers(filters?: { departmentId?: string; gender?: string }) {
+export async function getMembers(filters?: { 
+    departmentId?: string
+    gender?: string
+    page?: number
+    limit?: number
+}) {
     try {
-        const where: any = {};
+        const where: any = {}
+        const page = filters?.page || 1
+        const limit = filters?.limit || 50
+        const skip = (page - 1) * limit
 
         if (filters?.departmentId) {
             where.departments = {
                 some: {
                     departmentId: filters.departmentId
                 }
-            };
+            }
         }
 
         if (filters?.gender) {
-            where.gender = filters.gender;
+            where.gender = filters.gender
         }
 
-        const members = await prisma.member.findMany({
-            where,
-            include: {
-                homeFellowship: true,
-                departments: {
-                    include: {
-                        department: true
+        // Execute count and fetch in parallel for better performance
+        const [members, total] = await Promise.all([
+            prisma.member.findMany({
+                where,
+                select: {
+                    id: true,
+                    fullName: true,
+                    phoneNumber: true,
+                    gender: true,
+                    estate: true,
+                    homeFellowshipId: true,
+                    homeFellowship: {
+                        select: { id: true, name: true }
+                    },
+                    departments: {
+                        select: {
+                            department: {
+                                select: { id: true, name: true }
+                            }
+                        }
                     }
-                }
-            },
-            orderBy: { fullName: 'asc' }
-        });
+                },
+                orderBy: { fullName: 'asc' },
+                skip,
+                take: limit
+            }),
+            prisma.member.count({ where })
+        ])
 
-        return members;
+        return {
+            data: members,
+            pagination: {
+                total,
+                page,
+                limit,
+                pages: Math.ceil(total / limit)
+            }
+        }
     } catch (error) {
-        console.error("Get Members Error:", error);
-        return [];
+        console.error("Get Members Error:", error)
+        return { data: [], pagination: { total: 0, page: 1, limit: 50, pages: 0 } }
     }
 }
 
@@ -951,6 +994,7 @@ export async function createMember(data: {
     fullName: string;
     phoneNumber: string;
     gender: string;
+    estate?: string;
     departmentIds?: string[];
     homeFellowshipId?: string;
 }) {
@@ -975,6 +1019,7 @@ export async function createMember(data: {
                 fullName: data.fullName.trim(),
                 phoneNumber: data.phoneNumber.trim(),
                 gender: data.gender,
+                estate: data.estate?.trim() || null,
                 homeFellowshipId: data.homeFellowshipId || null,
                 departments: {
                     create: (data.departmentIds || []).map(deptId => ({
@@ -996,6 +1041,7 @@ export async function updateMember(id: string, data: {
     fullName?: string;
     phoneNumber?: string;
     gender?: string;
+    estate?: string;
     departmentIds?: string[];
     homeFellowshipId?: string | null;
 }) {
@@ -1016,6 +1062,7 @@ export async function updateMember(id: string, data: {
             fullName: data.fullName?.trim(),
             phoneNumber: data.phoneNumber?.trim(),
             gender: data.gender,
+            estate: data.estate?.trim(),
         };
 
         if (data.homeFellowshipId !== undefined) {
@@ -1072,6 +1119,63 @@ export async function deleteMembers(ids: string[]) {
     } catch (error) {
         console.error("Delete Members Error:", error);
         return { error: "Failed to delete members" };
+    }
+}
+
+export async function importMembers(data: {
+    fullName: string;
+    phoneNumber: string;
+    gender: string;
+    estate?: string;
+    fellowshipName?: string;
+    departmentNames?: string; // Comma separated
+}[]) {
+    try {
+        // 1. Pre-fetch all needed data for mapping
+        const [departments, fellowships] = await Promise.all([
+            prisma.department.findMany(),
+            prisma.homeFellowship.findMany()
+        ]);
+
+        const deptMap = new Map(departments.map(d => [d.name.toLowerCase().trim(), d.id]));
+        const fellowshipMap = new Map(fellowships.map(f => [f.name.toLowerCase().trim(), f.id]));
+
+        // 2. Process members
+        let successCount = 0;
+        let skipCount = 0;
+
+        for (const row of data) {
+            if (!row.fullName || !row.phoneNumber || !row.gender) {
+                skipCount++;
+                continue;
+            }
+
+            const hfId = row.fellowshipName ? fellowshipMap.get(row.fellowshipName.toLowerCase().trim()) : null;
+            const deptNames = row.departmentNames ? row.departmentNames.split(',').map(n => n.trim().toLowerCase()) : [];
+            const deptIds = deptNames.map(name => deptMap.get(name)).filter(Boolean) as string[];
+
+            await prisma.member.create({
+                data: {
+                    fullName: row.fullName.trim(),
+                    phoneNumber: row.phoneNumber.toString().trim(),
+                    gender: row.gender.trim(),
+                    estate: row.estate?.trim() || null,
+                    homeFellowshipId: hfId || null,
+                    departments: {
+                        create: deptIds.map(deptId => ({
+                            departmentId: deptId
+                        }))
+                    }
+                }
+            });
+            successCount++;
+        }
+
+        revalidatePath("/dashboard/membership");
+        return { success: true, count: successCount, skipped: skipCount };
+    } catch (error) {
+        console.error("Import Members Error:", error);
+        return { error: "Failed to import members" };
     }
 }
 

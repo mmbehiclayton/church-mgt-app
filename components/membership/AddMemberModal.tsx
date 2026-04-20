@@ -32,6 +32,7 @@ export default function AddMemberModal({ open, onClose, departments, homeFellows
         fullName: "",
         phoneNumber: "",
         gender: "",
+        estate: "",
         departmentIds: [] as string[],
         homeFellowshipId: ""
     });
@@ -44,6 +45,7 @@ export default function AddMemberModal({ open, onClose, departments, homeFellows
             fullName: formData.fullName,
             phoneNumber: formData.phoneNumber,
             gender: formData.gender,
+            estate: formData.estate,
             departmentIds: formData.departmentIds,
             homeFellowshipId: formData.homeFellowshipId || undefined
         });
@@ -136,6 +138,19 @@ export default function AddMemberModal({ open, onClose, departments, homeFellows
                                 ))}
                             </select>
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Estate (Optional)
+                        </label>
+                        <input
+                            type="text"
+                            value={formData.estate}
+                            onChange={(e) => setFormData({ ...formData, estate: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="e.g. Riverside, Phase 2"
+                        />
                     </div>
 
                     <div>

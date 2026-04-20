@@ -47,8 +47,8 @@ export default function MarkAttendanceForm({ onSuccess, initialData }: MarkAtten
     // Load members and initial attendance
     useEffect(() => {
         const loadMembers = async () => {
-            const data = await getMembers();
-            setMembers(data);
+            const result = await getMembers();
+            setMembers(result.data);
 
             if (initialData?.records) {
                 const initialMap: any = {};

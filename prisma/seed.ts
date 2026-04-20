@@ -130,22 +130,33 @@ async function main() {
     if (memberCount === 0) {
         console.log('Seeding members...')
         const sampleMembers = [
-            { fullName: 'John Kamau', phoneNumber: '0712345678', gender: 'Male', departmentId: createdDepts[0].id },
-            { fullName: 'Mary Wanjiru', phoneNumber: '0723456789', gender: 'Female', departmentId: createdDepts[1].id },
-            { fullName: 'Peter Omondi', phoneNumber: '0734567890', gender: 'Male', departmentId: createdDepts[2].id },
-            { fullName: 'Grace Akinyi', phoneNumber: '0745678901', gender: 'Female', departmentId: createdDepts[3].id },
-            { fullName: 'David Mwangi', phoneNumber: '0756789012', gender: 'Male', departmentId: createdDepts[4].id },
-            { fullName: 'Sarah Njeri', phoneNumber: '0767890123', gender: 'Female', departmentId: createdDepts[0].id },
-            { fullName: 'James Otieno', phoneNumber: '0778901234', gender: 'Male', departmentId: createdDepts[1].id },
-            { fullName: 'Ruth Wambui', phoneNumber: '0789012345', gender: 'Female', departmentId: createdDepts[2].id },
-            { fullName: 'Samuel Kipchoge', phoneNumber: '0790123456', gender: 'Male', departmentId: createdDepts[3].id },
-            { fullName: 'Esther Chebet', phoneNumber: '0701234567', gender: 'Female', departmentId: createdDepts[4].id },
+            { fullName: 'John Kamau', phoneNumber: '0712345678', gender: 'Male', departmentIds: [createdDepts[0].id] },
+            { fullName: 'Mary Wanjiru', phoneNumber: '0723456789', gender: 'Female', departmentIds: [createdDepts[1].id] },
+            { fullName: 'Peter Omondi', phoneNumber: '0734567890', gender: 'Male', departmentIds: [createdDepts[2].id] },
+            { fullName: 'Grace Akinyi', phoneNumber: '0745678901', gender: 'Female', departmentIds: [createdDepts[3].id] },
+            { fullName: 'David Mwangi', phoneNumber: '0756789012', gender: 'Male', departmentIds: [createdDepts[4].id] },
+            { fullName: 'Sarah Njeri', phoneNumber: '0767890123', gender: 'Female', departmentIds: [createdDepts[0].id] },
+            { fullName: 'James Otieno', phoneNumber: '0778901234', gender: 'Male', departmentIds: [createdDepts[1].id] },
+            { fullName: 'Ruth Wambui', phoneNumber: '0789012345', gender: 'Female', departmentIds: [createdDepts[2].id] },
+            { fullName: 'Samuel Kipchoge', phoneNumber: '0790123456', gender: 'Male', departmentIds: [createdDepts[3].id] },
+            { fullName: 'Esther Chebet', phoneNumber: '0701234567', gender: 'Female', departmentIds: [createdDepts[4].id] },
         ]
 
         for (const member of sampleMembers) {
-            await prisma.member.create({
-                data: member
+            const { departmentIds, ...memberData } = member
+            const created = await prisma.member.create({
+                data: memberData
             })
+            
+            // Add department associations
+            if (departmentIds && departmentIds.length > 0) {
+                await prisma.memberDepartment.createMany({
+                    data: departmentIds.map(deptId => ({
+                        memberId: created.id,
+                        departmentId: deptId
+                    }))
+                })
+            }
         }
         console.log(`Created ${sampleMembers.length} sample members`)
     } else {

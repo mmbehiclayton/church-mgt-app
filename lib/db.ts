@@ -2,7 +2,10 @@ import { PrismaClient } from "@prisma/client"
 
 const prismaClientSingleton = () => {
     return new PrismaClient({
-        log: ['query', 'error', 'warn'],
+        // Only log errors in production, queries in development
+        log: process.env.NODE_ENV === 'production' 
+            ? ['error', 'warn'] 
+            : ['query', 'error', 'warn'],
     })
 }
 

@@ -4,8 +4,8 @@ import MembersTable from "@/components/membership/MembersTable";
 export const dynamic = 'force-dynamic';
 
 export default async function MembershipPage() {
-    const [members, departments, homeFellowships] = await Promise.all([
-        getMembers(),
+    const [membersResult, departments, homeFellowships] = await Promise.all([
+        getMembers({ page: 1, limit: 50 }),
         getDepartments(),
         getHomeFellowships()
     ]);
@@ -19,7 +19,12 @@ export default async function MembershipPage() {
                 </div>
             </div>
 
-            <MembersTable members={members} departments={departments} homeFellowships={homeFellowships} />
+            <MembersTable 
+                members={membersResult.data} 
+                pagination={membersResult.pagination}
+                departments={departments} 
+                homeFellowships={homeFellowships} 
+            />
         </div>
     );
 }

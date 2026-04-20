@@ -17,6 +17,7 @@ interface Member {
     fullName: string;
     phoneNumber: string;
     gender: string;
+    estate?: string | null;
     homeFellowshipId?: string | null;
     departments: {
         department: {
@@ -46,6 +47,7 @@ export default function EditMemberModal({ member, open, onClose, departments, ho
         fullName: member.fullName,
         phoneNumber: member.phoneNumber,
         gender: member.gender,
+        estate: member.estate || "",
         departmentIds: member.departments.map(d => d.department.id),
         homeFellowshipId: member.homeFellowshipId || ""
     });
@@ -58,6 +60,7 @@ export default function EditMemberModal({ member, open, onClose, departments, ho
             fullName: formData.fullName,
             phoneNumber: formData.phoneNumber,
             gender: formData.gender,
+            estate: formData.estate,
             departmentIds: formData.departmentIds,
             homeFellowshipId: formData.homeFellowshipId || null
         });
@@ -146,6 +149,19 @@ export default function EditMemberModal({ member, open, onClose, departments, ho
                                 <option key={hf.id} value={hf.id}>{hf.name}</option>
                             ))}
                         </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Estate (Optional)
+                        </label>
+                        <input
+                            type="text"
+                            value={formData.estate}
+                            onChange={(e) => setFormData({ ...formData, estate: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="e.g. Riverside, Phase 2"
+                        />
                     </div>
 
                     <div>
