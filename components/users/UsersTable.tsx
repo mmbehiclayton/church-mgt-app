@@ -13,27 +13,18 @@ import { deleteUser, getCurrentUserId } from "@/app/actions";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
-
-interface User {
-    id: string;
-    email: string;
-    name: string | null;
-    role: string;
-    isActive: boolean;
-    lastLogin: Date | null;
-    createdAt: Date;
-}
+import type { UserManagementUser } from "@/types/users";
 
 interface UsersTableProps {
-    users: User[];
+    users: UserManagementUser[];
 }
 
 export default function UsersTable({ users }: UsersTableProps) {
     const router = useRouter();
     const [showAddModal, setShowAddModal] = useState(false);
-    const [editingUser, setEditingUser] = useState<User | null>(null);
-    const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
-    const [deletingUser, setDeletingUser] = useState<User | null>(null);
+    const [editingUser, setEditingUser] = useState<UserManagementUser | null>(null);
+    const [resetPasswordUser, setResetPasswordUser] = useState<UserManagementUser | null>(null);
+    const [deletingUser, setDeletingUser] = useState<UserManagementUser | null>(null);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [bulkDeleting, setBulkDeleting] = useState(false);
     const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
@@ -102,10 +93,12 @@ export default function UsersTable({ users }: UsersTableProps) {
         setShowBulkDeleteDialog(true);
     };
 
-    const getRoleBadgeColor = (role: string) => {
-        switch (role.toUpperCase()) {
-            case "ADMIN":
+    const getRoleBadgeColor = (roleName: string) => {
+        switch (roleName.toUpperCase()) {
+            case "SUPER ADMIN":
                 return "bg-blue-100 text-blue-800 border-blue-200";
+            case "ADMIN":
+                return "bg-indigo-100 text-indigo-800 border-indigo-200";
             case "VIEWER":
                 return "bg-gray-100 text-gray-800 border-gray-200";
             default:
@@ -242,9 +235,22 @@ export default function UsersTable({ users }: UsersTableProps) {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getRoleBadgeColor(user.role)}`}>
-                                            {user.role}
-                                        </span>
+                                        <div className="flex flex-wrap gap-2">
+                                            {user.userRoles.length > 0 ? (
+                                                user.userRoles.map((userRole) => (
+                                                    <span
+                                                        key={userRole.role.id}
+                                                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getRoleBadgeColor(userRole.role.name)}`}
+                                                    >
+                                                        {userRole.role.name}
+                                                    </span>
+                                                ))
+                                            ) : (
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getRoleBadgeColor(user.role)}`}>
+                                                    {user.role}
+                                                </span>
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadgeColor(user.isActive)}`}>

@@ -2,17 +2,29 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import MarkAttendanceForm from "@/components/attendance/MarkAttendanceForm";
+import MarkAttendanceForm, { type AttendanceSessionData } from "@/components/attendance/MarkAttendanceForm";
 import AttendanceAnalytics from "@/components/attendance/AttendanceAnalytics";
 import { getAttendanceSessions, getAttendanceSessionById } from "@/app/actions";
 import { Plus, Calendar, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/hooks/usePermissions";
+
+interface AttendanceSession {
+    id: string;
+    date: Date | string;
+    type: string;
+    description?: string | null;
+    status?: string;
+    _count?: { records?: number };
+    [key: string]: unknown;
+}
 
 export default function AttendancePage() {
     const [view, setView] = useState<'LIST' | 'CREATE' | 'EDIT'>('LIST');
-    const [sessions, setSessions] = useState<any[]>([]);
-    const [selectedSession, setSelectedSession] = useState<any>(null);
+    const [sessions, setSessions] = useState<AttendanceSession[]>([]);
+    const [selectedSession, setSelectedSession] = useState<AttendanceSessionData | null>(null);
+    const { hasPermission } = usePermissions();
 
     useEffect(() => {
         const loadSessions = async () => {
@@ -22,20 +34,16 @@ export default function AttendancePage() {
         loadSessions();
     }, [view]);
 
-    const handleEdit = async (sessionId: string) => {
-        // Need to fetch full details including records
-        // We can use getAttendanceSessionById action
-        // For now, let's assume we fetch it inside the form or here.
-        // Let's fetch it here to pass as initialData.
-        // Or better, let the form fetch it? No, form expects initialData.
-        // Wait, I need to look up getAttendanceSessionById from actions.
-        // Use inline fetch for now or import it.
-        // Let's just pass the ID and let the page fetch it?
-        // Simpler: Fetch it here.
-        // I need to import getAttendanceSessionById.
-    };
-
-    // Actually, let's just make the list item clickable.
+    if (!hasPermission('attendance', 'read')) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                    <h2 className="text-xl font-semibold text-gray-900">Access Denied</h2>
+                    <p className="text-gray-500 mt-2">You don&apos;t have permission to view attendance records.</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -77,7 +85,7 @@ export default function AttendancePage() {
                         <div className="divide-y">
                             {sessions.length === 0 ? (
                                 <div className="p-8 text-center text-gray-500">
-                                    No attendance sessions found. Click "Mark Attendance" to start.
+                                    No attendance sessions found. Click &quot;Mark Attendance&quot; to start.
                                 </div>
                             ) : (
                                 sessions.map(session => (
@@ -86,7 +94,7 @@ export default function AttendancePage() {
                                         className="p-4 flex items-center justify-between hover:bg-gray-50 cursor-pointer"
                                         onClick={async () => {
                                             const fullSession = await getAttendanceSessionById(session.id);
-                                            setSelectedSession(fullSession);
+                                            setSelectedSession(fullSession as AttendanceSessionData | null);
                                             setView('EDIT');
                                         }}
                                     >

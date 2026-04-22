@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Wallet, Repeat, LogOut, FileText, Settings, Users, Calendar } from "lucide-react";
+import { LayoutDashboard, LogOut, Settings, Users, Calendar } from "lucide-react";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface SidebarProps {
     className?: string; // For mobile visibility classes
@@ -14,15 +15,52 @@ import { signOut } from "next-auth/react";
 
 export function Sidebar({ className, onNavigate }: SidebarProps) {
     const pathname = usePathname();
+    const { hasPermission } = usePermissions();
 
     const menuItems = [
-        { name: "Finance", href: "/dashboard", icon: LayoutDashboard },
-        { name: "Membership", href: "/dashboard/membership", icon: Users },
-        { name: "Attendance", href: "/dashboard/attendance", icon: Calendar },
+        {
+            name: "Finance",
+            href: "/dashboard/finance",
+            icon: LayoutDashboard,
+            permission: "transactions:read"
+        },
+        {
+            name: "Membership",
+            href: "/dashboard/membership",
+            icon: Users,
+            permission: "members:read"
+        },
+        {
+            name: "Attendance",
+            href: "/dashboard/attendance",
+            icon: Calendar,
+            permission: "attendance:read"
+        },
         // { name: "Reports", href: "/dashboard/reports", icon: FileText },
-        { name: "User Management", href: "/dashboard/users", icon: Users },
-        { name: "Settings", href: "/dashboard/settings", icon: Settings },
+        {
+            name: "User Management",
+            href: "/dashboard/users",
+            icon: Users,
+            permission: "users:read"
+        },
+        {
+            name: "Settings",
+            href: "/dashboard/settings",
+            icon: Settings,
+            permission: "settings:read"
+        },
+        {
+            name: "RBAC Management",
+            href: "/dashboard/rbac",
+            icon: Users,
+            permission: "rbac:manage"
+        },
     ];
+
+    // Filter menu items based on permissions
+    const accessibleMenuItems = menuItems.filter(item =>
+        !item.permission || hasPermission(item.permission)
+    );
 
     const handleLogout = () => {
         signOut({ callbackUrl: "/" });
@@ -32,10 +70,10 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
         <div className={cn("pb-12 h-full w-64 border-r bg-white space-y-4 py-4 flex flex-col", className)}>
             <div className="px-3 py-2">
                 <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight text-primary">
-                    Church Management System
+                    Church Dashboard
                 </h2>
                 <div className="space-y-1">
-                    {menuItems.map((item) => (
+                    {accessibleMenuItems.map((item) => (
                         <Link
                             key={item.href}
                             href={item.href}

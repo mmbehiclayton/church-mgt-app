@@ -94,7 +94,7 @@ export default function SettingsForm({ organization }: SettingsFormProps) {
             <CardHeader>
                 <CardTitle>Organization Settings</CardTitle>
                 <CardDescription>
-                    Manage your organization's global settings here.
+                    Manage your organization&apos;s global settings here.
                 </CardDescription>
             </CardHeader>
             <CardContent>

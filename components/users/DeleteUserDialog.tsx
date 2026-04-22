@@ -6,16 +6,10 @@ import { Button } from "@/components/ui/button";
 import { X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-
-interface User {
-    id: string;
-    email: string;
-    name: string | null;
-    role: string;
-}
+import type { UserManagementUser } from "@/types/users";
 
 interface DeleteUserDialogProps {
-    user: User;
+    user: UserManagementUser;
     open: boolean;
     onClose: () => void;
 }
@@ -23,6 +17,7 @@ interface DeleteUserDialogProps {
 export default function DeleteUserDialog({ user, open, onClose }: DeleteUserDialogProps) {
     const [loading, setLoading] = useState(false);
     const router = useRouter();
+    const roleNames = user.userRoles.map((userRole) => userRole.role.name);
 
     const handleDelete = async () => {
         setLoading(true);
@@ -92,7 +87,7 @@ export default function DeleteUserDialog({ user, open, onClose }: DeleteUserDial
                                 <span className="font-medium text-gray-900">Email:</span> {user.email}
                             </p>
                             <p className="text-sm">
-                                <span className="font-medium text-gray-900">Role:</span> {user.role}
+                                <span className="font-medium text-gray-900">Roles:</span> {roleNames.length > 0 ? roleNames.join(", ") : user.role}
                             </p>
                         </div>
                     </div>

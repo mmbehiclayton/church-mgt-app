@@ -3,7 +3,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, UserMinus, AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
 
 interface AttendanceStatsProps {
     stats: {

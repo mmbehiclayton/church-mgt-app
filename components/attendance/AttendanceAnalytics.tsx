@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import AttendanceStats from "./AttendanceStats";
 
 export default function AttendanceAnalytics() {
-    const [data, setData] = useState<{ trends: any[], watchlist: any[], stats: { present: number, absent: number, watchlist: number } } | null>(null);
+    const [data, setData] = useState<{ trends: Array<Record<string, unknown>>, watchlist: Array<Record<string, unknown>>, stats: { present: number, absent: number, watchlist: number } } | null>(null);
 
     useEffect(() => {
         const loadAnalytics = async () => {

@@ -6,7 +6,7 @@ export default function Footer() {
             <div className="container mx-auto px-4 py-6">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-600">
                     <div className="flex flex-col md:flex-row items-center gap-2 text-center md:text-left">
-                        <span className="font-semibold text-gray-900">Church Management System</span>
+                        <span className="font-semibold text-gray-900">Mwiki Main Altar</span>
                         <span className="hidden md:inline">•</span>
                         <span>© {currentYear} All rights reserved</span>
                     </div>

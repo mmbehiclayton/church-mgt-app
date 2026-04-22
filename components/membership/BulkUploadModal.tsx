@@ -16,8 +16,20 @@ export default function BulkUploadModal({ open, onClose }: BulkUploadModalProps)
     const router = useRouter();
     const [file, setFile] = useState<File | null>(null);
     const [loading, setLoading] = useState(false);
-    const [previewData, setPreviewData] = useState<any[]>([]);
+    const [previewData, setPreviewData] = useState<Array<Array<string>>>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const normalizeCell = (value: unknown) => {
+        if (typeof value === "string") {
+            return value.trim();
+        }
+
+        if (typeof value === "number") {
+            return value.toString();
+        }
+
+        return "";
+    };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0];
@@ -29,9 +41,10 @@ export default function BulkUploadModal({ open, onClose }: BulkUploadModalProps)
                 const wb = XLSX.read(bstr, { type: "binary" });
                 const wsname = wb.SheetNames[0];
                 const ws = wb.Sheets[wsname];
-                const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
-                // @ts-ignore
-                setPreviewData(data.slice(1, 6)); // Show first 5 rows for preview
+                const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as unknown[][];
+                setPreviewData(
+                    data.slice(0, 6).map((row) => row.map((cell) => normalizeCell(cell)))
+                );
             };
             reader.readAsBinaryString(selectedFile);
         }
@@ -60,16 +73,16 @@ export default function BulkUploadModal({ open, onClose }: BulkUploadModalProps)
                 const wb = XLSX.read(bstr, { type: "binary" });
                 const wsname = wb.SheetNames[0];
                 const ws = wb.Sheets[wsname];
-                const rawData = XLSX.utils.sheet_to_json(ws);
+                const rawData = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
 
                 // Map headers to expected format
-                const mappedData = rawData.map((row: any) => ({
-                    fullName: row["Full Name"] || row["fullName"] || row["Name"],
-                    phoneNumber: row["Phone Number"] || row["phoneNumber"] || row["Phone"] || row["Mobile"],
-                    gender: row["Gender"] || row["gender"],
-                    estate: row["Estate"] || row["estate"],
-                    fellowshipName: row["Fellowship Name"] || row["fellowshipName"] || row["Fellowship"],
-                    departmentNames: row["Department Names"] || row["departmentNames"] || row["Departments"]
+                const mappedData = rawData.map((row) => ({
+                    fullName: normalizeCell(row["Full Name"] ?? row["fullName"] ?? row["Name"]),
+                    phoneNumber: normalizeCell(row["Phone Number"] ?? row["phoneNumber"] ?? row["Phone"] ?? row["Mobile"]),
+                    gender: normalizeCell(row["Gender"] ?? row["gender"]),
+                    estate: normalizeCell(row["Estate"] ?? row["estate"]) || undefined,
+                    fellowshipName: normalizeCell(row["Fellowship Name"] ?? row["fellowshipName"] ?? row["Fellowship"]) || undefined,
+                    departmentNames: normalizeCell(row["Department Names"] ?? row["departmentNames"] ?? row["Departments"]) || undefined
                 }));
 
                 const result = await importMembers(mappedData);
@@ -178,7 +191,7 @@ export default function BulkUploadModal({ open, onClose }: BulkUploadModalProps)
                                 <table className="w-full text-xs text-left">
                                     <thead className="bg-gray-50 border-b sticky top-0">
                                         <tr>
-                                            {previewData[0].map((header: any, i: number) => (
+                                            {previewData[0].map((header: string, i: number) => (
                                                 <th key={i} className="px-4 py-2 font-medium text-gray-500 truncate max-w-[150px]">{header}</th>
                                             ))}
                                         </tr>
@@ -186,7 +199,7 @@ export default function BulkUploadModal({ open, onClose }: BulkUploadModalProps)
                                     <tbody className="divide-y">
                                         {previewData.slice(1).map((row, i) => (
                                             <tr key={i} className="hover:bg-gray-50">
-                                                {Array.isArray(row) ? row.map((cell: any, j: number) => (
+                                                {Array.isArray(row) ? row.map((cell: string, j: number) => (
                                                     <td key={j} className="px-4 py-2 text-gray-600 truncate max-w-[150px]">{cell}</td>
                                                 )) : null}
                                             </tr>

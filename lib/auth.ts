@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import prisma from "@/lib/db";
 import bcrypt from "bcryptjs";
+import { getUserPermissionsById } from "@/lib/rbac";
 
 export const authOptions: NextAuthOptions = {
     adapter: PrismaAdapter(prisma),
@@ -27,6 +28,26 @@ export const authOptions: NextAuthOptions = {
                 const user = await prisma.user.findUnique({
                     where: {
                         email: credentials.email
+                    },
+                    include: {
+                        userRoles: {
+                            include: {
+                                role: {
+                                    include: {
+                                        rolePermissions: {
+                                            include: {
+                                                permission: true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        userPermissions: {
+                            include: {
+                                permission: true
+                            }
+                        }
                     }
                 });
 
@@ -43,11 +64,15 @@ export const authOptions: NextAuthOptions = {
                     return null;
                 }
 
+                // Get permissions
+                const permissions = await getUserPermissionsById(user.id);
+
                 return {
                     id: user.id,
                     email: user.email,
                     name: user.name,
                     role: user.role,
+                    permissions,
                 };
             }
         })
@@ -57,6 +82,7 @@ export const authOptions: NextAuthOptions = {
             if (token && session.user) {
                 session.user.id = token.id as string;
                 session.user.role = token.role as string;
+                session.user.permissions = token.permissions as { [key: string]: boolean };
             }
             return session;
         },
@@ -64,6 +90,7 @@ export const authOptions: NextAuthOptions = {
             if (user) {
                 token.id = user.id;
                 token.role = user.role;
+                token.permissions = user.permissions;
             }
             return token;
         }

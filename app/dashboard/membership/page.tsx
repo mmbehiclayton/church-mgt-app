@@ -1,5 +1,5 @@
 import { getMembers, getDepartments, getHomeFellowships } from "@/app/actions";
-import MembersTable from "@/components/membership/MembersTable";
+import MembershipPageClient from "./MembershipPageClient";
 
 export const dynamic = 'force-dynamic';
 
@@ -11,20 +11,11 @@ export default async function MembershipPage() {
     ]);
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-gray-900">Membership</h1>
-                    <p className="text-gray-500 mt-1">Manage church members and departments</p>
-                </div>
-            </div>
-
-            <MembersTable 
-                members={membersResult.data} 
-                pagination={membersResult.pagination}
-                departments={departments} 
-                homeFellowships={homeFellowships} 
-            />
-        </div>
+        <MembershipPageClient
+            members={membersResult.data}
+            pagination={membersResult.pagination}
+            departments={departments}
+            homeFellowships={homeFellowships}
+        />
     );
 }

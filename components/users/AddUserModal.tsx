@@ -1,13 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createUser } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { X } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+
+interface Role {
+  id: string;
+  name: string;
+  description: string | null;
+}
 
 interface AddUserModalProps {
     open: boolean;
@@ -20,11 +27,46 @@ export default function AddUserModal({ open, onClose }: AddUserModalProps) {
         email: "",
         password: "",
         confirmPassword: "",
-        role: "ADMIN",
+        selectedRoleIds: [] as string[],
         isActive: true,
     });
+    const [roles, setRoles] = useState<Role[]>([]);
     const [loading, setLoading] = useState(false);
+    const [loadingRoles, setLoadingRoles] = useState(false);
     const router = useRouter();
+
+    useEffect(() => {
+        if (open) {
+            loadRoles();
+        }
+    }, [open]);
+
+    const loadRoles = async () => {
+        setLoadingRoles(true);
+        try {
+            const response = await fetch('/api/rbac/roles');
+            if (response.ok) {
+                const data = await response.json();
+                setRoles(data);
+            } else {
+                toast.error("Failed to load roles");
+            }
+        } catch (error) {
+            console.error('Error loading roles:', error);
+            toast.error("Failed to load roles");
+        } finally {
+            setLoadingRoles(false);
+        }
+    };
+
+    const handleRoleChange = (roleId: string, checked: boolean) => {
+        setFormData(prev => ({
+            ...prev,
+            selectedRoleIds: checked
+                ? [...prev.selectedRoleIds, roleId]
+                : prev.selectedRoleIds.filter(id => id !== roleId)
+        }));
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -39,11 +81,20 @@ export default function AddUserModal({ open, onClose }: AddUserModalProps) {
             return;
         }
 
+        // Validate at least one role is selected
+        if (formData.selectedRoleIds.length === 0) {
+            toast.error("Error", {
+                description: "Please select at least one role",
+            });
+            setLoading(false);
+            return;
+        }
+
         const result = await createUser({
             name: formData.name || undefined,
             email: formData.email,
             password: formData.password,
-            role: formData.role,
+            roleIds: formData.selectedRoleIds,
             isActive: formData.isActive,
         });
 
@@ -62,7 +113,7 @@ export default function AddUserModal({ open, onClose }: AddUserModalProps) {
                 email: "",
                 password: "",
                 confirmPassword: "",
-                role: "ADMIN",
+                selectedRoleIds: [],
                 isActive: true,
             });
             router.refresh();
@@ -146,16 +197,43 @@ export default function AddUserModal({ open, onClose }: AddUserModalProps) {
                     </div>
 
                     <div>
-                        <Label htmlFor="role">Role</Label>
-                        <select
-                            id="role"
-                            value={formData.role}
-                            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                            <option value="ADMIN">Admin</option>
-                            <option value="VIEWER">Viewer</option>
-                        </select>
+                        <Label>Roles <span className="text-red-500">*</span></Label>
+                        {loadingRoles ? (
+                            <p className="text-sm text-gray-500">Loading roles...</p>
+                        ) : (
+                            <div className="space-y-2 max-h-32 overflow-y-auto border rounded-md p-3">
+                                {roles.map((role) => (
+                                    <div key={role.id} className="flex items-center space-x-2">
+                                        <Checkbox
+                                            id={`role-${role.id}`}
+                                            checked={formData.selectedRoleIds.includes(role.id)}
+                                            onCheckedChange={(checked) =>
+                                                handleRoleChange(role.id, checked as boolean)
+                                            }
+                                        />
+                                        <Label
+                                            htmlFor={`role-${role.id}`}
+                                            className="text-sm cursor-pointer"
+                                        >
+                                            {role.name}
+                                            {role.description && (
+                                                <span className="text-gray-500 ml-1">
+                                                    - {role.description}
+                                                </span>
+                                            )}
+                                        </Label>
+                                    </div>
+                                ))}
+                                {roles.length === 0 && (
+                                    <p className="text-sm text-gray-500">No roles available</p>
+                                )}
+                            </div>
+                        )}
+                        {formData.selectedRoleIds.length > 0 && (
+                            <p className="text-xs text-gray-500 mt-1">
+                                {formData.selectedRoleIds.length} role{formData.selectedRoleIds.length > 1 ? 's' : ''} selected
+                            </p>
+                        )}
                     </div>
 
                     <div className="flex items-center gap-2">

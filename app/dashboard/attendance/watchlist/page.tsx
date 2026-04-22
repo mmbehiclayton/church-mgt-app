@@ -7,14 +7,21 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, UserX } from "lucide-react";
 import Link from "next/link";
 
+interface WatchlistMember {
+    id: string;
+    fullName: string;
+    homeFellowship?: { name: string } | null;
+    [key: string]: unknown;
+}
+
 export default function WatchlistPage() {
-    const [watchlist, setWatchlist] = useState<any[]>([]);
+    const [watchlist, setWatchlist] = useState<WatchlistMember[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const loadData = async () => {
             const data = await getAttendanceAnalytics();
-            setWatchlist(data.watchlist);
+            setWatchlist((data.watchlist as WatchlistMember[]) || []);
             setLoading(false);
         };
         loadData();

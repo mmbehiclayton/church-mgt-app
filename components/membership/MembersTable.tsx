@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { UserPlus, Pencil, Trash2, Download, Filter, User, Building2, Menu, MoreHorizontal, Layers, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { UserPlus, Pencil, Trash2, User, Building2, Menu, Layers, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
@@ -74,7 +74,6 @@ export default function MembersTable({ members: initialMembers, departments, hom
     
     // Search and pagination state
     const [searchQuery, setSearchQuery] = useState("");
-    const [currentPage, setCurrentPage] = useState(initialPagination?.page || 1);
     const [members, setMembers] = useState<Member[]>(initialMembers);
     const [pagination, setPagination] = useState(initialPagination || { total: 0, page: 1, limit: 50, pages: 0 });
     
@@ -101,7 +100,6 @@ export default function MembersTable({ members: initialMembers, departments, hom
     // Handle search
     const handleSearch = (query: string) => {
         setSearchQuery(query);
-        setCurrentPage(1);
         startTransition(async () => {
             const result = await getMembers({
                 search: query,
@@ -115,7 +113,6 @@ export default function MembersTable({ members: initialMembers, departments, hom
 
     // Handle pagination
     const handlePageChange = (newPage: number) => {
-        setCurrentPage(newPage);
         startTransition(async () => {
             const result = await getMembers({
                 search: searchQuery,

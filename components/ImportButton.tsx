@@ -43,6 +43,18 @@ export default function ImportButton({ asMenuItem = false }: { asMenuItem?: bool
         }
     };
 
+    const toImportString = (value: unknown) => {
+        if (typeof value === "string") {
+            return value.trim();
+        }
+
+        if (typeof value === "number") {
+            return value.toString();
+        }
+
+        return "";
+    };
+
     const handleImport = async () => {
         if (!file) {
             toast.error("No file selected", {
@@ -67,16 +79,24 @@ export default function ImportButton({ asMenuItem = false }: { asMenuItem?: bool
                 return;
             }
 
-            const data: any[] = [];
+            const data: Array<{
+                category: string;
+                reference: string;
+                amount: number;
+                bank: string;
+                account: string;
+                date: string;
+                time: string;
+            }> = [];
 
             worksheet.eachRow((row, rowNumber) => {
                 if (rowNumber === 1) return; // Skip header
 
-                const category = row.getCell(1).text;
-                const reference = row.getCell(2).text;
+                const category = row.getCell(1).text.trim();
+                const reference = row.getCell(2).text.trim();
                 const amount = row.getCell(3).value;
-                const bank = row.getCell(4).text;
-                const account = row.getCell(5).text;
+                const bank = row.getCell(4).text.trim();
+                const account = row.getCell(5).text.trim();
 
                 // Handle Date - ExcelJS returns Date objects for date-formatted cells
                 const dateCell = row.getCell(6);
@@ -92,11 +112,13 @@ export default function ImportButton({ asMenuItem = false }: { asMenuItem?: bool
                     time = format(timeCell.value, 'HH:mm');
                 }
 
-                if (reference && amount) {
+                const parsedAmount = typeof amount === "number" ? amount : Number(toImportString(amount));
+
+                if (reference && Number.isFinite(parsedAmount)) {
                     data.push({
                         category,
                         reference,
-                        amount: Number(amount),
+                        amount: parsedAmount,
                         bank,
                         account,
                         date,

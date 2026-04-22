@@ -24,7 +24,23 @@ interface Member {
 
 interface MarkAttendanceFormProps {
     onSuccess?: () => void;
-    initialData?: any; // Session data for editing
+    initialData?: AttendanceSessionData | null;
+}
+
+type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'EXCUSED';
+type AttendanceType = 'SUNDAY_SERVICE' | 'MIDWEEK_SERVICE' | 'EVENT' | 'OTHER';
+
+interface AttendanceRecordData {
+    memberId: string;
+    status: AttendanceStatus;
+}
+
+export interface AttendanceSessionData {
+    id: string;
+    date: string | Date;
+    type: AttendanceType;
+    description?: string | null;
+    records?: AttendanceRecordData[];
 }
 
 export default function MarkAttendanceForm({ onSuccess, initialData }: MarkAttendanceFormProps) {
@@ -37,11 +53,11 @@ export default function MarkAttendanceForm({ onSuccess, initialData }: MarkAtten
 
     // Session Form Data
     const [date, setDate] = useState<Date>(initialData ? new Date(initialData.date) : new Date());
-    const [type, setType] = useState<string>(initialData?.type || "SUNDAY_SERVICE");
+    const [type, setType] = useState<AttendanceType>(initialData?.type || "SUNDAY_SERVICE");
     const [description, setDescription] = useState(initialData?.description || "");
 
     // Attendance Data
-    const [attendance, setAttendance] = useState<{ [memberId: string]: 'PRESENT' | 'ABSENT' | 'EXCUSED' }>({});
+    const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({});
     const [searchQuery, setSearchQuery] = useState("");
 
     // Load members and initial attendance
@@ -51,14 +67,14 @@ export default function MarkAttendanceForm({ onSuccess, initialData }: MarkAtten
             setMembers(result.data);
 
             if (initialData?.records) {
-                const initialMap: any = {};
-                initialData.records.forEach((r: any) => {
-                    initialMap[r.memberId] = r.status;
+                const initialMap: Record<string, AttendanceStatus> = {};
+                initialData.records.forEach((record) => {
+                    initialMap[record.memberId] = record.status;
                 });
                 setAttendance(initialMap);
             }
         };
-        loadMembers();
+        void loadMembers();
     }, [initialData]);
 
     const handleMarkAllPresent = () => {
@@ -99,7 +115,7 @@ export default function MarkAttendanceForm({ onSuccess, initialData }: MarkAtten
                 // UPDATE existing session
                 const updateResult = await updateAttendanceSession(sessionId, {
                     date,
-                    type: type as any,
+                    type,
                     description,
                     status: submitStatus
                 });
@@ -108,7 +124,7 @@ export default function MarkAttendanceForm({ onSuccess, initialData }: MarkAtten
                 // CREATE new session
                 const sessionResult = await createAttendanceSession({
                     date,
-                    type: type as any,
+                    type,
                     description
                 });
 
@@ -144,9 +160,9 @@ export default function MarkAttendanceForm({ onSuccess, initialData }: MarkAtten
             router.push("/dashboard/attendance");
             router.refresh();
 
-        } catch (error: any) {
+        } catch (error) {
             toast.error("Error", {
-                description: error.message,
+                description: error instanceof Error ? error.message : "Failed to save attendance",
             });
         } finally {
             setLoading(false);
@@ -199,7 +215,7 @@ export default function MarkAttendanceForm({ onSuccess, initialData }: MarkAtten
                         <label className="block text-sm font-medium mb-1">Service Type</label>
                         <select
                             value={type}
-                            onChange={(e) => setType(e.target.value)}
+                            onChange={(e) => setType(e.target.value as AttendanceType)}
                             className="w-full px-3 py-2 border rounded-md"
                         >
                             <option value="SUNDAY_SERVICE">Sunday Service</option>

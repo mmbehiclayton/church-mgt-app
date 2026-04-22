@@ -3,6 +3,9 @@
 import prisma from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { parse, isValid } from "date-fns";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { requirePermission, assignRolesToUser } from "@/lib/rbac";
 
 // ... existing code ...
 
@@ -16,6 +19,8 @@ export async function importTransactions(data: {
     time: string;
 }[]) {
     try {
+        await requirePermission('transactions', 'create');
+
         // 1. Manage Categories
         const categoryNames = Array.from(new Set(data.map(d => d.category?.trim()).filter(Boolean)));
 
@@ -86,6 +91,7 @@ export async function importTransactions(data: {
         });
 
         revalidatePath("/dashboard");
+        revalidatePath("/dashboard/finance");
         return { success: true, count: result.count };
     } catch (error) {
         console.error("Import Error:", error);
@@ -96,13 +102,23 @@ export async function importTransactions(data: {
 // --- Categories ---
 
 export async function getCategories() {
-    return await prisma.category.findMany({
-        orderBy: { createdAt: "desc" }
-    });
+    try {
+        await requirePermission('categories', 'read');
+        return await prisma.category.findMany({
+            orderBy: { createdAt: "desc" }
+        });
+    } catch (error) {
+        if (!(error instanceof Error) || !error.message.startsWith("Insufficient permissions:")) {
+            console.error('Get Categories Error:', error);
+        }
+        return [];
+    }
 }
 
 export async function createCategory(name: string) {
     try {
+        await requirePermission('categories', 'create');
+
         const existing = await prisma.category.findUnique({
             where: { name }
         });
@@ -114,14 +130,16 @@ export async function createCategory(name: string) {
         });
 
         revalidatePath("/dashboard");
+        revalidatePath("/dashboard/finance");
         return { success: true };
-    } catch (_error) {
+    } catch {
         return { error: "Failed to create category" };
     }
 }
 
 export async function deleteCategory(id: string) {
     try {
+        await requirePermission('categories', 'delete');
         // Check for transactions first
         const count = await prisma.transaction.count({
             where: { categoryId: id }
@@ -136,14 +154,16 @@ export async function deleteCategory(id: string) {
         });
 
         revalidatePath("/dashboard");
+        revalidatePath("/dashboard/finance");
         return { success: true };
-    } catch (_error) {
+    } catch {
         return { error: "Failed to delete category" };
     }
 }
 
 export async function editCategory(id: string, newName: string) {
     try {
+        await requirePermission('categories', 'update');
         if (!newName || !newName.trim()) {
             return { error: "Category name cannot be empty" };
         }
@@ -163,8 +183,9 @@ export async function editCategory(id: string, newName: string) {
         });
 
         revalidatePath("/dashboard");
+        revalidatePath("/dashboard/finance");
         return { success: true };
-    } catch (_error) {
+    } catch {
         return { error: "Failed to edit category" };
     }
 }
@@ -173,10 +194,12 @@ export async function editCategory(id: string, newName: string) {
 
 export async function deleteTransactions(ids: string[]) {
     try {
+        await requirePermission('transactions', 'delete');
         await prisma.transaction.deleteMany({
             where: { id: { in: ids } }
         });
         revalidatePath("/dashboard");
+        revalidatePath("/dashboard/finance");
         return { success: true };
     } catch (error) {
         console.error("Delete Transactions Error:", error);
@@ -197,6 +220,8 @@ export async function saveTransaction(data: {
     rawMessage: string;
 }) {
     try {
+        await requirePermission('transactions', 'create');
+
         const existing = await prisma.transaction.findUnique({
             where: { reference: data.reference }
         });
@@ -219,6 +244,7 @@ export async function saveTransaction(data: {
         });
 
         revalidatePath("/dashboard");
+        revalidatePath("/dashboard/finance");
         return { success: true };
     } catch (error) {
         console.error("Save Transaction Error:", error);
@@ -239,6 +265,8 @@ export async function updateTransaction(id: string, data: {
     rawMessage: string;
 }) {
     try {
+        await requirePermission('transactions', 'update');
+
         // Check if reference conflicts with ANOTHER transaction
         const existing = await prisma.transaction.findFirst({
             where: {
@@ -266,6 +294,7 @@ export async function updateTransaction(id: string, data: {
         });
 
         revalidatePath("/dashboard");
+        revalidatePath("/dashboard/finance");
         return { success: true };
     } catch (error) {
         console.error("Update Transaction Error:", error);
@@ -274,8 +303,14 @@ export async function updateTransaction(id: string, data: {
 }
 
 export async function getTransactions(filter?: { categoryIds?: string[], startDate?: Date, endDate?: Date }) {
+    try {
+        await requirePermission('transactions', 'read');
+    } catch (error) {
+        console.error('Get Transactions Error:', error);
+        return [];
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {};
+    const where: Record<string, any> = {};
 
     if (filter?.categoryIds && filter.categoryIds.length > 0) {
         where.categoryId = { in: filter.categoryIds };
@@ -303,8 +338,22 @@ interface DashboardFilters {
 }
 
 export async function getDashboardStats(filters?: DashboardFilters) {
+    try {
+        await requirePermission('transactions', 'read');
+    } catch (error) {
+        console.error('Get Dashboard Stats Error:', error);
+        return {
+            totalAmount: 0,
+            totalTransactions: 0,
+            avgTransaction: 0,
+            topCategory: null,
+            categoryBreakdown: [],
+            revenueTrend: []
+        };
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {};
+    const where: Record<string, any> = {};
 
     // Apply Date Range
 
@@ -373,6 +422,7 @@ export async function getDashboardStats(filters?: DashboardFilters) {
 
 export async function getOrganization() {
     try {
+        await requirePermission('settings', 'read');
         const org = await prisma.organization.findFirst();
         if (!org) {
             // Create default if not exists
@@ -388,7 +438,9 @@ export async function getOrganization() {
         }
         return org;
     } catch (error) {
-        console.error("Get Organization Error:", error);
+        if (!(error instanceof Error) || !error.message.startsWith("Insufficient permissions:")) {
+            console.error("Get Organization Error:", error);
+        }
         return null;
     }
 }
@@ -402,6 +454,7 @@ export async function updateOrganization(data: {
     logoUrl?: string | null;
 }) {
     try {
+        await requirePermission('settings', 'update');
         await prisma.organization.update({
             where: { id: data.id },
             data: {
@@ -426,14 +479,56 @@ export async function updateOrganization(data: {
 import bcrypt from 'bcryptjs';
 
 // Helper to sanitize user data (remove password)
-function sanitizeUser(user: any) {
-    const { password, passwordResetToken, passwordResetExpiry, ...sanitized } = user;
+function sanitizeUser<
+    T extends {
+        password?: string | null;
+        passwordResetToken?: string | null;
+        passwordResetExpiry?: Date | null;
+    }
+>(user: T): Omit<T, "password" | "passwordResetToken" | "passwordResetExpiry"> {
+    const sanitized = { ...user };
+    delete sanitized.password;
+    delete sanitized.passwordResetToken;
+    delete sanitized.passwordResetExpiry;
     return sanitized;
+}
+
+async function getActiveAdminCount(excludeUserId?: string) {
+    return prisma.user.count({
+        where: {
+            isActive: true,
+            userRoles: {
+                some: {
+                    role: {
+                        name: {
+                            equals: 'Super Admin',
+                            mode: 'insensitive'
+                        }
+                    }
+                }
+            },
+            ...(excludeUserId ? { id: { not: excludeUserId } } : {})
+        }
+    });
 }
 
 export async function getUsers() {
     try {
+        await requirePermission('users', 'read');
         const users = await prisma.user.findMany({
+            include: {
+                userRoles: {
+                    include: {
+                        role: {
+                            select: {
+                                id: true,
+                                name: true,
+                                description: true
+                            }
+                        }
+                    }
+                }
+            },
             orderBy: { createdAt: 'desc' }
         });
         return users.map(sanitizeUser);
@@ -445,8 +540,22 @@ export async function getUsers() {
 
 export async function getUserById(id: string) {
     try {
+        await requirePermission('users', 'read');
         const user = await prisma.user.findUnique({
-            where: { id }
+            where: { id },
+            include: {
+                userRoles: {
+                    include: {
+                        role: {
+                            select: {
+                                id: true,
+                                name: true,
+                                description: true
+                            }
+                        }
+                    }
+                }
+            }
         });
         if (!user) return null;
         return sanitizeUser(user);
@@ -460,10 +569,11 @@ export async function createUser(data: {
     email: string;
     password: string;
     name?: string;
-    role?: string;
+    roleIds?: string[];
     isActive?: boolean;
 }) {
     try {
+        await requirePermission('users', 'create');
         // Validate email
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(data.email)) {
@@ -493,10 +603,15 @@ export async function createUser(data: {
                 email: data.email,
                 password: hashedPassword,
                 name: data.name || null,
-                role: data.role || 'ADMIN',
+                role: 'USER', // Default role, but will assign proper roles below
                 isActive: data.isActive !== undefined ? data.isActive : true,
             }
         });
+
+        // Assign roles if provided
+        if (data.roleIds && data.roleIds.length > 0) {
+            await assignRolesToUser(user.id, data.roleIds);
+        }
 
         revalidatePath("/dashboard/users");
         return { success: true, user: sanitizeUser(user) };
@@ -508,22 +623,124 @@ export async function createUser(data: {
 
 export async function updateUser(id: string, data: {
     name?: string;
-    role?: string;
+    roleIds?: string[];
     isActive?: boolean;
 }) {
     try {
-        const user = await prisma.user.update({
+        await requirePermission('users', 'update');
+        const existingUser = await prisma.user.findUnique({
             where: { id },
-            data: {
-                name: data.name,
-                role: data.role,
-                isActive: data.isActive,
+            include: {
+                userRoles: {
+                    include: {
+                        role: {
+                            select: {
+                                name: true
+                            }
+                        }
+                    }
+                }
             }
+        });
+
+        if (!existingUser) {
+            return { error: "User not found" };
+        }
+
+        if (data.roleIds && data.roleIds.length === 0) {
+            return { error: "Please select at least one role" };
+        }
+
+        const nextRoleIds = data.roleIds;
+        const existingRoleNames = existingUser.userRoles.map((userRole) => userRole.role.name.toLowerCase());
+        const isCurrentlyAdmin = existingRoleNames.includes('super admin');
+
+        if (isCurrentlyAdmin && nextRoleIds) {
+            const nextRoles = await prisma.role.findMany({
+                where: {
+                    id: {
+                        in: nextRoleIds
+                    }
+                },
+                select: {
+                    name: true
+                }
+            });
+
+            const willRemainAdmin = nextRoles.some((role) => role.name.toLowerCase() === 'super admin');
+            if (!willRemainAdmin) {
+                const otherActiveAdmins = await getActiveAdminCount(id);
+                if (existingUser.isActive && otherActiveAdmins <= 0) {
+                    return { error: "Cannot remove the last active admin user" };
+                }
+            }
+        }
+
+        if (existingUser.isActive && data.isActive === false && isCurrentlyAdmin) {
+            const otherActiveAdmins = await getActiveAdminCount(id);
+            if (otherActiveAdmins <= 0) {
+                return { error: "Cannot deactivate the last active admin user" };
+            }
+        }
+
+        const user = await prisma.$transaction(async (tx) => {
+            if (nextRoleIds) {
+                const roles = await tx.role.findMany({
+                    where: {
+                        id: {
+                            in: nextRoleIds
+                        }
+                    },
+                    select: {
+                        id: true
+                    }
+                });
+
+                if (roles.length !== nextRoleIds.length) {
+                    throw new Error("One or more selected roles no longer exist");
+                }
+
+                await tx.userRole.deleteMany({
+                    where: { userId: id }
+                });
+
+                await tx.userRole.createMany({
+                    data: nextRoleIds.map((roleId) => ({
+                        userId: id,
+                        roleId
+                    })),
+                    skipDuplicates: true
+                });
+            }
+
+            return tx.user.update({
+                where: { id },
+                data: {
+                    name: data.name,
+                    isActive: data.isActive,
+                },
+                include: {
+                    userRoles: {
+                        include: {
+                            role: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    description: true
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         });
 
         revalidatePath("/dashboard/users");
         return { success: true, user: sanitizeUser(user) };
     } catch (error) {
+        if (error instanceof Error && error.message === "One or more selected roles no longer exist") {
+            return { error: error.message };
+        }
         console.error("Update User Error:", error);
         return { error: "Failed to update user" };
     }
@@ -531,22 +748,37 @@ export async function updateUser(id: string, data: {
 
 export async function deleteUser(id: string, currentUserId: string) {
     try {
+        await requirePermission('users', 'delete');
         // Prevent self-deletion
         if (id === currentUserId) {
             return { error: "You cannot delete your own account" };
         }
 
-        // Check if this is the last admin
-        const adminCount = await prisma.user.count({
-            where: { role: 'ADMIN', isActive: true }
-        });
-
         const userToDelete = await prisma.user.findUnique({
-            where: { id }
+            where: { id },
+            include: {
+                userRoles: {
+                    include: {
+                        role: {
+                            select: {
+                                name: true
+                            }
+                        }
+                    }
+                }
+            }
         });
 
-        if (userToDelete?.role === 'ADMIN' && adminCount <= 1) {
-            return { error: "Cannot delete the last active admin user" };
+        const isAdminUser = userToDelete?.userRoles.some((userRole) => userRole.role.name.toLowerCase() === 'super admin');
+        if (userToDelete?.isActive && isAdminUser) {
+            const otherActiveAdmins = await getActiveAdminCount(id);
+            if (otherActiveAdmins <= 0) {
+                return { error: "Cannot delete the last active admin user" };
+            }
+        }
+
+        if (!userToDelete) {
+            return { error: "User not found" };
         }
 
         await prisma.user.delete({
@@ -563,6 +795,7 @@ export async function deleteUser(id: string, currentUserId: string) {
 
 export async function resetUserPassword(id: string, newPassword: string) {
     try {
+        await requirePermission('users', 'update');
         // Validate password strength
         if (newPassword.length < 6) {
             return { error: "Password must be at least 6 characters long" };
@@ -590,13 +823,25 @@ export async function resetUserPassword(id: string, newPassword: string) {
 
 export async function toggleUserStatus(id: string, currentUserId: string) {
     try {
+        await requirePermission('users', 'update');
         // Prevent self-deactivation
         if (id === currentUserId) {
             return { error: "You cannot deactivate your own account" };
         }
 
         const user = await prisma.user.findUnique({
-            where: { id }
+            where: { id },
+            include: {
+                userRoles: {
+                    include: {
+                        role: {
+                            select: {
+                                name: true
+                            }
+                        }
+                    }
+                }
+            }
         });
 
         if (!user) {
@@ -604,12 +849,10 @@ export async function toggleUserStatus(id: string, currentUserId: string) {
         }
 
         // If deactivating an admin, check if there's at least one other active admin
-        if (user.isActive && user.role === 'ADMIN') {
-            const activeAdminCount = await prisma.user.count({
-                where: { role: 'ADMIN', isActive: true }
-            });
-
-            if (activeAdminCount <= 1) {
+        const isAdminUser = user.userRoles.some((userRole) => userRole.role.name.toLowerCase() === 'super admin');
+        if (user.isActive && isAdminUser) {
+            const otherActiveAdmins = await getActiveAdminCount(id);
+            if (otherActiveAdmins <= 0) {
                 return { error: "Cannot deactivate the last active admin user" };
             }
         }
@@ -629,15 +872,13 @@ export async function toggleUserStatus(id: string, currentUserId: string) {
     }
 }
 
-// Get current user from session (placeholder - you'll need to implement proper session management)
 export async function getCurrentUserId() {
-    // TODO: Implement proper session management
-    // For now, return the first admin user
     try {
-        const user = await prisma.user.findFirst({
-            where: { role: 'ADMIN' }
-        });
-        return user?.id || null;
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
+            return null;
+        }
+        return session.user.id as string;
     } catch (error) {
         console.error("Get Current User Error:", error);
         return null;
@@ -649,6 +890,7 @@ export async function getCurrentUserId() {
 // Department Actions
 export async function getDepartments() {
     try {
+        await requirePermission('departments', 'read');
         const departments = await prisma.department.findMany({
             select: {
                 id: true,
@@ -671,6 +913,7 @@ export async function getDepartments() {
 
 export async function getDepartmentById(id: string) {
     try {
+        await requirePermission('departments', 'read');
         const department = await prisma.department.findUnique({
             where: { id },
             include: {
@@ -693,6 +936,7 @@ export async function getDepartmentById(id: string) {
 
 export async function createDepartment(data: { name: string; description?: string }) {
     try {
+        await requirePermission('departments', 'create');
         // Validate name
         if (!data.name || data.name.trim().length < 2) {
             return { error: "Department name must be at least 2 characters" };
@@ -725,6 +969,7 @@ export async function createDepartment(data: { name: string; description?: strin
 
 export async function updateDepartment(id: string, data: { name?: string; description?: string }) {
     try {
+        await requirePermission('departments', 'update');
         if (data.name && data.name.trim().length < 2) {
             return { error: "Department name must be at least 2 characters" };
         }
@@ -748,6 +993,7 @@ export async function updateDepartment(id: string, data: { name?: string; descri
 
 export async function deleteDepartment(id: string) {
     try {
+        await requirePermission('departments', 'delete');
         await prisma.department.delete({
             where: { id }
         });
@@ -763,6 +1009,7 @@ export async function deleteDepartment(id: string) {
 
 export async function deleteDepartments(ids: string[]) {
     try {
+        await requirePermission('departments', 'delete');
         await prisma.department.deleteMany({
             where: {
                 id: {
@@ -784,6 +1031,7 @@ export async function deleteDepartments(ids: string[]) {
 
 export async function getHomeFellowships() {
     try {
+        await requirePermission('fellowships', 'read');
         const fellowships = await prisma.homeFellowship.findMany({
             select: {
                 id: true,
@@ -807,6 +1055,7 @@ export async function getHomeFellowships() {
 
 export async function createHomeFellowship(data: { name: string; leader?: string; location?: string }) {
     try {
+        await requirePermission('fellowships', 'create');
         if (!data.name || data.name.trim().length < 2) {
             return { error: "Name must be at least 2 characters" };
         }
@@ -837,6 +1086,7 @@ export async function createHomeFellowship(data: { name: string; leader?: string
 
 export async function updateHomeFellowship(id: string, data: { name?: string; leader?: string; location?: string }) {
     try {
+        await requirePermission('fellowships', 'update');
         if (data.name && data.name.trim().length < 2) {
             return { error: "Name must be at least 2 characters" };
         }
@@ -860,6 +1110,7 @@ export async function updateHomeFellowship(id: string, data: { name?: string; le
 
 export async function deleteHomeFellowship(id: string) {
     try {
+        await requirePermission('fellowships', 'delete');
         const fellowship = await prisma.homeFellowship.findUnique({
             where: { id },
             include: {
@@ -886,6 +1137,7 @@ export async function deleteHomeFellowship(id: string) {
 
 export async function deleteHomeFellowships(ids: string[]) {
     try {
+        await requirePermission('fellowships', 'delete');
         // Optional: Check for members constraint for bulk delete if strict safety is needed
         await prisma.homeFellowship.deleteMany({
             where: { id: { in: ids } }
@@ -910,7 +1162,8 @@ export async function getMembers(filters?: {
     search?: string
 }) {
     try {
-        const where: any = {}
+        await requirePermission('members', 'read');
+        const where: Record<string, unknown> = {}
         const page = filters?.page || 1
         const limit = filters?.limit || 50
         const skip = (page - 1) * limit
@@ -981,6 +1234,7 @@ export async function getMembers(filters?: {
 
 export async function getMemberById(id: string) {
     try {
+        await requirePermission('members', 'read');
         const member = await prisma.member.findUnique({
             where: { id },
             include: {
@@ -1008,6 +1262,7 @@ export async function createMember(data: {
     homeFellowshipId?: string;
 }) {
     try {
+        await requirePermission('members', 'create');
         // Validate full name
         if (!data.fullName || data.fullName.trim().length < 2) {
             return { error: "Full name must be at least 2 characters" };
@@ -1055,6 +1310,7 @@ export async function updateMember(id: string, data: {
     homeFellowshipId?: string | null;
 }) {
     try {
+        await requirePermission('members', 'update');
         if (data.fullName && data.fullName.trim().length < 2) {
             return { error: "Full name must be at least 2 characters" };
         }
@@ -1067,7 +1323,7 @@ export async function updateMember(id: string, data: {
             return { error: "Gender must be either Male or Female" };
         }
 
-        const updateData: any = {
+        const updateData: Record<string, unknown> = {
             fullName: data.fullName?.trim(),
             phoneNumber: data.phoneNumber?.trim(),
             gender: data.gender,
@@ -1103,6 +1359,7 @@ export async function updateMember(id: string, data: {
 
 export async function deleteMember(id: string) {
     try {
+        await requirePermission('members', 'delete');
         await prisma.member.delete({
             where: { id }
         });
@@ -1117,6 +1374,7 @@ export async function deleteMember(id: string) {
 
 export async function deleteMembers(ids: string[]) {
     try {
+        await requirePermission('members', 'delete');
         await prisma.member.deleteMany({
             where: {
                 id: { in: ids }
@@ -1140,6 +1398,7 @@ export async function importMembers(data: {
     departmentNames?: string; // Comma separated
 }[]) {
     try {
+        await requirePermission('members', 'manage');
         // 1. Pre-fetch all needed data for mapping
         const [departments, fellowships] = await Promise.all([
             prisma.department.findMany(),
@@ -1194,6 +1453,7 @@ export async function importMembers(data: {
 
 export async function getAttendanceSessions() {
     try {
+        await requirePermission('attendance', 'read');
         const sessions = await prisma.attendanceSession.findMany({
             orderBy: { date: 'desc' },
             include: {
@@ -1211,6 +1471,7 @@ export async function getAttendanceSessions() {
 
 export async function getAttendanceSessionById(id: string) {
     try {
+        await requirePermission('attendance', 'read');
         const session = await prisma.attendanceSession.findUnique({
             where: { id },
             include: {
@@ -1237,6 +1498,7 @@ export async function createAttendanceSession(data: {
     description?: string;
 }) {
     try {
+        await requirePermission('attendance', 'create');
         const session = await prisma.attendanceSession.create({
             data: {
                 date: data.date,
@@ -1261,6 +1523,7 @@ export async function updateAttendanceSession(id: string, data: {
     status?: 'DRAFT' | 'SUBMITTED';
 }) {
     try {
+        await requirePermission('attendance', 'update');
         const session = await prisma.attendanceSession.update({
             where: { id },
             data: {
@@ -1281,6 +1544,7 @@ export async function updateAttendanceSession(id: string, data: {
 
 export async function deleteAttendanceSession(id: string) {
     try {
+        await requirePermission('attendance', 'delete');
         await prisma.attendanceSession.delete({
             where: { id }
         });
@@ -1296,6 +1560,7 @@ export async function deleteAttendanceSession(id: string) {
 
 export async function upsertAttendanceRecords(sessionId: string, records: { memberId: string; status: 'PRESENT' | 'ABSENT' | 'EXCUSED'; notes?: string }[]) {
     try {
+        await requirePermission('attendance', 'update');
         // Use transaction for bulk operations
         await prisma.$transaction(
             records.map(record =>
@@ -1332,6 +1597,7 @@ export async function upsertAttendanceRecords(sessionId: string, records: { memb
 
 export async function getAttendanceAnalytics() {
     try {
+        await requirePermission('attendance', 'read');
         // 1. Recent Trends (Last 12 weeks of Sunday Services)
         const recentSessions = await prisma.attendanceSession.findMany({
             where: {
@@ -1364,7 +1630,7 @@ export async function getAttendanceAnalytics() {
             select: { id: true }
         });
 
-        let watchlist: any[] = [];
+        let watchlist: Array<Record<string, unknown>> = [];
 
         if (lastTwoSessions.length === 2) {
             const sessionIds = lastTwoSessions.map(s => s.id);
@@ -1389,8 +1655,8 @@ export async function getAttendanceAnalytics() {
 
             // Filter for members with 2 absences
             const watchlistMemberIds = Array.from(memberAbsenceCount.entries())
-                .filter(([_, count]) => count === 2)
-                .map(([id, _]) => id);
+                .filter(([, count]) => count === 2)
+                .map(([id]) => id);
 
             if (watchlistMemberIds.length > 0) {
                 watchlist = await prisma.member.findMany({
@@ -1403,7 +1669,7 @@ export async function getAttendanceAnalytics() {
         }
 
         // 3. Stats for Cards (Latest Session)
-        let stats = {
+        const stats = {
             present: 0,
             absent: 0,
             watchlist: watchlist.length

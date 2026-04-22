@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
-import { Trash2, Pencil, MoreHorizontal } from "lucide-react";
+import { Trash2, MoreHorizontal } from "lucide-react";
 import { deleteTransactions } from "@/app/actions";
 import { useRouter } from "next/navigation";
 import TransactionModal from "@/components/finance/TransactionModal";
