@@ -82,6 +82,11 @@ async function seedRBAC() {
         // System Administration
         { name: 'system:manage', resource: 'system', action: 'manage', description: 'System administration' },
         { name: 'rbac:manage', resource: 'rbac', action: 'manage', description: 'Manage roles and permissions' },
+
+        // SMS
+        { name: 'sms:read', resource: 'sms', action: 'read', description: 'View SMS dashboard, history, and templates' },
+        { name: 'sms:create', resource: 'sms', action: 'create', description: 'Send SMS campaigns' },
+        { name: 'sms:manage', resource: 'sms', action: 'manage', description: 'Full SMS management including templates' },
     ]
 
     // Create permissions
@@ -112,7 +117,8 @@ async function seedRBAC() {
                 'users:read', 'users:create', 'users:update', 'users:delete',
                 'members:manage', 'transactions:manage', 'categories:manage',
                 'attendance:manage', 'departments:manage', 'fellowships:manage',
-                'settings:manage', 'reports:read', 'reports:export'
+                'settings:manage', 'reports:read', 'reports:export',
+                'sms:manage'
             ]
         },
         {
@@ -147,7 +153,7 @@ async function seedRBAC() {
             permissions: [
                 'users:read', 'members:read', 'transactions:read', 'categories:read',
                 'attendance:read', 'departments:read', 'fellowships:read',
-                'settings:read', 'reports:read'
+                'settings:read', 'reports:read', 'sms:read'
             ]
         }
     ]

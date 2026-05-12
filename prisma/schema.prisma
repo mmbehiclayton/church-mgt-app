@@ -226,3 +226,84 @@ model MemberDepartment {
   @@index([departmentId])
 }
 
+// ==================== SMS MODULE ====================
+
+enum SmsCampaignStatus {
+  DRAFT
+  SENDING
+  SENT
+  PARTIAL
+  FAILED
+}
+
+enum SmsMessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+}
+
+model SmsTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  body        String
+  category    String?  // e.g. "Sunday Service", "Prayer Meeting", "Birthday"
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+}
+
+model SmsCampaign {
+  id                String            @id @default(cuid())
+  name              String?
+  message           String
+  status            SmsCampaignStatus @default(DRAFT)
+  totalRecipients   Int               @default(0)
+  sentCount         Int               @default(0)
+  deliveredCount    Int               @default(0)
+  failedCount       Int               @default(0)
+  totalSegments     Int               @default(0)
+  // Snapshot of audience filters so we can audit/replay
+  audienceSnapshot  Json?
+  scheduledAt       DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  createdById       String?
+  createdByName     String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  messages          SmsMessage[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([createdById])
+}
+
+model SmsMessage {
+  id              String           @id @default(cuid())
+  campaign        SmsCampaign?     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignId      String?
+  memberId        String?
+  recipientName   String?
+  phoneNumber     String           // normalized E.164-ish (e.g. 254712345678)
+  message         String           // resolved message after placeholder substitution
+  segments        Int              @default(1)
+  status          SmsMessageStatus @default(PENDING)
+  bongaUniqueId   String?          // returned from Bonga API
+  bongaStatusCode Int?
+  errorMessage    String?
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([campaignId])
+  @@index([memberId])
+  @@index([status])
+  @@index([phoneNumber])
+  @@index([bongaUniqueId])
+}
+

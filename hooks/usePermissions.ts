@@ -6,7 +6,8 @@ import { useMemo } from "react";
 export type PermissionAction = 'create' | 'read' | 'update' | 'delete' | 'manage' | 'export';
 export type PermissionResource =
   | 'users' | 'members' | 'transactions' | 'categories' | 'attendance'
-  | 'departments' | 'fellowships' | 'settings' | 'reports' | 'system' | 'rbac';
+  | 'departments' | 'fellowships' | 'settings' | 'reports' | 'system' | 'rbac'
+  | 'sms';
 
 /**
  * Hook to check user permissions on the client side

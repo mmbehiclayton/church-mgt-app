@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, LogOut, Settings, Users, Calendar } from "lucide-react";
+import { LayoutDashboard, LogOut, Settings, Users, Calendar, MessageSquare } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 
 interface SidebarProps {
@@ -35,6 +35,12 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
             href: "/dashboard/attendance",
             icon: Calendar,
             permission: "attendance:read"
+        },
+        {
+            name: "SMS",
+            href: "/dashboard/sms",
+            icon: MessageSquare,
+            permission: "sms:read"
         },
         // { name: "Reports", href: "/dashboard/reports", icon: FileText },
         {

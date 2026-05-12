@@ -5,7 +5,8 @@ import prisma from "@/lib/db";
 export type PermissionAction = 'create' | 'read' | 'update' | 'delete' | 'manage' | 'export';
 export type PermissionResource =
   | 'users' | 'members' | 'transactions' | 'categories' | 'attendance'
-  | 'departments' | 'fellowships' | 'settings' | 'reports' | 'system' | 'rbac';
+  | 'departments' | 'fellowships' | 'settings' | 'reports' | 'system' | 'rbac'
+  | 'sms';
 
 export interface UserPermissions {
   [key: string]: boolean;

@@ -31,10 +31,12 @@ git push -u origin main
 In Vercel Dashboard → Settings → Environment Variables, add:
 
 **Required Variables:**
-- `DATABASE_URL`: Your Neon PostgreSQL connection string
+- `DATABASE_URL` or `CHURCH_DATABASE_URL`: Your Neon PostgreSQL connection string
   ```
   postgresql://neondb_owner:npg_DtL8y9eohqPY@ep-frosty-rain-ahj6k31v-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&connect_timeout=15
   ```
+
+> Recommended: set both `DATABASE_URL` and `CHURCH_DATABASE_URL` to the same Neon connection string to keep local and deployed environments consistent.
 
 - `NEXTAUTH_SECRET`: Generate with:
   ```bash
