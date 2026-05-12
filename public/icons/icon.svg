@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="#4F46E5"/>
+  <!-- Soft inner gradient -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#4338CA"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#g)"/>
+  <!-- Church silhouette: cross + building -->
+  <g fill="#FFFFFF" fill-rule="evenodd">
+    <!-- Cross on top -->
+    <rect x="240" y="92" width="32" height="120" rx="4"/>
+    <rect x="200" y="132" width="112" height="32" rx="4"/>
+    <!-- Roof -->
+    <path d="M256 200 L120 320 L120 360 L392 360 L392 320 Z"/>
+    <!-- Body -->
+    <rect x="148" y="340" width="216" height="92"/>
+    <!-- Arched door -->
+    <path d="M232 360 A24 24 0 0 1 280 360 L280 432 L232 432 Z" fill="#4338CA"/>
+    <!-- Side windows -->
+    <rect x="172" y="360" width="36" height="36" rx="6" fill="#4338CA"/>
+    <rect x="304" y="360" width="36" height="36" rx="6" fill="#4338CA"/>
+  </g>
+</svg>

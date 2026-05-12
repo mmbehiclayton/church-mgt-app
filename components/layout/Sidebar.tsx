@@ -3,109 +3,172 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, LogOut, Settings, Users, Calendar, MessageSquare } from "lucide-react";
+import {
+    LayoutDashboard,
+    LogOut,
+    Settings,
+    Users,
+    Calendar,
+    MessageSquare,
+    Shield,
+    Building2,
+    Wallet,
+} from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
+import { signOut, useSession } from "next-auth/react";
 
 interface SidebarProps {
-    className?: string; // For mobile visibility classes
+    className?: string;
     onNavigate?: () => void;
 }
 
-import { signOut } from "next-auth/react";
+interface MenuItem {
+    name: string;
+    href: string;
+    icon: React.ComponentType<{ className?: string }>;
+    permission: string;
+}
+
+interface MenuSection {
+    label: string;
+    items: MenuItem[];
+}
+
+const SECTIONS: MenuSection[] = [
+    {
+        label: "Operations",
+        items: [
+            { name: "Finance", href: "/dashboard/finance", icon: Wallet, permission: "transactions:read" },
+            { name: "Attendance", href: "/dashboard/attendance", icon: Calendar, permission: "attendance:read" },
+        ],
+    },
+    {
+        label: "People",
+        items: [
+            { name: "Membership", href: "/dashboard/membership", icon: Users, permission: "members:read" },
+        ],
+    },
+    {
+        label: "Communication",
+        items: [
+            { name: "SMS", href: "/dashboard/sms", icon: MessageSquare, permission: "sms:read" },
+        ],
+    },
+    {
+        label: "Administration",
+        items: [
+            { name: "User Management", href: "/dashboard/users", icon: Shield, permission: "users:read" },
+            { name: "RBAC Management", href: "/dashboard/rbac", icon: LayoutDashboard, permission: "rbac:manage" },
+            { name: "Settings", href: "/dashboard/settings", icon: Settings, permission: "settings:read" },
+        ],
+    },
+];
+
+function getInitials(name?: string | null, email?: string | null): string {
+    const source = name?.trim() || email?.trim() || "?";
+    const parts = source.split(/[\s@.]+/).filter(Boolean);
+    if (parts.length === 0) return "?";
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+}
 
 export function Sidebar({ className, onNavigate }: SidebarProps) {
     const pathname = usePathname();
     const { hasPermission } = usePermissions();
+    const { data: session } = useSession();
 
-    const menuItems = [
-        {
-            name: "Finance",
-            href: "/dashboard/finance",
-            icon: LayoutDashboard,
-            permission: "transactions:read"
-        },
-        {
-            name: "Membership",
-            href: "/dashboard/membership",
-            icon: Users,
-            permission: "members:read"
-        },
-        {
-            name: "Attendance",
-            href: "/dashboard/attendance",
-            icon: Calendar,
-            permission: "attendance:read"
-        },
-        {
-            name: "SMS",
-            href: "/dashboard/sms",
-            icon: MessageSquare,
-            permission: "sms:read"
-        },
-        // { name: "Reports", href: "/dashboard/reports", icon: FileText },
-        {
-            name: "User Management",
-            href: "/dashboard/users",
-            icon: Users,
-            permission: "users:read"
-        },
-        {
-            name: "Settings",
-            href: "/dashboard/settings",
-            icon: Settings,
-            permission: "settings:read"
-        },
-        {
-            name: "RBAC Management",
-            href: "/dashboard/rbac",
-            icon: Users,
-            permission: "rbac:manage"
-        },
-    ];
-
-    // Filter menu items based on permissions
-    const accessibleMenuItems = menuItems.filter(item =>
-        !item.permission || hasPermission(item.permission)
-    );
+    // Filter sections + items by permission
+    const visibleSections = SECTIONS
+        .map(section => ({
+            ...section,
+            items: section.items.filter(item => !item.permission || hasPermission(item.permission)),
+        }))
+        .filter(section => section.items.length > 0);
 
     const handleLogout = () => {
         signOut({ callbackUrl: "/" });
     };
 
+    const user = session?.user;
+    const initials = getInitials(user?.name, user?.email);
+
     return (
-        <div className={cn("pb-12 h-full w-64 border-r bg-white space-y-4 py-4 flex flex-col", className)}>
-            <div className="px-3 py-2">
-                <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight text-primary">
-                    Church Dashboard
-                </h2>
-                <div className="space-y-1">
-                    {accessibleMenuItems.map((item) => (
-                        <Link
-                            key={item.href}
-                            href={item.href}
-                            onClick={onNavigate}
-                            className={cn(
-                                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors",
-                                pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))
-                                    ? "bg-accent text-accent-foreground"
-                                    : "text-muted-foreground"
-                            )}
-                        >
-                            <item.icon className="h-4 w-4" />
-                            {item.name}
-                        </Link>
-                    ))}
+        <div
+            className={cn(
+                "h-full w-64 flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border",
+                className
+            )}
+        >
+            {/* Brand header */}
+            <div className="px-5 h-16 flex items-center gap-3 border-b border-sidebar-border shrink-0">
+                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center shadow-sm">
+                    <Building2 className="h-5 w-5" />
+                </div>
+                <div className="leading-tight">
+                    <div className="font-semibold tracking-tight">Church CMS</div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Admin</div>
                 </div>
             </div>
 
-            <div className="px-3 py-2 mt-auto">
-                <div className="space-y-1">
+            {/* Nav */}
+            <nav className="flex-1 overflow-y-auto scrollbar-thin px-3 py-4 space-y-5">
+                {visibleSections.map(section => (
+                    <div key={section.label}>
+                        <div className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                            {section.label}
+                        </div>
+                        <ul className="space-y-0.5">
+                            {section.items.map(item => {
+                                const active =
+                                    pathname === item.href ||
+                                    (item.href !== "/dashboard" && pathname.startsWith(item.href));
+                                return (
+                                    <li key={item.href} className="relative">
+                                        {active && (
+                                            <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-primary" />
+                                        )}
+                                        <Link
+                                            href={item.href}
+                                            onClick={onNavigate}
+                                            className={cn(
+                                                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                                                active
+                                                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                                                    : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+                                            )}
+                                        >
+                                            <item.icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} />
+                                            <span>{item.name}</span>
+                                        </Link>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </div>
+                ))}
+            </nav>
+
+            {/* User pill */}
+            <div className="border-t border-sidebar-border p-3 shrink-0">
+                <div className="flex items-center gap-3 p-2 rounded-lg">
+                    <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">
+                        {initials}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">
+                            {user?.name || user?.email?.split("@")[0] || "Signed in"}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground truncate">
+                            {user?.email || ""}
+                        </div>
+                    </div>
                     <button
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-red-500 hover:bg-red-50 transition-colors"
+                        aria-label="Sign out"
+                        title="Sign out"
+                        className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                     >
                         <LogOut className="h-4 w-4" />
-                        Log Out
                     </button>
                 </div>
             </div>
