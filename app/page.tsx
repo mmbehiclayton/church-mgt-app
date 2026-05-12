@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Image from "next/image";
 import { Eye, EyeOff, Loader2, ShieldCheck, Sparkles, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -61,20 +62,25 @@ export default function LoginPage() {
         />
 
         <div className="relative z-10 flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center font-semibold">
-            ⛪
+          <div className="h-10 w-10 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center text-white">
+            <Image src="/icons/dove.svg" alt="" width={22} height={22} priority />
           </div>
           <div className="font-semibold text-lg tracking-tight">Church CMS</div>
         </div>
 
         <div className="relative z-10 space-y-8">
-          <div>
-            <h1 className="text-4xl font-bold tracking-tight leading-tight">
-              Shepherd your church with clarity.
-            </h1>
-            <p className="mt-4 text-indigo-100/90 text-base max-w-md leading-relaxed">
-              Members, attendance, finances, and SMS — woven into one calm, secure platform built for the people doing the work on Sundays.
-            </p>
+          <div className="flex items-start gap-5">
+            <div className="hidden xl:flex h-20 w-20 rounded-2xl bg-white/15 backdrop-blur-sm items-center justify-center text-white shrink-0">
+              <Image src="/icons/dove.svg" alt="" width={48} height={48} />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold tracking-tight leading-tight">
+                Church Management System.
+              </h1>
+              <p className="mt-4 text-indigo-100/90 text-base max-w-md leading-relaxed">
+                Members, attendance, finances, and SMS — woven into one calm, secure platform built for the people doing the work on Sundays.
+              </p>
+            </div>
           </div>
 
           <ul className="space-y-3 text-sm text-indigo-100/90">
@@ -103,8 +109,8 @@ export default function LoginPage() {
         <div className="w-full max-w-sm">
           {/* Mobile-only brand bar */}
           <div className="lg:hidden flex items-center gap-3 mb-10">
-            <div className="h-10 w-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-semibold">
-              ⛪
+            <div className="h-10 w-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center">
+              <Image src="/icons/dove.svg" alt="" width={22} height={22} priority />
             </div>
             <div className="font-semibold text-lg tracking-tight">Church CMS</div>
           </div>
