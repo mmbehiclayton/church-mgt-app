@@ -110,6 +110,10 @@ export async function sendSms(opts: { to: string; message: string }): Promise<Bo
 export interface BongaCreditsResult {
   ok: boolean
   credits?: number
+  threshold?: number
+  clientName?: string
+  emailCredits?: number
+  utilityCredits?: number
   raw: unknown
   error?: string
 }
@@ -137,13 +141,47 @@ export async function checkCredits(): Promise<BongaCreditsResult> {
     return { ok: false, error: `HTTP ${res.status} non-JSON`, raw: null }
   }
   const obj = (json && typeof json === 'object' ? (json as Record<string, unknown>) : {}) as Record<string, unknown>
-  // Bonga commonly returns { credits: "1234" } or { credit: "1234" } or status object
-  const rawCredits = obj.credits ?? obj.credit ?? obj.balance
-  const credits = typeof rawCredits === 'number' ? rawCredits : typeof rawCredits === 'string' ? Number(rawCredits) : NaN
+
+  // Bonga returns { status: 222, sms_credits, sms_threshold, client_name, ... }
+  // Keep fallbacks for older/alternate field names.
+  const rawCredits =
+    obj.sms_credits ?? obj.smsCredits ?? obj.credits ?? obj.credit ?? obj.balance
+  const credits =
+    typeof rawCredits === 'number'
+      ? rawCredits
+      : typeof rawCredits === 'string'
+        ? Number(rawCredits)
+        : NaN
+
   if (!Number.isFinite(credits)) {
-    return { ok: false, error: 'Could not parse credits from response', raw: json }
+    return {
+      ok: false,
+      error: typeof obj.status_message === 'string' ? obj.status_message : 'Could not parse credits from response',
+      raw: json,
+    }
   }
-  return { ok: true, credits, raw: json }
+
+  const threshold =
+    typeof obj.sms_threshold === 'number'
+      ? obj.sms_threshold
+      : typeof obj.sms_threshold === 'string'
+        ? Number(obj.sms_threshold)
+        : undefined
+  const emailCredits =
+    typeof obj.email_credits === 'number' ? obj.email_credits : undefined
+  const utilityCredits =
+    typeof obj.utility_credits === 'number' ? obj.utility_credits : undefined
+  const clientName = typeof obj.client_name === 'string' ? obj.client_name : undefined
+
+  return {
+    ok: true,
+    credits,
+    threshold,
+    clientName,
+    emailCredits,
+    utilityCredits,
+    raw: json,
+  }
 }
 
 export interface BongaDeliveryStatus {

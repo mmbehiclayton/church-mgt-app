@@ -16,14 +16,38 @@ import type { RecipientFilter } from '@/lib/sms/recipients'
 
 // ---------------- Balance ----------------
 
-export async function getSmsBalance() {
+export interface SmsBalanceResult {
+  credits: number | null
+  threshold: number | null
+  clientName: string | null
+  error: string | null
+}
+
+export async function getSmsBalance(): Promise<SmsBalanceResult> {
   try {
     await requirePermission('sms', 'read')
     const res = await getBalance()
-    if (!res.ok) return { error: res.error || 'Unable to fetch balance', credits: null as number | null }
-    return { credits: res.credits ?? null, error: null }
+    if (!res.ok) {
+      return {
+        credits: null,
+        threshold: null,
+        clientName: null,
+        error: res.error || 'Unable to fetch balance',
+      }
+    }
+    return {
+      credits: res.credits ?? null,
+      threshold: res.threshold ?? null,
+      clientName: res.clientName ?? null,
+      error: null,
+    }
   } catch (e) {
-    return { credits: null as number | null, error: e instanceof Error ? e.message : 'Failed' }
+    return {
+      credits: null,
+      threshold: null,
+      clientName: null,
+      error: e instanceof Error ? e.message : 'Failed',
+    }
   }
 }
 

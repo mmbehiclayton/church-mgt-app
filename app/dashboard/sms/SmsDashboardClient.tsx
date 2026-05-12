@@ -53,6 +53,8 @@ interface Stats {
 
 interface Props {
   credits: number | null
+  threshold: number | null
+  clientName: string | null
   balanceError: string | null
   stats: Stats
 }
@@ -65,7 +67,7 @@ const STATUS_STYLES: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-600',
 }
 
-export default function SmsDashboardClient({ credits, balanceError, stats }: Props) {
+export default function SmsDashboardClient({ credits, threshold, clientName, balanceError, stats }: Props) {
   const { hasPermission } = usePermissions()
 
   if (!hasPermission('sms', 'read')) {
@@ -80,7 +82,9 @@ export default function SmsDashboardClient({ credits, balanceError, stats }: Pro
   }
 
   const canSend = hasPermission('sms', 'create')
-  const lowBalance = credits !== null && credits < 50
+  const effectiveThreshold = threshold && threshold > 0 ? threshold : 50
+  const lowBalance = credits !== null && credits < effectiveThreshold
+  const criticalBalance = credits !== null && credits < 10
 
   return (
     <div className="space-y-6">
@@ -114,7 +118,7 @@ export default function SmsDashboardClient({ credits, balanceError, stats }: Pro
 
       {/* KPI cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className={lowBalance ? 'border-amber-300' : undefined}>
+        <Card className={criticalBalance ? 'border-red-400' : lowBalance ? 'border-amber-300' : undefined}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
             <CardTitle className="text-sm font-medium">SMS Balance</CardTitle>
             <Wallet className="h-4 w-4 text-muted-foreground" />
@@ -127,9 +131,17 @@ export default function SmsDashboardClient({ credits, balanceError, stats }: Pro
               </div>
             ) : (
               <>
-                <div className="text-2xl font-bold">{credits?.toLocaleString() ?? '—'}</div>
+                <div className={`text-2xl font-bold ${criticalBalance ? 'text-red-600' : lowBalance ? 'text-amber-600' : ''}`}>
+                  {credits?.toLocaleString() ?? '—'}
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  {lowBalance ? 'Low balance — top up soon' : 'Credits remaining'}
+                  {criticalBalance
+                    ? 'Critical — top up before sending'
+                    : lowBalance
+                      ? 'Low balance — top up soon'
+                      : clientName
+                        ? clientName
+                        : 'Credits remaining'}
                 </p>
               </>
             )}

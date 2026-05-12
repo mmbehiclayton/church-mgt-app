@@ -12,6 +12,8 @@ export default async function SmsDashboardPage() {
   return (
     <SmsDashboardClient
       credits={balanceRes.credits}
+      threshold={balanceRes.threshold}
+      clientName={balanceRes.clientName}
       balanceError={balanceRes.error}
       stats={stats}
     />
