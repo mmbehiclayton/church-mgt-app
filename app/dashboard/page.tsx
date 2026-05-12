@@ -9,6 +9,16 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
     const session = await getServerSession(authOptions);
 
+    // Pull the current user's name live from the DB so profile edits show up
+    // immediately, not just after a fresh sign-in (the JWT caches it).
+    const userId = session?.user?.id as string | undefined;
+    const liveUser = userId
+        ? await prisma.user.findUnique({
+              where: { id: userId },
+              select: { name: true, email: true },
+          })
+        : null;
+
     // Build access map in one pass
     const [
         canFinance,
@@ -59,9 +69,16 @@ export default async function DashboardPage() {
             : Promise.resolve(null),
     ]);
 
+    const userName =
+        liveUser?.name?.trim() ||
+        session?.user?.name?.trim() ||
+        liveUser?.email?.split("@")[0] ||
+        session?.user?.email?.split("@")[0] ||
+        null;
+
     return (
         <DashboardLanding
-            userName={session?.user?.name || session?.user?.email?.split("@")[0] || null}
+            userName={userName}
             access={{
                 finance: canFinance,
                 members: canMembers,

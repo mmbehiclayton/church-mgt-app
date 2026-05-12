@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -54,8 +54,13 @@ interface PreviewResult {
 
 export default function ComposeClient({ departments, fellowships, totalMembers, templates }: Props) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { hasPermission } = usePermissions()
   const [isPending, startTransition] = useTransition()
+
+  // Initialise extra phones from ?phones= so links from elsewhere
+  // (e.g. watchlist "Send SMS" buttons) can prefill recipients.
+  const prefilledPhones = searchParams.get('phones') ?? ''
 
   const [name, setName] = useState('')
   const [message, setMessage] = useState('')
@@ -64,7 +69,16 @@ export default function ComposeClient({ departments, fellowships, totalMembers, 
   const [selectedFellowships, setSelectedFellowships] = useState<Set<string>>(new Set())
   const [genderMale, setGenderMale] = useState(false)
   const [genderFemale, setGenderFemale] = useState(false)
-  const [extraPhones, setExtraPhones] = useState('')
+  const [extraPhones, setExtraPhones] = useState(prefilledPhones.replace(/,/g, '\n'))
+
+  // If the URL changes after mount (rare but possible), keep extra phones in sync —
+  // but only if the user hasn't typed anything yet.
+  useEffect(() => {
+    if (!prefilledPhones) return
+    if (extraPhones.trim().length > 0 && extraPhones !== prefilledPhones.replace(/,/g, '\n')) return
+    setExtraPhones(prefilledPhones.replace(/,/g, '\n'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefilledPhones])
   const [search, setSearch] = useState({ dept: '', fellowship: '' })
   const [preview, setPreview] = useState<PreviewResult | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
