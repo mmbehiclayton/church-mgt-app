@@ -181,22 +181,29 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
             {/* User pill */}
             <div className="border-t border-sidebar-border p-3 shrink-0">
                 <div className="flex items-center gap-3 p-2 rounded-lg">
-                    <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">
-                        {initials}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">
-                            {user?.name || user?.email?.split("@")[0] || "Signed in"}
+                    <Link
+                        href="/dashboard/profile"
+                        onClick={onNavigate}
+                        title="Edit profile"
+                        className="flex items-center gap-3 flex-1 min-w-0 group"
+                    >
+                        <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold shrink-0 group-hover:bg-primary/20 transition-colors">
+                            {initials}
                         </div>
-                        <div className="text-[11px] text-muted-foreground truncate">
-                            {user?.email || ""}
+                        <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">
+                                {user?.name || user?.email?.split("@")[0] || "Signed in"}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground truncate">
+                                {user?.email || ""}
+                            </div>
                         </div>
-                    </div>
+                    </Link>
                     <button
                         onClick={handleLogout}
                         aria-label="Sign out"
                         title="Sign out"
-                        className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
                     >
                         <LogOut className="h-4 w-4" />
                     </button>

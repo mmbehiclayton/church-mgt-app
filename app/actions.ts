@@ -917,6 +917,56 @@ export async function getCurrentUserId() {
     }
 }
 
+export async function getOwnProfile() {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) return { error: "Not authenticated" };
+        const user = await prisma.user.findUnique({
+            where: { id: session.user.id },
+            select: { id: true, name: true, email: true, role: true, createdAt: true },
+        });
+        if (!user) return { error: "User not found" };
+        return { data: user };
+    } catch (error) {
+        console.error("getOwnProfile error:", error);
+        return { error: "Failed to load profile" };
+    }
+}
+
+export async function updateOwnProfile(data: { name?: string; currentPassword?: string; newPassword?: string }) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) return { error: "Not authenticated" };
+
+        const user = await prisma.user.findUnique({ where: { id: session.user.id } });
+        if (!user) return { error: "User not found" };
+
+        const updateData: { name?: string; password?: string } = {};
+
+        if (data.name !== undefined) {
+            const trimmed = data.name.trim();
+            if (!trimmed) return { error: "Name cannot be empty" };
+            updateData.name = trimmed;
+        }
+
+        if (data.newPassword) {
+            if (!data.currentPassword) return { error: "Current password is required" };
+            const valid = await bcrypt.compare(data.currentPassword, user.password);
+            if (!valid) return { error: "Current password is incorrect" };
+            if (data.newPassword.length < 6) return { error: "New password must be at least 6 characters" };
+            updateData.password = await bcrypt.hash(data.newPassword, 10);
+        }
+
+        if (Object.keys(updateData).length === 0) return { error: "No changes provided" };
+
+        await prisma.user.update({ where: { id: session.user.id }, data: updateData });
+        return { success: true };
+    } catch (error) {
+        console.error("updateOwnProfile error:", error);
+        return { error: "Failed to update profile" };
+    }
+}
+
 // ==================== MEMBERSHIP MODULE ====================
 
 // Department Actions
