@@ -1409,6 +1409,58 @@ export async function deleteMember(id: string) {
     }
 }
 
+export async function bulkUpdateMembers(
+    ids: string[],
+    update: {
+        type: "gender" | "fellowship" | "department";
+        value: string;          // gender string | fellowshipId | departmentId
+        mode?: "add" | "replace"; // only relevant for department
+    }
+): Promise<{ success?: boolean; count?: number; error?: string }> {
+    try {
+        await requirePermission("members", "update");
+        if (!ids.length) return { error: "No members selected" };
+
+        if (update.type === "gender") {
+            if (!["Male", "Female"].includes(update.value))
+                return { error: "Invalid gender value" };
+            await prisma.member.updateMany({
+                where: { id: { in: ids } },
+                data: { gender: update.value },
+            });
+
+        } else if (update.type === "fellowship") {
+            await prisma.member.updateMany({
+                where: { id: { in: ids } },
+                data: { homeFellowshipId: update.value || null },
+            });
+
+        } else if (update.type === "department") {
+            // Verify department exists
+            const dept = await prisma.department.findUnique({ where: { id: update.value } });
+            if (!dept) return { error: "Department not found" };
+
+            if (update.mode === "replace") {
+                // Replace all departments: delete existing then insert
+                await prisma.memberDepartment.deleteMany({ where: { memberId: { in: ids } } });
+            }
+            // Upsert: skip if already in department (skipDuplicates)
+            await prisma.memberDepartment.createMany({
+                data: ids.map(memberId => ({ memberId, departmentId: update.value })),
+                skipDuplicates: true,
+            });
+        } else {
+            return { error: "Unknown update type" };
+        }
+
+        revalidatePath("/dashboard/membership");
+        return { success: true, count: ids.length };
+    } catch (error) {
+        console.error("bulkUpdateMembers error:", error);
+        return { error: "Bulk update failed" };
+    }
+}
+
 export async function deleteMembers(ids: string[]) {
     try {
         await requirePermission('members', 'delete');

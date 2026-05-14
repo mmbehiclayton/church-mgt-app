@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import {
     UserPlus, Pencil, Trash2, User, Building2, Layers,
     Search, ChevronLeft, ChevronRight, Upload,
-    MoreHorizontal, X,
+    MoreHorizontal, X, Pencil as PencilIcon, CheckCheck,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +33,7 @@ import DeleteMemberDialog from "@/components/membership/DeleteMemberDialog";
 import ExportMembersButton from "@/components/membership/ExportMembersButton";
 import AddDepartmentModal from "@/components/membership/AddDepartmentModal";
 import AddHomeFellowshipModal from "@/components/membership/AddHomeFellowshipModal";
-import { deleteMembers, getMembers } from "@/app/actions";
+import { deleteMembers, getMembers, bulkUpdateMembers } from "@/app/actions";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
@@ -107,6 +109,13 @@ export default function MembersTable({
     const [bulkDeleting, setBulkDeleting] = useState(false);
     const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
+    // Bulk edit state
+    const [showBulkEdit, setShowBulkEdit] = useState(false);
+    const [bulkEditType, setBulkEditType] = useState<"gender" | "fellowship" | "department" | "">("");
+    const [bulkEditValue, setBulkEditValue] = useState("");
+    const [bulkEditMode, setBulkEditMode] = useState<"add" | "replace">("add");
+    const [bulkUpdating, setBulkUpdating] = useState(false);
+
     const fetchMembers = useCallback(
         (search: string, dept: string, fellowship: string, gender: string, page: number) => {
             startTransition(async () => {
@@ -167,6 +176,30 @@ export default function MembersTable({
         setSelectedIds((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
     };
 
+    const handleBulkEdit = async () => {
+        if (!bulkEditType || !bulkEditValue) {
+            toast.error("Select a field and value");
+            return;
+        }
+        setBulkUpdating(true);
+        const result = await bulkUpdateMembers(selectedIds, {
+            type: bulkEditType,
+            value: bulkEditValue,
+            mode: bulkEditMode,
+        });
+        setBulkUpdating(false);
+        if (result.error) {
+            toast.error(result.error);
+        } else {
+            toast.success(`Updated ${result.count} member${result.count !== 1 ? "s" : ""}`);
+            setShowBulkEdit(false);
+            setBulkEditType("");
+            setBulkEditValue("");
+            setSelectedIds([]);
+            fetchMembers(debouncedSearch, filterDepartment, filterFellowship, filterGender, pagination.page);
+        }
+    };
+
     const executeBulkDelete = async () => {
         setBulkDeleting(true);
         const result = await deleteMembers(selectedIds);
@@ -207,15 +240,25 @@ export default function MembersTable({
 
                         <div className="flex items-center gap-2">
                             {selectedIds.length > 0 && (
-                                <Button
-                                    onClick={() => setShowBulkDeleteDialog(true)}
-                                    disabled={bulkDeleting}
-                                    variant="destructive"
-                                    size="sm"
-                                >
-                                    <Trash2 className="h-4 w-4 mr-1.5" />
-                                    Delete {selectedIds.length}
-                                </Button>
+                                <>
+                                    <Button
+                                        onClick={() => setShowBulkEdit(true)}
+                                        variant="outline"
+                                        size="sm"
+                                    >
+                                        <PencilIcon className="h-4 w-4 mr-1.5" />
+                                        Edit {selectedIds.length}
+                                    </Button>
+                                    <Button
+                                        onClick={() => setShowBulkDeleteDialog(true)}
+                                        disabled={bulkDeleting}
+                                        variant="destructive"
+                                        size="sm"
+                                    >
+                                        <Trash2 className="h-4 w-4 mr-1.5" />
+                                        Delete {selectedIds.length}
+                                    </Button>
+                                </>
                             )}
 
                             {/* Secondary actions grouped in a dropdown */}
@@ -583,6 +626,133 @@ export default function MembersTable({
                     onClose={() => setShowUploadModal(false)}
                 />
             )}
+
+            {/* Bulk Edit Dialog */}
+            <Dialog open={showBulkEdit} onOpenChange={(open) => { if (!open) { setShowBulkEdit(false); setBulkEditType(""); setBulkEditValue(""); } }}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Edit {selectedIds.length} Member{selectedIds.length !== 1 ? "s" : ""}</DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-2">
+                        {/* Field selector */}
+                        <div className="space-y-1.5">
+                            <Label>Field to update</Label>
+                            <Select value={bulkEditType} onValueChange={(v) => { setBulkEditType(v as "gender" | "fellowship" | "department"); setBulkEditValue(""); }}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Choose a field…" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="gender">Gender</SelectItem>
+                                    <SelectItem value="fellowship">Home Fellowship</SelectItem>
+                                    <SelectItem value="department">Department</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Value picker — conditional on type */}
+                        {bulkEditType === "gender" && (
+                            <div className="space-y-1.5">
+                                <Label>Gender</Label>
+                                <Select value={bulkEditValue} onValueChange={setBulkEditValue}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select gender…" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Male">Male</SelectItem>
+                                        <SelectItem value="Female">Female</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+
+                        {bulkEditType === "fellowship" && (
+                            <div className="space-y-1.5">
+                                <Label>Home Fellowship</Label>
+                                <Select value={bulkEditValue} onValueChange={setBulkEditValue}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select fellowship…" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {homeFellowships.map((f) => (
+                                            <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+
+                        {bulkEditType === "department" && (
+                            <>
+                                <div className="space-y-1.5">
+                                    <Label>Department</Label>
+                                    <Select value={bulkEditValue} onValueChange={setBulkEditValue}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select department…" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {departments.map((d) => (
+                                                <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <Label>Assignment mode</Label>
+                                    <div className="flex gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setBulkEditMode("add")}
+                                            className={cn(
+                                                "flex-1 rounded-md border px-3 py-2 text-sm text-left transition-colors",
+                                                bulkEditMode === "add"
+                                                    ? "border-primary bg-primary/10 text-primary font-medium"
+                                                    : "border-border text-muted-foreground hover:bg-muted/40"
+                                            )}
+                                        >
+                                            <span className="font-medium block">Add</span>
+                                            <span className="text-xs opacity-70">Keep existing departments</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setBulkEditMode("replace")}
+                                            className={cn(
+                                                "flex-1 rounded-md border px-3 py-2 text-sm text-left transition-colors",
+                                                bulkEditMode === "replace"
+                                                    ? "border-primary bg-primary/10 text-primary font-medium"
+                                                    : "border-border text-muted-foreground hover:bg-muted/40"
+                                            )}
+                                        >
+                                            <span className="font-medium block">Replace</span>
+                                            <span className="text-xs opacity-70">Remove all existing first</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => { setShowBulkEdit(false); setBulkEditType(""); setBulkEditValue(""); }} disabled={bulkUpdating}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleBulkEdit} disabled={bulkUpdating || !bulkEditType || !bulkEditValue}>
+                            {bulkUpdating ? (
+                                <span className="flex items-center gap-2">
+                                    <span className="h-3.5 w-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                                    Updating…
+                                </span>
+                            ) : (
+                                <span className="flex items-center gap-2">
+                                    <CheckCheck className="h-4 w-4" />
+                                    Apply to {selectedIds.length}
+                                </span>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }
