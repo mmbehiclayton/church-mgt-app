@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, X } from "lucide-react";
 import ExcelJS from "exceljs";
-import { getMembersWithoutPhone } from "@/app/actions";
+import { getMembersWithoutPhone, getMembersForExport } from "@/app/actions";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 interface Department {
@@ -128,25 +128,28 @@ export default function ExportMembersButton({ members, departments, homeFellowsh
                 return;
             }
 
-            let filtered = [...members];
             let label = "All Members";
+            const serverFilters: { departmentId?: string; fellowshipId?: string; gender?: string } = {};
 
             if (exportType === "department" && selectedDepartment) {
-                filtered = members.filter(m => m.departments.some(d => d.department.id === selectedDepartment));
+                serverFilters.departmentId = selectedDepartment;
                 label = `${departments.find(d => d.id === selectedDepartment)?.name} Department`;
             } else if (exportType === "gender" && selectedGender) {
-                filtered = members.filter(m => m.gender === selectedGender);
+                serverFilters.gender = selectedGender;
                 label = `${selectedGender} Members`;
             } else if (exportType === "fellowship" && selectedFellowship) {
-                filtered = members.filter(m => m.homeFellowshipId === selectedFellowship);
+                serverFilters.fellowshipId = selectedFellowship;
                 label = `${homeFellowships.find(f => f.id === selectedFellowship)?.name} Fellowship`;
             }
 
-            const rows = filtered.map(m => ({
+            const result = await getMembersForExport(exportType === "all" ? undefined : serverFilters);
+            if (result.error || !result.data) return;
+
+            const rows = result.data.map(m => ({
                 fullName: m.fullName,
                 phoneNumber: m.phoneNumber,
                 gender: m.gender,
-                fellowship: homeFellowships.find(f => f.id === m.homeFellowshipId)?.name || "-",
+                fellowship: m.homeFellowship?.name || "-",
                 departments: m.departments.map(d => d.department.name).join(", ") || "-",
             }));
             await buildAndDownload(rows, label, `members_${label.replace(/\s+/g, "_").toLowerCase()}_${date}.xlsx`);

@@ -1409,6 +1409,45 @@ export async function deleteMember(id: string) {
     }
 }
 
+export async function getMembersForExport(filters?: {
+    departmentId?: string;
+    fellowshipId?: string;
+    gender?: string;
+}) {
+    try {
+        await requirePermission('members', 'read');
+        const where: Record<string, unknown> = {};
+
+        if (filters?.departmentId) {
+            where.departments = { some: { departmentId: filters.departmentId } };
+        }
+        if (filters?.fellowshipId) {
+            where.homeFellowshipId = filters.fellowshipId;
+        }
+        if (filters?.gender) {
+            where.gender = filters.gender;
+        }
+
+        const members = await prisma.member.findMany({
+            where,
+            select: {
+                id: true,
+                fullName: true,
+                phoneNumber: true,
+                gender: true,
+                estate: true,
+                homeFellowship: { select: { name: true } },
+                departments: { select: { department: { select: { name: true } } } },
+            },
+            orderBy: { fullName: 'asc' },
+        });
+        return { data: members };
+    } catch (error) {
+        console.error("getMembersForExport error:", error);
+        return { error: "Failed to fetch members" };
+    }
+}
+
 export async function getMembersWithoutPhone() {
     try {
         await requirePermission('members', 'read');
