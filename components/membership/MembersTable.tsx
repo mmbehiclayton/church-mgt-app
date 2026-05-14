@@ -1,10 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { UserPlus, Pencil, Trash2, User, Building2, Menu, Layers, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+    UserPlus, Pencil, Trash2, User, Building2, Layers,
+    Search, ChevronLeft, ChevronRight, Upload,
+    MoreHorizontal, X,
+} from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -13,6 +18,13 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import AddMemberModal from "@/components/membership/AddMemberModal";
 import EditMemberModal from "@/components/membership/EditMemberModal";
 import DeleteMemberDialog from "@/components/membership/DeleteMemberDialog";
@@ -24,15 +36,13 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import BulkUploadModal from "@/components/membership/BulkUploadModal";
-import { Upload } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Department {
     id: string;
     name: string;
     description: string | null;
-    _count: {
-        members: number;
-    };
+    _count: { members: number };
 }
 
 interface HomeFellowship {
@@ -48,36 +58,45 @@ interface Member {
     estate: string | null;
     homeFellowshipId: string | null;
     homeFellowship: HomeFellowship | null;
-    departments: {
-        department: {
-            id: string;
-            name: string;
-        }
-    }[];
+    departments: { department: { id: string; name: string } }[];
 }
 
 interface MembersTableProps {
     members: Member[];
     departments: Department[];
     homeFellowships: HomeFellowship[];
-    pagination?: {
-        total: number;
-        page: number;
-        limit: number;
-        pages: number;
-    };
+    pagination?: { total: number; page: number; limit: number; pages: number };
 }
 
-export default function MembersTable({ members: initialMembers, departments, homeFellowships, pagination: initialPagination }: MembersTableProps) {
+const GENDER_ALL = "__all__";
+const DEPT_ALL = "__all__";
+const FELLOWSHIP_ALL = "__all__";
+
+export default function MembersTable({
+    members: initialMembers,
+    departments,
+    homeFellowships,
+    pagination: initialPagination,
+}: MembersTableProps) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
-    
-    // Search and pagination state
-    const [searchQuery, setSearchQuery] = useState("");
+
+    // Search: display value updates immediately; debounced value triggers fetch
+    const [searchInput, setSearchInput] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
+    const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Server-side filters
+    const [filterDepartment, setFilterDepartment] = useState(DEPT_ALL);
+    const [filterFellowship, setFilterFellowship] = useState(FELLOWSHIP_ALL);
+    const [filterGender, setFilterGender] = useState(GENDER_ALL);
+
     const [members, setMembers] = useState<Member[]>(initialMembers);
-    const [pagination, setPagination] = useState(initialPagination || { total: 0, page: 1, limit: 50, pages: 0 });
-    
-    // Other state
+    const [pagination, setPagination] = useState(
+        initialPagination ?? { total: 0, page: 1, limit: 50, pages: 0 }
+    );
+
+    // Modal state
     const [showAddModal, setShowAddModal] = useState(false);
     const [showAddDepartmentModal, setShowAddDepartmentModal] = useState(false);
     const [showAddHomeFellowshipModal, setShowAddHomeFellowshipModal] = useState(false);
@@ -87,352 +106,383 @@ export default function MembersTable({ members: initialMembers, departments, hom
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [bulkDeleting, setBulkDeleting] = useState(false);
     const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
-    const [filterDepartment, setFilterDepartment] = useState<string>("");
-    const [filterGender, setFilterGender] = useState<string>("");
 
-    // Filter members based on client-side filters
-    const filteredMembers = members.filter(member => {
-        if (filterDepartment && !member.departments.some(d => d.department.id === filterDepartment)) return false;
-        if (filterGender && member.gender !== filterGender) return false;
-        return true;
-    });
-
-    // Handle search
-    const handleSearch = (query: string) => {
-        setSearchQuery(query);
-        startTransition(async () => {
-            const result = await getMembers({
-                search: query,
-                page: 1,
-                limit: 50
+    const fetchMembers = useCallback(
+        (search: string, dept: string, fellowship: string, gender: string, page: number) => {
+            startTransition(async () => {
+                const result = await getMembers({
+                    search: search || undefined,
+                    departmentId: dept !== DEPT_ALL ? dept : undefined,
+                    fellowshipId: fellowship !== FELLOWSHIP_ALL ? fellowship : undefined,
+                    gender: gender !== GENDER_ALL ? gender : undefined,
+                    page,
+                    limit: 50,
+                });
+                setMembers(result.data);
+                setPagination(result.pagination);
             });
-            setMembers(result.data);
-            setPagination(result.pagination);
-        });
+        },
+        []
+    );
+
+    // Debounce search input
+    useEffect(() => {
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        debounceTimer.current = setTimeout(() => {
+            setDebouncedSearch(searchInput);
+        }, 300);
+        return () => {
+            if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        };
+    }, [searchInput]);
+
+    // Fetch when debounced search or filters change
+    useEffect(() => {
+        fetchMembers(debouncedSearch, filterDepartment, filterFellowship, filterGender, 1);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [debouncedSearch, filterDepartment, filterFellowship, filterGender]);
+
+    const handlePageChange = (newPage: number) => {
+        fetchMembers(debouncedSearch, filterDepartment, filterFellowship, filterGender, newPage);
+        window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
-    // Handle pagination
-    const handlePageChange = (newPage: number) => {
-        startTransition(async () => {
-            const result = await getMembers({
-                search: searchQuery,
-                page: newPage,
-                limit: 50
-            });
-            setMembers(result.data);
-            setPagination(result.pagination);
-            // Scroll to top
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        });
+    const hasActiveFilters =
+        filterDepartment !== DEPT_ALL ||
+        filterFellowship !== FELLOWSHIP_ALL ||
+        filterGender !== GENDER_ALL;
+
+    const clearFilters = () => {
+        setSearchInput("");
+        setFilterDepartment(DEPT_ALL);
+        setFilterFellowship(FELLOWSHIP_ALL);
+        setFilterGender(GENDER_ALL);
     };
 
     const handleSelectAll = (checked: boolean) => {
-        if (checked) {
-            setSelectedIds(filteredMembers.map(m => m.id));
-        } else {
-            setSelectedIds([]);
-        }
+        setSelectedIds(checked ? members.map((m) => m.id) : []);
     };
 
     const handleSelectRow = (id: string, checked: boolean) => {
-        if (checked) {
-            setSelectedIds(prev => [...prev, id]);
-        } else {
-            setSelectedIds(prev => prev.filter(x => x !== id));
-        }
+        setSelectedIds((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
     };
 
     const executeBulkDelete = async () => {
         setBulkDeleting(true);
         const result = await deleteMembers(selectedIds);
-
         if (result.error) {
-            toast.error("Error", {
-                description: result.error,
-            });
+            toast.error("Error", { description: result.error });
         } else {
-            toast.success("Success", {
-                description: `Deleted ${selectedIds.length} member(s)`,
-            });
+            toast.success("Success", { description: `Deleted ${selectedIds.length} member(s)` });
             setSelectedIds([]);
         }
-
         setBulkDeleting(false);
         setShowBulkDeleteDialog(false);
         router.refresh();
     };
 
-    const handleBulkDelete = () => {
-        setShowBulkDeleteDialog(true);
-    };
+    const activeFilterCount = [
+        filterDepartment !== DEPT_ALL,
+        filterFellowship !== FELLOWSHIP_ALL,
+        filterGender !== GENDER_ALL,
+    ].filter(Boolean).length;
 
     return (
         <>
-            <div className="bg-white rounded-lg shadow">
-                <div className="p-6 border-b border-gray-200">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                {/* ── Toolbar ── */}
+                <div className="px-5 py-4 border-b border-border space-y-3">
+                    {/* Row 1: title + action buttons */}
+                    <div className="flex items-center justify-between gap-3">
                         <div>
-                            <h2 className="text-lg font-semibold text-gray-900">Members</h2>
-                            <p className="text-sm text-gray-500 mt-1">
-                                {pagination.total} total member(s)
-                                {selectedIds.length > 0 && ` • ${selectedIds.length} selected`}
+                            <p className="text-sm font-semibold text-foreground">
+                                {pagination.total} member{pagination.total !== 1 ? "s" : ""}
+                                {selectedIds.length > 0 && (
+                                    <span className="ml-2 text-muted-foreground font-normal">
+                                        · {selectedIds.length} selected
+                                    </span>
+                                )}
                             </p>
                         </div>
 
-                        <div className="flex flex-col gap-4 w-full md:w-auto">
-                            {/* Search Input */}
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                <Input
-                                    placeholder="Search by name, phone, or estate..."
-                                    value={searchQuery}
-                                    onChange={(e) => handleSearch(e.target.value)}
-                                    disabled={isPending}
-                                    className="pl-10 w-full md:w-80"
-                                />
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-2">
-                                {/* Filters */}
-                                <select
-                                    value={filterDepartment}
-                                    onChange={(e) => setFilterDepartment(e.target.value)}
-                                    className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        <div className="flex items-center gap-2">
+                            {selectedIds.length > 0 && (
+                                <Button
+                                    onClick={() => setShowBulkDeleteDialog(true)}
+                                    disabled={bulkDeleting}
+                                    variant="destructive"
+                                    size="sm"
                                 >
-                                    <option value="">All Departments</option>
-                                    {departments.map(dept => (
-                                        <option key={dept.id} value={dept.id}>{dept.name}</option>
-                                    ))}
-                                </select>
+                                    <Trash2 className="h-4 w-4 mr-1.5" />
+                                    Delete {selectedIds.length}
+                                </Button>
+                            )}
 
-                                <select
-                                    value={filterGender}
-                                    onChange={(e) => setFilterGender(e.target.value)}
-                                    className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                    <option value="">All Genders</option>
-                                    <option value="Male">Male</option>
-                                    <option value="Female">Female</option>
-                                </select>
-
-                                {selectedIds.length > 0 && (
-                                    <Button
-                                        onClick={handleBulkDelete}
-                                        disabled={bulkDeleting}
-                                        variant="destructive"
-                                        size="sm"
-                                        className="flex items-center gap-2"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                        Delete Selected
+                            {/* Secondary actions grouped in a dropdown */}
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" size="sm">
+                                        <MoreHorizontal className="h-4 w-4 mr-1.5" />
+                                        More
                                     </Button>
-                                )}
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-52">
+                                    <DropdownMenuLabel>Manage</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => setShowAddDepartmentModal(true)}>
+                                        <Layers className="mr-2 h-4 w-4" />
+                                        Add Department
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setShowAddHomeFellowshipModal(true)}>
+                                        <Building2 className="mr-2 h-4 w-4" />
+                                        Add Fellowship
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => setShowUploadModal(true)}>
+                                        <Upload className="mr-2 h-4 w-4" />
+                                        Import Members
+                                    </DropdownMenuItem>
+                                    <ExportMembersButton
+                                        members={members}
+                                        departments={departments}
+                                        homeFellowships={homeFellowships}
+                                        asMenuItem={true}
+                                    />
+                                </DropdownMenuContent>
+                            </DropdownMenu>
 
-                                <div className="flex items-center gap-2">
-                                    {/* Mobile Actions Menu */}
-                                    <div className="md:hidden">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="outline" size="icon">
-                                                    <Menu className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end" className="w-56">
-                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem onClick={() => setShowAddModal(true)}>
-                                                    <UserPlus className="mr-2 h-4 w-4" />
-                                                    Add Member
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => setShowAddDepartmentModal(true)}>
-                                                    <Layers className="mr-2 h-4 w-4" />
-                                                    Add Department
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => setShowAddHomeFellowshipModal(true)}>
-                                                    <Building2 className="mr-2 h-4 w-4" />
-                                                    Add Fellowship
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => setShowUploadModal(true)}>
-                                                    <Upload className="mr-2 h-4 w-4" />
-                                                    Import Members
-                                                </DropdownMenuItem>
-                                                <ExportMembersButton
-                                                    members={members}
-                                                    departments={departments}
-                                                    homeFellowships={homeFellowships}
-                                                    asMenuItem={true}
-                                                />
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
-
-                                    {/* Desktop Actions */}
-                                    <div className="hidden md:flex items-center gap-2">
-                                        <ExportMembersButton
-                                            members={members}
-                                            departments={departments}
-                                            homeFellowships={homeFellowships}
-                                        />
-
-                                        <Button
-                                            onClick={() => setShowAddDepartmentModal(true)}
-                                            variant="outline"
-                                            className="flex items-center gap-2"
-                                        >
-                                            <Layers className="h-4 w-4" />
-                                            Add Department
-                                        </Button>
-
-                                        <Button
-                                            onClick={() => setShowAddHomeFellowshipModal(true)}
-                                            variant="outline"
-                                            className="flex items-center gap-2"
-                                        >
-                                            <Building2 className="h-4 w-4" />
-                                            Add Fellowship
-                                        </Button>
-
-                                        <Button 
-                                            onClick={() => setShowUploadModal(true)} 
-                                            variant="outline" 
-                                            className="flex items-center gap-2"
-                                        >
-                                            <Upload className="h-4 w-4" />
-                                            Import
-                                        </Button>
-
-                                        <Button onClick={() => setShowAddModal(true)} className="flex items-center gap-2">
-                                            <UserPlus className="h-4 w-4" />
-                                            Add Member
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
+                            {/* Primary CTA — always visible */}
+                            <Button onClick={() => setShowAddModal(true)} size="sm">
+                                <UserPlus className="h-4 w-4 mr-1.5" />
+                                Add Member
+                            </Button>
                         </div>
+                    </div>
+
+                    {/* Row 2: search + filters */}
+                    <div className="flex flex-wrap gap-2">
+                        {/* Search */}
+                        <div className="relative flex-1 min-w-[200px] max-w-xs">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                            <Input
+                                placeholder="Search name, phone, estate…"
+                                value={searchInput}
+                                onChange={(e) => setSearchInput(e.target.value)}
+                                className="pl-9 h-9"
+                            />
+                            {searchInput && (
+                                <button
+                                    onClick={() => setSearchInput("")}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-muted-foreground hover:text-foreground"
+                                >
+                                    <X className="h-3.5 w-3.5" />
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Department */}
+                        <Select value={filterDepartment} onValueChange={setFilterDepartment}>
+                            <SelectTrigger className="h-9 w-[160px] text-sm">
+                                <SelectValue placeholder="Department" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={DEPT_ALL}>All Departments</SelectItem>
+                                {departments.map((d) => (
+                                    <SelectItem key={d.id} value={d.id}>
+                                        {d.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
+                        {/* Fellowship */}
+                        <Select value={filterFellowship} onValueChange={setFilterFellowship}>
+                            <SelectTrigger className="h-9 w-[160px] text-sm">
+                                <SelectValue placeholder="Fellowship" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={FELLOWSHIP_ALL}>All Fellowships</SelectItem>
+                                {homeFellowships.map((f) => (
+                                    <SelectItem key={f.id} value={f.id}>
+                                        {f.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
+                        {/* Gender */}
+                        <Select value={filterGender} onValueChange={setFilterGender}>
+                            <SelectTrigger className="h-9 w-[120px] text-sm">
+                                <SelectValue placeholder="Gender" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={GENDER_ALL}>All Genders</SelectItem>
+                                <SelectItem value="Male">Male</SelectItem>
+                                <SelectItem value="Female">Female</SelectItem>
+                            </SelectContent>
+                        </Select>
+
+                        {/* Clear filters badge */}
+                        {(hasActiveFilters || searchInput) && (
+                            <button
+                                onClick={clearFilters}
+                                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors border border-dashed border-border"
+                            >
+                                <X className="h-3.5 w-3.5" />
+                                Clear
+                                {activeFilterCount > 0 && (
+                                    <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+                                        {activeFilterCount}
+                                    </Badge>
+                                )}
+                            </button>
+                        )}
+
+                        {isPending && (
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground self-center ml-1">
+                                <span className="h-3.5 w-3.5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                                Searching…
+                            </div>
+                        )}
                     </div>
                 </div>
 
+                {/* ── Table ── */}
                 <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-gray-50 border-b border-gray-200">
-                            <tr>
-                                <th className="px-6 py-2 text-left">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="border-b border-border bg-muted/40">
+                                <th className="px-4 py-3 w-10">
                                     <Checkbox
-                                        checked={selectedIds.length === filteredMembers.length && filteredMembers.length > 0}
-                                        onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                                        checked={
+                                            members.length > 0 &&
+                                            selectedIds.length === members.length
+                                        }
+                                        onCheckedChange={(c) => handleSelectAll(c as boolean)}
                                     />
                                 </th>
-                                <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-10">
                                     #
                                 </th>
-                                <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Member
+                                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                    Name
                                 </th>
-                                <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Phone Number
+                                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                    Phone
                                 </th>
-                                <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                                     Gender
                                 </th>
-                                <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                                     Department
                                 </th>
-                                <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                                     Fellowship
                                 </th>
-                                <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                                     Estate
                                 </th>
-                                <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                                     Actions
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {filteredMembers.map((member, index) => (
+                        <tbody className="divide-y divide-border">
+                            {members.map((member, index) => (
                                 <tr
                                     key={member.id}
-                                    className={`hover:bg-gray-50 transition-colors ${selectedIds.includes(member.id) ? "bg-blue-50" : ""
-                                        }`}
+                                    className={cn(
+                                        "transition-colors hover:bg-muted/30",
+                                        selectedIds.includes(member.id) && "bg-primary/5"
+                                    )}
                                 >
-                                    <td className="px-6 py-2">
+                                    <td className="px-4 py-2.5">
                                         <Checkbox
                                             checked={selectedIds.includes(member.id)}
-                                            onCheckedChange={(checked) => handleSelectRow(member.id, checked as boolean)}
+                                            onCheckedChange={(c) =>
+                                                handleSelectRow(member.id, c as boolean)
+                                            }
                                         />
                                     </td>
-                                    <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-500">
-                                        {index + 1}
+                                    <td className="px-4 py-2.5 text-muted-foreground tabular-nums">
+                                        {(pagination.page - 1) * pagination.limit + index + 1}
                                     </td>
-                                    <td className="px-6 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">
                                         {member.fullName}
                                     </td>
-                                    <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-500">
+                                    <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
                                         {member.phoneNumber}
                                     </td>
-                                    <td className="px-6 py-2 whitespace-nowrap">
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${member.gender === "Male"
-                                            ? "bg-blue-100 text-blue-800 border-blue-200"
-                                            : "bg-pink-100 text-pink-800 border-pink-200"
-                                            }`}>
+                                    <td className="px-4 py-2.5 whitespace-nowrap">
+                                        <span
+                                            className={cn(
+                                                "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
+                                                member.gender === "Male"
+                                                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                                                    : "bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300"
+                                            )}
+                                        >
                                             {member.gender}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-500">
+                                    <td className="px-4 py-2.5 whitespace-nowrap">
                                         {member.departments.length > 0 ? (
                                             <div className="flex flex-wrap gap-1">
                                                 {member.departments.map(({ department }) => (
                                                     <span
                                                         key={department.id}
-                                                        className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200"
+                                                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
                                                     >
                                                         {department.name}
                                                     </span>
                                                 ))}
                                             </div>
                                         ) : (
-                                            <span className="text-gray-400">-</span>
+                                            <span className="text-muted-foreground/50">—</span>
                                         )}
-
                                     </td>
-                                    <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-500">
-                                        {member.homeFellowship?.name || <span className="text-gray-400">-</span>}
+                                    <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">
+                                        {member.homeFellowship?.name ?? (
+                                            <span className="text-muted-foreground/50">—</span>
+                                        )}
                                     </td>
-                                    <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-500 font-medium">
-                                        {member.estate || <span className="text-gray-400">-</span>}
+                                    <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">
+                                        {member.estate ?? (
+                                            <span className="text-muted-foreground/50">—</span>
+                                        )}
                                     </td>
-                                    <td className="px-6 py-2 whitespace-nowrap text-right text-sm font-medium">
-                                        <div className="flex items-center justify-end gap-2">
+                                    <td className="px-4 py-2.5 whitespace-nowrap text-right">
+                                        <div className="flex items-center justify-end gap-1">
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
                                                 onClick={() => setEditingMember(member)}
-                                                className="text-blue-600 hover:text-blue-900 hover:bg-blue-50"
+                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
                                             >
-                                                <Pencil className="h-4 w-4" />
+                                                <Pencil className="h-3.5 w-3.5" />
                                             </Button>
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
                                                 onClick={() => setDeletingMember(member)}
-                                                className="text-red-600 hover:text-red-900 hover:bg-red-50"
+                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
                                             >
-                                                <Trash2 className="h-4 w-4" />
+                                                <Trash2 className="h-3.5 w-3.5" />
                                             </Button>
                                         </div>
                                     </td>
                                 </tr>
                             ))}
-                            {filteredMembers.length === 0 && (
+                            {members.length === 0 && (
                                 <tr>
-                                    <td colSpan={8} className="px-6 py-12 text-center">
-                                        <div className="flex flex-col items-center justify-center text-gray-500">
-                                            <User className="h-12 w-12 mb-2 text-gray-400" />
+                                    <td colSpan={9} className="px-6 py-16 text-center">
+                                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                            <User className="h-10 w-10 text-muted-foreground/30" />
                                             <p className="text-sm font-medium">No members found</p>
-                                            <p className="text-xs mt-1">
-                                                {filterDepartment || filterGender
-                                                    ? "Try adjusting your filters"
-                                                    : "Get started by adding a new member"}
+                                            <p className="text-xs">
+                                                {hasActiveFilters || searchInput
+                                                    ? "Try adjusting your search or filters"
+                                                    : "Get started by adding your first member"}
                                             </p>
                                         </div>
                                     </td>
@@ -442,21 +492,20 @@ export default function MembersTable({ members: initialMembers, departments, hom
                     </table>
                 </div>
 
-                {/* Pagination */}
-                {pagination && pagination.pages > 1 && (
-                    <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                        <div className="text-sm text-gray-600">
-                            Page {pagination.page} of {pagination.pages} ({pagination.total} total)
-                        </div>
+                {/* ── Pagination ── */}
+                {pagination.pages > 1 && (
+                    <div className="px-5 py-3.5 border-t border-border flex items-center justify-between">
+                        <p className="text-xs text-muted-foreground">
+                            Page {pagination.page} of {pagination.pages} · {pagination.total} members
+                        </p>
                         <div className="flex gap-2">
                             <Button
                                 onClick={() => handlePageChange(pagination.page - 1)}
                                 disabled={pagination.page === 1 || isPending}
                                 variant="outline"
                                 size="sm"
-                                className="flex items-center gap-1"
                             >
-                                <ChevronLeft className="h-4 w-4" />
+                                <ChevronLeft className="h-4 w-4 mr-1" />
                                 Previous
                             </Button>
                             <Button
@@ -464,16 +513,16 @@ export default function MembersTable({ members: initialMembers, departments, hom
                                 disabled={pagination.page === pagination.pages || isPending}
                                 variant="outline"
                                 size="sm"
-                                className="flex items-center gap-1"
                             >
                                 Next
-                                <ChevronRight className="h-4 w-4" />
+                                <ChevronRight className="h-4 w-4 ml-1" />
                             </Button>
                         </div>
                     </div>
                 )}
             </div>
 
+            {/* ── Modals ── */}
             {showAddModal && (
                 <AddMemberModal
                     open={showAddModal}
@@ -520,7 +569,7 @@ export default function MembersTable({ members: initialMembers, departments, hom
                 open={showBulkDeleteDialog}
                 onOpenChange={setShowBulkDeleteDialog}
                 title="Delete Members"
-                description={`Are you sure you want to delete ${selectedIds.length} member(s)?`}
+                description={`Are you sure you want to delete ${selectedIds.length} member(s)? This cannot be undone.`}
                 confirmText="Delete"
                 cancelText="Cancel"
                 onConfirm={executeBulkDelete}
@@ -529,9 +578,9 @@ export default function MembersTable({ members: initialMembers, departments, hom
             />
 
             {showUploadModal && (
-                <BulkUploadModal 
-                    open={showUploadModal} 
-                    onClose={() => setShowUploadModal(false)} 
+                <BulkUploadModal
+                    open={showUploadModal}
+                    onClose={() => setShowUploadModal(false)}
                 />
             )}
         </>

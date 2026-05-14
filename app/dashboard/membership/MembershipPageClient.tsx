@@ -12,9 +12,7 @@ interface Department {
     id: string;
     name: string;
     description: string | null;
-    _count: {
-        members: number;
-    };
+    _count: { members: number };
 }
 
 interface Member {
@@ -25,12 +23,7 @@ interface Member {
     estate: string | null;
     homeFellowshipId: string | null;
     homeFellowship: HomeFellowship | null;
-    departments: {
-        department: {
-            id: string;
-            name: string;
-        }
-    }[];
+    departments: { department: { id: string; name: string } }[];
 }
 
 interface Pagination {
@@ -51,16 +44,18 @@ export default function MembershipPageClient({
     members,
     pagination,
     departments,
-    homeFellowships
+    homeFellowships,
 }: MembershipPageClientProps) {
     const { hasPermission } = usePermissions();
 
-    if (!hasPermission('members:read')) {
+    if (!hasPermission("members:read")) {
         return (
             <div className="flex items-center justify-center h-64">
                 <div className="text-center">
-                    <h2 className="text-xl font-semibold text-gray-900">Access Denied</h2>
-                    <p className="text-gray-500 mt-2">You don&apos;t have permission to view members.</p>
+                    <h2 className="text-xl font-semibold">Access Denied</h2>
+                    <p className="text-muted-foreground mt-2">
+                        You don&apos;t have permission to view members.
+                    </p>
                 </div>
             </div>
         );
@@ -68,11 +63,11 @@ export default function MembershipPageClient({
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-gray-900">Membership</h1>
-                    <p className="text-gray-500 mt-1">Manage church members and departments</p>
-                </div>
+            <div>
+                <h1 className="text-2xl font-semibold tracking-tight">Membership</h1>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                    Manage church members, departments, and fellowships
+                </p>
             </div>
 
             <MembersTable

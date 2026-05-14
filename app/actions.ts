@@ -1154,8 +1154,9 @@ export async function deleteHomeFellowships(ids: string[]) {
 // Member Actions
 
 // Member Actions
-export async function getMembers(filters?: { 
+export async function getMembers(filters?: {
     departmentId?: string
+    fellowshipId?: string
     gender?: string
     page?: number
     limit?: number
@@ -1182,6 +1183,10 @@ export async function getMembers(filters?: {
                     departmentId: filters.departmentId
                 }
             }
+        }
+
+        if (filters?.fellowshipId) {
+            where.homeFellowshipId = filters.fellowshipId
         }
 
         if (filters?.gender) {
