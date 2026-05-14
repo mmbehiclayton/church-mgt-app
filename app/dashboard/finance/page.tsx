@@ -7,11 +7,9 @@ import ImportButton from "@/components/ImportButton";
 import DashboardFilters from "@/components/dashboard/DashboardFilters";
 import KPIGrid from "@/components/dashboard/KPIGrid";
 import AnalyticsCharts from "@/components/dashboard/AnalyticsCharts";
-import CollapsibleSection from "@/components/dashboard/CollapsibleSection";
-import { CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { hasPermission } from "@/lib/rbac";
-import { Menu } from "lucide-react";
+import { Menu, Wallet } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -20,24 +18,20 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface PageProps {
-    searchParams: {
-        from?: string;
-        to?: string;
-        categories?: string;
-    }
+    searchParams: Promise<{ from?: string; to?: string; categories?: string }>;
 }
 
-export default async function FinanceDashboardPage(props: PageProps) {
-    const searchParams = await props.searchParams;
-    const startDate = searchParams.from ? new Date(searchParams.from) : undefined;
-    const endDate = searchParams.to ? new Date(searchParams.to) : undefined;
+export default async function FinanceDashboardPage({ searchParams }: PageProps) {
+    const sp = await searchParams;
+    const startDate = sp.from ? new Date(sp.from) : undefined;
+    const endDate = sp.to ? new Date(sp.to) : undefined;
     if (endDate) endDate.setHours(23, 59, 59, 999);
-    const categoryIds = searchParams.categories ? searchParams.categories.split(",") : undefined;
-
+    const categoryIds = sp.categories ? sp.categories.split(",") : undefined;
     const filters = { startDate, endDate, categoryIds };
+
     const [
         canReadTransactions,
         canReadCategories,
@@ -55,85 +49,93 @@ export default async function FinanceDashboardPage(props: PageProps) {
     if (!canReadTransactions) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="text-center">
-                    <h2 className="text-xl font-semibold">Access Denied</h2>
-                    <p className="text-muted-foreground mt-2">You don&apos;t have permission to view finance data.</p>
+                <div className="text-center space-y-2">
+                    <div className="h-12 w-12 mx-auto rounded-full bg-muted flex items-center justify-center">
+                        <Wallet className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <h2 className="text-lg font-semibold">Access Denied</h2>
+                    <p className="text-sm text-muted-foreground">You don&apos;t have permission to view finance data.</p>
                 </div>
             </div>
         );
     }
 
     const [categories, transactions, stats] = await Promise.all([
-        canReadCategories ? getCategories() : [],
+        canReadCategories ? getCategories() : Promise.resolve([]),
         getTransactions(filters),
-        getDashboardStats(filters)
+        getDashboardStats(filters),
     ]);
 
+    const hasActions = canCreateTransactions || canManageCategories || canExportReports;
+
     return (
-        <div className="space-y-6 pb-20">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-2xl font-semibold tracking-tight">Finance Overview</h2>
-
-                    <div className="md:hidden">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="icon">
-                                    <Menu className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-56">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                {canCreateTransactions && (
-                                    <TransactionModal categories={categories} asMenuItem />
-                                )}
-                                {canManageCategories && (
-                                    <CategoryModal initialCategories={categories} asMenuItem />
-                                )}
-                                {(canCreateTransactions || canManageCategories) && <DropdownMenuSeparator />}
-                                {canCreateTransactions && <ImportButton asMenuItem />}
-                                {canExportReports && <ExportButtons categories={categories} asMenuItem />}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
+        <div className="space-y-5 pb-10">
+            {/* Header */}
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">Finance</h1>
+                    <p className="text-sm text-muted-foreground mt-0.5">Contributions, transactions and category breakdown.</p>
                 </div>
 
-                <div className="hidden md:flex gap-2 flex-wrap">
-                    {canCreateTransactions && <TransactionModal categories={categories} />}
-                    {canManageCategories && <CategoryModal initialCategories={categories} />}
-                    {canCreateTransactions && <ImportButton />}
-                    {canExportReports && <ExportButtons categories={categories} />}
-                </div>
+                {hasActions && (
+                    <>
+                        {/* Mobile actions menu */}
+                        <div className="md:hidden">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" size="icon"><Menu className="h-4 w-4" /></Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-52">
+                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {canCreateTransactions && <TransactionModal categories={categories} asMenuItem />}
+                                    {canManageCategories && <CategoryModal initialCategories={categories} asMenuItem />}
+                                    {canCreateTransactions && <ImportButton asMenuItem />}
+                                    {canExportReports && <ExportButtons categories={categories} asMenuItem />}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+
+                        {/* Desktop action buttons */}
+                        <div className="hidden md:flex gap-2 flex-wrap">
+                            {canCreateTransactions && <TransactionModal categories={categories} />}
+                            {canManageCategories && <CategoryModal initialCategories={categories} />}
+                            {canCreateTransactions && <ImportButton />}
+                            {canExportReports && <ExportButtons categories={categories} />}
+                        </div>
+                    </>
+                )}
             </div>
 
+            {/* Filters */}
             <DashboardFilters categories={categories} />
 
-            <CollapsibleSection title="Key Metrics" defaultOpen={true}>
-                <div className="p-4">
-                    <KPIGrid
-                        totalRevenue={stats.totalAmount}
-                        transactionCount={stats.totalTransactions}
-                        avgTransaction={stats.avgTransaction}
-                        topCategory={stats.topCategory}
-                    />
-                </div>
-            </CollapsibleSection>
+            {/* KPI strip */}
+            <KPIGrid
+                totalRevenue={stats.totalAmount}
+                transactionCount={stats.totalTransactions}
+                avgTransaction={stats.avgTransaction}
+                topCategory={stats.topCategory}
+            />
 
-            <CollapsibleSection title="Analytics" defaultOpen={true}>
-                <div className="p-4">
-                    <AnalyticsCharts
-                        revenueTrend={stats.revenueTrend}
-                        categoryStats={stats.categoryBreakdown}
-                    />
-                </div>
-            </CollapsibleSection>
+            {/* Charts */}
+            <AnalyticsCharts
+                revenueTrend={stats.revenueTrend}
+                categoryStats={stats.categoryBreakdown}
+            />
 
-            <CollapsibleSection title="Recent Transactions" defaultOpen={true}>
-                <CardContent className="p-0">
+            {/* Transactions table */}
+            <div>
+                <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                        Transactions
+                    </h2>
+                    <span className="text-xs text-muted-foreground">{transactions.length} records</span>
+                </div>
+                <div className="rounded-xl border border-border bg-card overflow-hidden">
                     <TransactionsTable transactions={transactions} categories={categories} />
-                </CardContent>
-            </CollapsibleSection>
+                </div>
+            </div>
         </div>
     );
 }

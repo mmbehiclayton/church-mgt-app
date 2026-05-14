@@ -218,6 +218,8 @@ export async function saveTransaction(data: {
     account?: string | null;
     accountName?: string | null;
     rawMessage: string;
+    memberId?: string | null;
+    memberName?: string | null;
 }) {
     try {
         await requirePermission('transactions', 'create');
@@ -239,7 +241,9 @@ export async function saveTransaction(data: {
                 paybill: data.paybill || null,
                 account: data.account || null,
                 accountName: data.accountName || null,
-                rawMessage: data.rawMessage
+                rawMessage: data.rawMessage,
+                memberId: data.memberId || null,
+                memberName: data.memberName || null,
             }
         });
 
@@ -263,6 +267,8 @@ export async function updateTransaction(id: string, data: {
     account?: string | null;
     accountName?: string | null;
     rawMessage: string;
+    memberId?: string | null;
+    memberName?: string | null;
 }) {
     try {
         await requirePermission('transactions', 'update');
@@ -289,7 +295,9 @@ export async function updateTransaction(id: string, data: {
                 paybill: data.paybill || null,
                 account: data.account || null,
                 accountName: data.accountName || null,
-                rawMessage: data.rawMessage
+                rawMessage: data.rawMessage,
+                memberId: data.memberId || null,
+                memberName: data.memberName || null,
             }
         });
 
@@ -299,6 +307,26 @@ export async function updateTransaction(id: string, data: {
     } catch (error) {
         console.error("Update Transaction Error:", error);
         return { error: "Failed to update transaction" };
+    }
+}
+
+export async function searchMembers(query: string): Promise<{ id: string; fullName: string; phoneNumber: string }[]> {
+    try {
+        await requirePermission('members', 'read');
+        if (!query.trim()) return [];
+        return await prisma.member.findMany({
+            where: {
+                OR: [
+                    { fullName: { contains: query, mode: 'insensitive' } },
+                    { phoneNumber: { contains: query } },
+                ],
+            },
+            select: { id: true, fullName: true, phoneNumber: true },
+            orderBy: { fullName: 'asc' },
+            take: 10,
+        });
+    } catch {
+        return [];
     }
 }
 

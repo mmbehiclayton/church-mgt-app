@@ -108,13 +108,16 @@ model Transaction {
   transactionDate DateTime
   transactionTime String?
   rawMessage      String
+  memberId        String?
+  memberName      String?
   createdAt       DateTime @default(now())
-  
+
   category        Category @relation(fields: [categoryId], references: [id])
 
   @@index([categoryId])
   @@index([transactionDate])
   @@index([reference])
+  @@index([memberId])
 }
 
 model Organization {

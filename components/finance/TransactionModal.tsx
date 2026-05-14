@@ -33,6 +33,8 @@ interface TransactionData {
     accountName?: string | null;
     rawMessage: string;
     categoryId: string;
+    memberId?: string | null;
+    memberName?: string | null;
 }
 
 export default function TransactionModal({
