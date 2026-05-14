@@ -15,6 +15,7 @@ import {
   Filter,
   Activity,
   ChevronRight,
+  Trash2,
 } from "lucide-react";
 import {
   Bar,
@@ -33,8 +34,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { cn } from "@/lib/utils";
+import { deleteAttendanceSession } from "./attendance-actions";
 import type { AttendanceOverview } from "./attendance-actions";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 const STATUS_STYLES: Record<string, string> = {
   SUBMITTED: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
@@ -58,9 +63,10 @@ const TYPE_COLOR: Record<string, string> = {
 interface Props {
   overview: AttendanceOverview;
   canCreate: boolean;
+  canManage?: boolean;
 }
 
-export default function AttendanceDashboardClient({ overview, canCreate }: Props) {
+export default function AttendanceDashboardClient({ overview, canCreate, canManage }: Props) {
   const {
     totalMembers,
     latestSession,
@@ -74,11 +80,29 @@ export default function AttendanceDashboardClient({ overview, canCreate }: Props
     recentSessions,
   } = overview;
 
+  const router = useRouter();
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
   const filteredSessions = useMemo(
     () => (typeFilter === "ALL" ? recentSessions : recentSessions.filter(s => s.type === typeFilter)),
     [recentSessions, typeFilter]
   );
+
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const handleDeleteSession = async () => {
+    if (!deletingSessionId) return;
+    setDeleteLoading(true);
+    const result = await deleteAttendanceSession(deletingSessionId);
+    setDeleteLoading(false);
+    setDeletingSessionId(null);
+    if (result.error) {
+      toast.error(result.error);
+    } else {
+      toast.success("Session deleted");
+      router.refresh();
+    }
+  };
 
   const trendChartData = useMemo(
     () =>
@@ -301,6 +325,17 @@ export default function AttendanceDashboardClient({ overview, canCreate }: Props
         </Card>
       )}
 
+      <ConfirmationDialog
+        open={!!deletingSessionId}
+        onOpenChange={open => { if (!open) setDeletingSessionId(null); }}
+        title="Delete attendance session?"
+        description="This will permanently remove the session and all its attendance records. This cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+        loading={deleteLoading}
+        onConfirm={handleDeleteSession}
+      />
+
       {/* Sessions list */}
       <Card>
         <CardHeader className="pb-2">
@@ -349,45 +384,57 @@ export default function AttendanceDashboardClient({ overview, canCreate }: Props
               {filteredSessions.map(s => {
                 const rate = s.total > 0 ? Math.round((s.present / s.total) * 100) : 0;
                 return (
-                  <Link
-                    key={s.id}
-                    href={`/dashboard/attendance/mark?id=${s.id}`}
-                    className="flex items-center gap-4 p-4 hover:bg-muted/40 transition-colors"
-                  >
-                    <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0", TYPE_COLOR[s.type] ?? "bg-slate-500", "text-white")}>
-                      <Calendar className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium truncate">
-                          {format(new Date(s.date), "EEEE, MMM d, yyyy")}
-                        </span>
-                        <Badge variant="secondary" className={STATUS_STYLES[s.status] || ""}>
-                          {s.status}
-                        </Badge>
+                  <div key={s.id} className="flex items-center gap-4 p-4 hover:bg-muted/40 transition-colors group">
+                    <Link
+                      href={`/dashboard/attendance/mark?id=${s.id}`}
+                      className="flex items-center gap-4 flex-1 min-w-0"
+                    >
+                      <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0", TYPE_COLOR[s.type] ?? "bg-slate-500", "text-white")}>
+                        <Calendar className="h-5 w-5" />
                       </div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        {TYPE_LABEL[s.type] ?? s.type}
-                        {s.description ? ` · ${s.description}` : ""}
-                        <span className="ml-2">
-                          · {formatDistanceToNowStrict(new Date(s.date), { addSuffix: true })}
-                        </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium truncate">
+                            {format(new Date(s.date), "EEEE, MMM d, yyyy")}
+                          </span>
+                          <Badge variant="secondary" className={STATUS_STYLES[s.status] || ""}>
+                            {s.status}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {TYPE_LABEL[s.type] ?? s.type}
+                          {s.description ? ` · ${s.description}` : ""}
+                          <span className="ml-2">
+                            · {formatDistanceToNowStrict(new Date(s.date), { addSuffix: true })}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-right shrink-0 hidden sm:block w-32">
-                      <div className="text-sm font-semibold tabular-nums">
-                        {s.present} / {s.total}
+                      <div className="text-right shrink-0 hidden sm:block w-32">
+                        <div className="text-sm font-semibold tabular-nums">
+                          {s.present} / {s.total}
+                        </div>
+                        <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full bg-primary"
+                            style={{ width: `${rate}%` }}
+                          />
+                        </div>
+                        <div className="text-[10px] text-muted-foreground mt-0.5">{rate}% present</div>
                       </div>
-                      <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className="h-full bg-primary"
-                          style={{ width: `${rate}%` }}
-                        />
-                      </div>
-                      <div className="text-[10px] text-muted-foreground mt-0.5">{rate}% present</div>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                  </Link>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                    </Link>
+                    {canManage && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => setDeletingSessionId(s.id)}
+                        aria-label="Delete session"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 );
               })}
             </div>

@@ -21,5 +21,6 @@ export default async function AttendancePage() {
 
   const overview = await getAttendanceOverview();
   const canCreate = await hasPermission("attendance", "create");
-  return <AttendanceDashboardClient overview={overview} canCreate={canCreate} />;
+  const canManage = await hasPermission("attendance", "manage");
+  return <AttendanceDashboardClient overview={overview} canCreate={canCreate} canManage={canManage} />;
 }

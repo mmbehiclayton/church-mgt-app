@@ -311,3 +311,16 @@ export async function getWatchlist(): Promise<WatchlistMember[]> {
     lastAttended: lastAttendedMap.get(m.id) ?? null,
   }));
 }
+
+export async function deleteAttendanceSession(id: string): Promise<{ success?: boolean; error?: string }> {
+  await requirePermission("attendance", "manage");
+  try {
+    // Cascade deletes AttendanceRecords via schema relation
+    await prisma.attendanceSession.delete({ where: { id } });
+    return { success: true };
+  } catch (err) {
+    console.error("[deleteAttendanceSession]", err);
+    return { error: "Failed to delete session" };
+  }
+}
+

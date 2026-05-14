@@ -74,8 +74,8 @@ export default function SmsDashboardClient({ credits, threshold, clientName, bal
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900">Access Denied</h2>
-          <p className="text-gray-500 mt-2">You don&apos;t have permission to view SMS.</p>
+          <h2 className="text-xl font-semibold">Access Denied</h2>
+          <p className="text-muted-foreground mt-2">You don&apos;t have permission to view SMS.</p>
         </div>
       </div>
     )
@@ -90,8 +90,8 @@ export default function SmsDashboardClient({ credits, threshold, clientName, bal
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">SMS</h1>
-          <p className="text-gray-500 mt-1">Send messages to groups, departments and fellowships.</p>
+          <h1 className="text-3xl font-bold tracking-tight">SMS</h1>
+          <p className="text-muted-foreground mt-1">Send messages to groups, departments and fellowships.</p>
         </div>
         <div className="flex items-center gap-2">
           <Link href="/dashboard/sms/templates">
@@ -117,31 +117,29 @@ export default function SmsDashboardClient({ credits, threshold, clientName, bal
       </div>
 
       {/* KPI cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
         <Card className={criticalBalance ? 'border-red-400' : lowBalance ? 'border-amber-300' : undefined}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
-            <CardTitle className="text-sm font-medium">SMS Balance</CardTitle>
-            <Wallet className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">SMS Balance</span>
+              <Wallet className="h-3.5 w-3.5 text-muted-foreground" />
+            </div>
             {balanceError ? (
-              <div>
-                <div className="text-2xl font-bold text-red-600">—</div>
-                <p className="text-xs text-red-500 truncate" title={balanceError}>{balanceError}</p>
-              </div>
+              <>
+                <div className="text-xl font-bold text-red-600 mt-1">—</div>
+                <p className="text-xs text-red-500 truncate mt-0.5" title={balanceError}>{balanceError}</p>
+              </>
             ) : (
               <>
-                <div className={`text-2xl font-bold ${criticalBalance ? 'text-red-600' : lowBalance ? 'text-amber-600' : ''}`}>
+                <div className={`text-xl font-bold mt-1 tabular-nums ${criticalBalance ? 'text-red-600' : lowBalance ? 'text-amber-600' : ''}`}>
                   {credits?.toLocaleString() ?? '—'}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {criticalBalance
-                    ? 'Critical — top up before sending'
+                    ? 'Critical — top up now'
                     : lowBalance
-                      ? 'Low balance — top up soon'
-                      : clientName
-                        ? clientName
-                        : 'Credits remaining'}
+                      ? 'Low — top up soon'
+                      : clientName || 'Credits remaining'}
                 </p>
               </>
             )}
@@ -149,35 +147,35 @@ export default function SmsDashboardClient({ credits, threshold, clientName, bal
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
-            <CardTitle className="text-sm font-medium">Messages Sent</CardTitle>
-            <Send className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-bold">{stats.totalSent.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Across {stats.totalCampaigns} campaigns</p>
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">Messages Sent</span>
+              <Send className="h-3.5 w-3.5 text-muted-foreground" />
+            </div>
+            <div className="text-xl font-bold mt-1 tabular-nums">{stats.totalSent.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground mt-0.5">{stats.totalCampaigns} campaigns</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
-            <CardTitle className="text-sm font-medium">Delivered</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-bold">{stats.totalDelivered.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Confirmed by carrier</p>
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">Delivered</span>
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+            </div>
+            <div className="text-xl font-bold mt-1 tabular-nums">{stats.totalDelivered.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground mt-0.5">Confirmed by carrier</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
-            <CardTitle className="text-sm font-medium">Failed</CardTitle>
-            <XCircle className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-bold">{stats.totalFailed.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">{stats.totalPending} pending</p>
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">Failed</span>
+              <XCircle className="h-3.5 w-3.5 text-red-600" />
+            </div>
+            <div className="text-xl font-bold mt-1 tabular-nums">{stats.totalFailed.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground mt-0.5">{stats.totalPending} pending</p>
           </CardContent>
         </Card>
       </div>
@@ -239,29 +237,29 @@ export default function SmsDashboardClient({ credits, threshold, clientName, bal
                 <Link
                   key={c.id}
                   href={`/dashboard/sms/history/${c.id}`}
-                  className="flex items-center justify-between p-4 hover:bg-gray-50"
+                  className="flex items-center justify-between p-4 hover:bg-muted/40 transition-colors"
                 >
                   <div className="min-w-0 pr-4">
                     <div className="flex items-center gap-2">
-                      <div className="font-medium text-gray-900 truncate">
+                      <div className="font-medium truncate">
                         {c.name || c.message.slice(0, 60)}
                       </div>
                       <Badge className={STATUS_STYLES[c.status] || ''} variant="secondary">
                         {c.status}
                       </Badge>
                     </div>
-                    <div className="text-sm text-gray-500 truncate mt-0.5">
+                    <div className="text-sm text-muted-foreground truncate mt-0.5">
                       {c.message}
                     </div>
-                    <div className="text-xs text-gray-400 mt-1">
+                    <div className="text-xs text-muted-foreground/70 mt-1">
                       {c.createdByName || 'system'} • {format(new Date(c.createdAt), 'MMM d, yyyy HH:mm')}
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <div className="text-sm font-medium">
+                    <div className="text-sm font-medium tabular-nums">
                       {c.sentCount} / {c.totalRecipients}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-muted-foreground">
                       {c.deliveredCount} delivered • {c.failedCount} failed
                     </div>
                   </div>
