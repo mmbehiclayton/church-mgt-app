@@ -63,7 +63,7 @@ export default function LoginPage() {
 
         <div className="relative z-10 flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center text-white">
-            <Image src="/icons/dove.svg" alt="" width={22} height={22} priority />
+            <Image src="/dove.jpg" alt="" width={22} height={22} priority />
           </div>
           <div className="font-semibold text-lg tracking-tight">Church CMS</div>
         </div>
@@ -71,7 +71,7 @@ export default function LoginPage() {
         <div className="relative z-10 space-y-8">
           <div className="flex items-start gap-5">
             <div className="hidden xl:flex h-20 w-20 rounded-2xl bg-white/15 backdrop-blur-sm items-center justify-center text-white shrink-0">
-              <Image src="/icons/dove.svg" alt="" width={48} height={48} />
+              <Image src="/dove.jpg" alt="" width={48} height={48} />
             </div>
             <div>
               <h1 className="text-4xl font-bold tracking-tight leading-tight">
@@ -110,7 +110,7 @@ export default function LoginPage() {
           {/* Mobile-only brand bar */}
           <div className="lg:hidden flex items-center gap-3 mb-10">
             <div className="h-10 w-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center">
-              <Image src="/icons/dove.svg" alt="" width={22} height={22} priority />
+              <Image src="/dove.jpg" alt="" width={22} height={22} priority />
             </div>
             <div className="font-semibold text-lg tracking-tight">Church CMS</div>
           </div>
