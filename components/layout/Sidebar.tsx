@@ -13,6 +13,7 @@ import {
     MessageSquare,
     Shield,
     Wallet,
+    BookOpen,
 } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { signOut, useSession } from "next-auth/react";
@@ -52,6 +53,12 @@ const SECTIONS: MenuSection[] = [
         label: "Communication",
         items: [
             { name: "SMS", href: "/dashboard/sms", icon: MessageSquare, permission: "sms:read" },
+        ],
+    },
+    {
+        label: "Resources",
+        items: [
+            { name: "Meeting Minutes", href: "/dashboard/minutes", icon: BookOpen, permission: "minutes:read" },
         ],
     },
     {

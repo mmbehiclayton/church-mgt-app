@@ -307,3 +307,22 @@ model SmsMessage {
   @@index([bongaUniqueId])
 }
 
+model MeetingMinutes {
+  id            String   @id @default(cuid())
+  title         String
+  meetingDate   DateTime
+  meetingType   String   // e.g. "Board Meeting", "Sunday Service", "Committee", "General Assembly"
+  description   String?
+  fileName      String   // original uploaded filename
+  filePath      String   // path on disk relative to uploads dir
+  fileSize      Int      // bytes
+  uploadedById  String?
+  uploadedByName String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([meetingDate])
+  @@index([meetingType])
+  @@index([uploadedById])
+}
+

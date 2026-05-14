@@ -6,7 +6,7 @@ export type PermissionAction = 'create' | 'read' | 'update' | 'delete' | 'manage
 export type PermissionResource =
   | 'users' | 'members' | 'transactions' | 'categories' | 'attendance'
   | 'departments' | 'fellowships' | 'settings' | 'reports' | 'system' | 'rbac'
-  | 'sms';
+  | 'sms' | 'minutes';
 
 export interface UserPermissions {
   [key: string]: boolean;

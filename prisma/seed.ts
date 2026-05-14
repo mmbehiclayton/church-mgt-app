@@ -87,6 +87,11 @@ async function seedRBAC() {
         { name: 'sms:read', resource: 'sms', action: 'read', description: 'View SMS dashboard, history, and templates' },
         { name: 'sms:create', resource: 'sms', action: 'create', description: 'Send SMS campaigns' },
         { name: 'sms:manage', resource: 'sms', action: 'manage', description: 'Full SMS management including templates' },
+
+        // Meeting Minutes
+        { name: 'minutes:read', resource: 'minutes', action: 'read', description: 'View meeting minutes and download PDFs' },
+        { name: 'minutes:create', resource: 'minutes', action: 'create', description: 'Upload meeting minutes' },
+        { name: 'minutes:delete', resource: 'minutes', action: 'delete', description: 'Delete meeting minutes' },
     ]
 
     // Create permissions
@@ -118,7 +123,8 @@ async function seedRBAC() {
                 'members:manage', 'transactions:manage', 'categories:manage',
                 'attendance:manage', 'departments:manage', 'fellowships:manage',
                 'settings:manage', 'reports:read', 'reports:export',
-                'sms:manage'
+                'sms:manage',
+                'minutes:read', 'minutes:create', 'minutes:delete',
             ]
         },
         {
@@ -153,7 +159,7 @@ async function seedRBAC() {
             permissions: [
                 'users:read', 'members:read', 'transactions:read', 'categories:read',
                 'attendance:read', 'departments:read', 'fellowships:read',
-                'settings:read', 'reports:read', 'sms:read'
+                'settings:read', 'reports:read', 'sms:read', 'minutes:read'
             ]
         }
     ]

@@ -36,5 +36,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# uploaded files (keep directory structure, not contents)
+/public/uploads/minutes/*.pdf
+
 .vercel
 .env*.local
