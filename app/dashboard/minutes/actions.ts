@@ -2,10 +2,13 @@
 
 import prisma from "@/lib/db";
 import { requirePermission } from "@/lib/rbac";
-import { unlink } from "fs/promises";
-import path from "path";
+import { v2 as cloudinary } from "cloudinary";
 
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "minutes");
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 export interface MinutesRecord {
     id: string;
@@ -77,13 +80,11 @@ export async function deleteMinutes(id: string) {
     const record = await prisma.meetingMinutes.findUnique({ where: { id } });
     if (!record) return { error: "Record not found" };
 
-    // Delete file from disk (best-effort)
+    // Delete from Cloudinary (best-effort — don't block DB delete if it fails)
     try {
-        if (!record.filePath.includes("/") && !record.filePath.includes("\\")) {
-            await unlink(path.join(UPLOAD_DIR, record.filePath));
-        }
+        await cloudinary.uploader.destroy(record.filePath, { resource_type: "raw" });
     } catch {
-        // File already gone — continue with DB delete
+        // Already deleted or never uploaded — continue
     }
 
     await prisma.meetingMinutes.delete({ where: { id } });

@@ -2,13 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/db";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import { v2 as cloudinary } from "cloudinary";
 
 export const runtime = "nodejs";
-
-// Raise the body size limit for this route to 25 MB
 export const maxDuration = 30;
+
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 export async function POST(req: NextRequest) {
     try {
@@ -29,7 +32,6 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        // Some browsers report PDF as application/octet-stream — accept both
         const isPdf =
             file.type === "application/pdf" ||
             file.type === "application/octet-stream" ||
@@ -39,7 +41,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Only PDF files are allowed" }, { status: 400 });
         }
 
-        const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
+        const MAX_FILE_SIZE = 20 * 1024 * 1024;
         if (file.size > MAX_FILE_SIZE) {
             return NextResponse.json({ error: "File exceeds 20 MB limit" }, { status: 400 });
         }
@@ -49,18 +51,28 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Invalid meeting date" }, { status: 400 });
         }
 
-        // Ensure upload directory exists
-        const uploadDir = path.join(process.cwd(), "public", "uploads", "minutes");
-        await mkdir(uploadDir, { recursive: true });
-
-        // Build a safe unique filename
-        const timestamp = Date.now();
-        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        const fileName = `${timestamp}_${safeName}`;
-        const filePath = path.join(uploadDir, fileName);
-
+        // Upload to Cloudinary as a raw file (preserves PDF)
         const bytes = await file.arrayBuffer();
-        await writeFile(filePath, Buffer.from(bytes));
+        const buffer = Buffer.from(bytes);
+
+        const uploadResult = await new Promise<{ public_id: string; secure_url: string; bytes: number }>(
+            (resolve, reject) => {
+                const stream = cloudinary.uploader.upload_stream(
+                    {
+                        resource_type: "raw",
+                        folder: "church-minutes",
+                        use_filename: true,
+                        unique_filename: true,
+                        format: "pdf",
+                    },
+                    (error, result) => {
+                        if (error || !result) reject(error ?? new Error("Upload failed"));
+                        else resolve(result as { public_id: string; secure_url: string; bytes: number });
+                    }
+                );
+                stream.end(buffer);
+            }
+        );
 
         const record = await prisma.meetingMinutes.create({
             data: {
@@ -69,7 +81,7 @@ export async function POST(req: NextRequest) {
                 meetingType,
                 description,
                 fileName: file.name,
-                filePath: fileName,
+                filePath: uploadResult.public_id,   // Cloudinary public_id
                 fileSize: file.size,
                 uploadedById: (session.user as { id?: string }).id ?? null,
                 uploadedByName: session.user.name ?? session.user.email ?? null,

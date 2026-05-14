@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/db";
-import { readFile } from "fs/promises";
-import path from "path";
+import { v2 as cloudinary } from "cloudinary";
 
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "minutes");
+export const runtime = "nodejs";
+
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 export async function GET(
     _req: NextRequest,
@@ -22,27 +27,16 @@ export async function GET(
         return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    // Prevent path traversal: filePath must be a plain filename with no slashes
-    if (record.filePath.includes("/") || record.filePath.includes("\\") || record.filePath.startsWith(".")) {
-        return NextResponse.json({ error: "Invalid file path" }, { status: 400 });
-    }
+    // Generate a signed URL valid for 1 hour
+    const signedUrl = cloudinary.utils.private_download_url(
+        record.filePath,
+        "pdf",
+        {
+            resource_type: "raw",
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
+            attachment: false,
+        }
+    );
 
-    const fullPath = path.join(UPLOAD_DIR, record.filePath);
-
-    let buffer: Uint8Array;
-    try {
-        buffer = await readFile(fullPath);
-    } catch {
-        return NextResponse.json({ error: "File not found on disk" }, { status: 404 });
-    }
-
-    const safeFileName = encodeURIComponent(record.fileName);
-    return new NextResponse(buffer as unknown as BodyInit, {
-        headers: {
-            "Content-Type": "application/pdf",
-            "Content-Disposition": `inline; filename="${safeFileName}"`,
-            "Content-Length": buffer.byteLength.toString(),
-            "Cache-Control": "private, max-age=3600",
-        },
-    });
+    return NextResponse.redirect(signedUrl);
 }
