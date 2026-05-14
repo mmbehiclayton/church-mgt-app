@@ -14,6 +14,7 @@ import {
     Shield,
     Wallet,
     BookOpen,
+    Home,
 } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { signOut, useSession } from "next-auth/react";
@@ -119,6 +120,28 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
 
             {/* Nav */}
             <nav className="flex-1 overflow-y-auto scrollbar-thin px-3 py-4 space-y-5">
+                {/* Dashboard home — always visible */}
+                <ul>
+                    <li className="relative">
+                        {pathname === "/dashboard" && (
+                            <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-primary" />
+                        )}
+                        <Link
+                            href="/dashboard"
+                            onClick={onNavigate}
+                            className={cn(
+                                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                                pathname === "/dashboard"
+                                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                                    : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+                            )}
+                        >
+                            <Home className={cn("h-4 w-4 shrink-0", pathname === "/dashboard" && "text-primary")} />
+                            <span>Dashboard</span>
+                        </Link>
+                    </li>
+                </ul>
+
                 {visibleSections.map(section => (
                     <div key={section.label}>
                         <div className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
