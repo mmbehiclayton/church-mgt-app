@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
     Select,
     SelectContent,
@@ -25,8 +24,8 @@ import { getMinutes, deleteMinutes, type MinutesRecord } from "./actions";
 import { toast } from "sonner";
 import {
     FileText, Upload, Search, Trash2, Download, Eye,
-    X, ChevronLeft, ChevronRight, Calendar, Tag, Clock,
-    Loader2, Plus,
+    X, ChevronLeft, ChevronRight, Calendar, Tag,
+    Loader2, Plus, Share2, Copy, Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -50,34 +49,25 @@ function formatBytes(bytes: number): string {
 
 function formatDate(date: Date): string {
     return new Date(date).toLocaleDateString("en-KE", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
+        day: "numeric", month: "short", year: "numeric",
     });
 }
 
-function timeAgo(date: Date): string {
-    const diff = Date.now() - new Date(date).getTime();
-    const days = Math.floor(diff / 86400000);
-    if (days === 0) return "Today";
-    if (days === 1) return "Yesterday";
-    if (days < 30) return `${days}d ago`;
-    const months = Math.floor(days / 30);
-    if (months < 12) return `${months}mo ago`;
-    return `${Math.floor(months / 12)}y ago`;
-}
-
 const TYPE_COLOURS: Record<string, string> = {
-    "Board Meeting": "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
-    "Sunday Service": "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
-    "Committee Meeting": "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
-    "General Assembly": "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
-    "Prayer Meeting": "bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300",
-    "Youth Meeting": "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300",
+    "Board Meeting":      "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
+    "Sunday Service":     "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+    "Committee Meeting":  "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+    "General Assembly":   "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+    "Prayer Meeting":     "bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300",
+    "Youth Meeting":      "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300",
 };
 
 function typeColour(type: string): string {
     return TYPE_COLOURS[type] ?? "bg-muted text-muted-foreground";
+}
+
+function shareUrl(id: string): string {
+    return `${window.location.origin}/api/minutes/${id}/share`;
 }
 
 interface Props {
@@ -105,26 +95,26 @@ export default function MinutesClient({ initialMinutes, initialPagination, meeti
     const [showUpload, setShowUpload] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [uploadForm, setUploadForm] = useState({
-        title: "",
-        meetingDate: "",
-        meetingType: "",
-        description: "",
+        title: "", meetingDate: "", meetingType: "", description: "",
     });
     const [uploadFile, setUploadFile] = useState<File | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Delete dialog
+    // Share dialog
+    const [shareDocId, setShareDocId] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
+
+    // Delete
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
 
-    // Debounce search
+    // Debounce
     useEffect(() => {
         if (debounceTimer.current) clearTimeout(debounceTimer.current);
         debounceTimer.current = setTimeout(() => setDebouncedSearch(searchInput), 300);
         return () => { if (debounceTimer.current) clearTimeout(debounceTimer.current); };
     }, [searchInput]);
 
-    // Fetch on filter/search change
     useEffect(() => {
         fetchMinutes(debouncedSearch, filterType, 1);
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -135,15 +125,13 @@ export default function MinutesClient({ initialMinutes, initialPagination, meeti
             const result = await getMinutes({
                 search: search || undefined,
                 meetingType: type !== TYPE_ALL ? type : undefined,
-                page,
-                limit: 20,
+                page, limit: 20,
             });
             setMinutes(result.data);
             setPagination(result.pagination);
         });
     }
 
-    // Upload submit
     async function handleUpload(e: React.FormEvent) {
         e.preventDefault();
         if (!uploadFile) { toast.error("Please select a PDF file"); return; }
@@ -162,11 +150,7 @@ export default function MinutesClient({ initialMinutes, initialPagination, meeti
 
             const res = await fetch("/api/minutes/upload", { method: "POST", body: fd });
             const json = await res.json();
-
-            if (!res.ok) {
-                toast.error(json.error ?? "Upload failed");
-                return;
-            }
+            if (!res.ok) { toast.error(json.error ?? "Upload failed"); return; }
 
             toast.success("Minutes uploaded successfully");
             setShowUpload(false);
@@ -174,7 +158,7 @@ export default function MinutesClient({ initialMinutes, initialPagination, meeti
             setUploadFile(null);
             fetchMinutes(debouncedSearch, filterType, 1);
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Upload failed — please try again");
+            toast.error(err instanceof Error ? err.message : "Upload failed");
         } finally {
             setUploading(false);
         }
@@ -184,14 +168,19 @@ export default function MinutesClient({ initialMinutes, initialPagination, meeti
         if (!deletingId) return;
         setDeleting(true);
         const result = await deleteMinutes(deletingId);
-        if (result.error) {
-            toast.error(result.error);
-        } else {
-            toast.success("Minutes deleted");
-            fetchMinutes(debouncedSearch, filterType, pagination.page);
-        }
+        if (result.error) toast.error(result.error);
+        else toast.success("Minutes deleted");
         setDeleting(false);
         setDeletingId(null);
+        fetchMinutes(debouncedSearch, filterType, pagination.page);
+    }
+
+    function handleCopyShare() {
+        if (!shareDocId) return;
+        navigator.clipboard.writeText(shareUrl(shareDocId)).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        });
     }
 
     const allTypes = Array.from(new Set([...MEETING_TYPE_OPTIONS, ...meetingTypes]));
@@ -210,13 +199,13 @@ export default function MinutesClient({ initialMinutes, initialPagination, meeti
 
     return (
         <>
-            <div className="space-y-6">
+            <div className="space-y-5">
                 {/* Header */}
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <h1 className="text-2xl font-semibold tracking-tight">Meeting Minutes</h1>
                         <p className="text-sm text-muted-foreground mt-0.5">
-                            Upload and browse all meeting records as PDFs
+                            Upload, browse, and share meeting records as PDFs
                         </p>
                     </div>
                     {canUpload && (
@@ -228,7 +217,7 @@ export default function MinutesClient({ initialMinutes, initialPagination, meeti
                 </div>
 
                 {/* Toolbar */}
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 items-center">
                     <div className="relative flex-1 min-w-[200px] max-w-xs">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                         <Input
@@ -238,10 +227,8 @@ export default function MinutesClient({ initialMinutes, initialPagination, meeti
                             className="pl-9 h-9"
                         />
                         {searchInput && (
-                            <button
-                                onClick={() => setSearchInput("")}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-muted-foreground hover:text-foreground"
-                            >
+                            <button onClick={() => setSearchInput("")}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-muted-foreground hover:text-foreground">
                                 <X className="h-3.5 w-3.5" />
                             </button>
                         )}
@@ -260,28 +247,22 @@ export default function MinutesClient({ initialMinutes, initialPagination, meeti
                     </Select>
 
                     {hasFilters && (
-                        <button
-                            onClick={() => { setSearchInput(""); setFilterType(TYPE_ALL); }}
-                            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors border border-dashed border-border"
-                        >
-                            <X className="h-3.5 w-3.5" />
-                            Clear
+                        <button onClick={() => { setSearchInput(""); setFilterType(TYPE_ALL); }}
+                            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors border border-dashed border-border">
+                            <X className="h-3.5 w-3.5" /> Clear
                         </button>
                     )}
 
                     {isPending && (
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground self-center">
-                            <span className="h-3.5 w-3.5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                            Loading…
-                        </div>
+                        <span className="h-3.5 w-3.5 rounded-full border-2 border-primary border-t-transparent animate-spin self-center" />
                     )}
 
-                    <div className="ml-auto text-sm text-muted-foreground self-center">
+                    <p className="ml-auto text-sm text-muted-foreground">
                         {pagination.total} document{pagination.total !== 1 ? "s" : ""}
-                    </div>
+                    </p>
                 </div>
 
-                {/* Cards grid */}
+                {/* List */}
                 {minutes.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-border bg-muted/20 py-20 flex flex-col items-center gap-3 text-muted-foreground">
                         <FileText className="h-10 w-10 opacity-30" />
@@ -291,93 +272,112 @@ export default function MinutesClient({ initialMinutes, initialPagination, meeti
                         </p>
                         {canUpload && !hasFilters && (
                             <Button variant="outline" size="sm" className="mt-2" onClick={() => setShowUpload(true)}>
-                                <Upload className="h-4 w-4 mr-1.5" />
-                                Upload Minutes
+                                <Upload className="h-4 w-4 mr-1.5" /> Upload Minutes
                             </Button>
                         )}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {minutes.map((doc) => (
-                            <div
-                                key={doc.id}
-                                className="group rounded-xl border border-border bg-card p-4 flex flex-col gap-3 hover:shadow-md transition-shadow"
-                            >
-                                {/* Top row */}
-                                <div className="flex items-start gap-3">
-                                    <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                                        <FileText className="h-5 w-5" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-sm leading-snug line-clamp-2">
-                                            {doc.title}
-                                        </p>
-                                        <span className={cn("inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-[11px] font-medium", typeColour(doc.meetingType))}>
-                                            {doc.meetingType}
-                                        </span>
-                                    </div>
-                                </div>
+                    <div className="rounded-xl border border-border bg-card overflow-hidden">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="border-b border-border bg-muted/40">
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Document</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider hidden sm:table-cell">Type</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider hidden md:table-cell">Meeting Date</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Uploaded By</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Size</th>
+                                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                                {minutes.map((doc) => (
+                                    <tr key={doc.id} className="hover:bg-muted/20 transition-colors group">
+                                        {/* Document title + mobile meta */}
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                                                    <FileText className="h-4 w-4" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="font-medium truncate max-w-[200px] sm:max-w-[280px]">{doc.title}</p>
+                                                    {doc.description && (
+                                                        <p className="text-xs text-muted-foreground truncate max-w-[200px] sm:max-w-[280px] mt-0.5">{doc.description}</p>
+                                                    )}
+                                                    {/* Mobile-only meta */}
+                                                    <div className="flex items-center gap-2 mt-1 sm:hidden">
+                                                        <span className={cn("inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium", typeColour(doc.meetingType))}>
+                                                            {doc.meetingType}
+                                                        </span>
+                                                        <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                                            <Calendar className="h-3 w-3" />
+                                                            {formatDate(doc.meetingDate)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
 
-                                {/* Description */}
-                                {doc.description && (
-                                    <p className="text-xs text-muted-foreground line-clamp-2">
-                                        {doc.description}
-                                    </p>
-                                )}
+                                        <td className="px-4 py-3 hidden sm:table-cell">
+                                            <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium", typeColour(doc.meetingType))}>
+                                                {doc.meetingType}
+                                            </span>
+                                        </td>
 
-                                {/* Meta */}
-                                <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                                    <span className="flex items-center gap-1.5">
-                                        <Calendar className="h-3.5 w-3.5 shrink-0" />
-                                        {formatDate(doc.meetingDate)}
-                                    </span>
-                                    <span className="flex items-center gap-1.5">
-                                        <Clock className="h-3.5 w-3.5 shrink-0" />
-                                        Uploaded {timeAgo(doc.createdAt)}
-                                        {doc.uploadedByName && ` by ${doc.uploadedByName}`}
-                                    </span>
-                                    <span className="flex items-center gap-1.5">
-                                        <Tag className="h-3.5 w-3.5 shrink-0" />
-                                        {formatBytes(doc.fileSize)} PDF
-                                    </span>
-                                </div>
+                                        <td className="px-4 py-3 hidden md:table-cell text-muted-foreground whitespace-nowrap">
+                                            <span className="flex items-center gap-1.5">
+                                                <Calendar className="h-3.5 w-3.5 shrink-0" />
+                                                {formatDate(doc.meetingDate)}
+                                            </span>
+                                        </td>
 
-                                {/* Actions */}
-                                <div className="flex items-center gap-2 pt-1 mt-auto border-t border-border">
-                                    <a
-                                        href={`/api/minutes/${doc.id}/file`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex-1"
-                                    >
-                                        <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-1.5">
-                                            <Eye className="h-3.5 w-3.5" />
-                                            View
-                                        </Button>
-                                    </a>
-                                    <a
-                                        href={`/api/minutes/${doc.id}/file`}
-                                        download={doc.fileName}
-                                        className="flex-1"
-                                    >
-                                        <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-1.5">
-                                            <Download className="h-3.5 w-3.5" />
-                                            Download
-                                        </Button>
-                                    </a>
-                                    {canDelete && (
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                                            onClick={() => setDeletingId(doc.id)}
-                                        >
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                        </Button>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
+                                        <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground whitespace-nowrap">
+                                            {doc.uploadedByName ?? "—"}
+                                        </td>
+
+                                        <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground whitespace-nowrap">
+                                            <span className="flex items-center gap-1">
+                                                <Tag className="h-3.5 w-3.5 shrink-0" />
+                                                {formatBytes(doc.fileSize)}
+                                            </span>
+                                        </td>
+
+                                        {/* Actions */}
+                                        <td className="px-4 py-3 text-right">
+                                            <div className="flex items-center justify-end gap-1">
+                                                <a href={`/api/minutes/${doc.id}/file`} target="_blank" rel="noopener noreferrer">
+                                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-primary" title="View PDF">
+                                                        <Eye className="h-4 w-4" />
+                                                    </Button>
+                                                </a>
+                                                <a href={`/api/minutes/${doc.id}/file`} download={doc.fileName}>
+                                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-primary" title="Download">
+                                                        <Download className="h-4 w-4" />
+                                                    </Button>
+                                                </a>
+                                                <Button
+                                                    variant="ghost" size="sm"
+                                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
+                                                    title="Share link"
+                                                    onClick={() => { setShareDocId(doc.id); setCopied(false); }}
+                                                >
+                                                    <Share2 className="h-4 w-4" />
+                                                </Button>
+                                                {canDelete && (
+                                                    <Button
+                                                        variant="ghost" size="sm"
+                                                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                                                        title="Delete"
+                                                        onClick={() => setDeletingId(doc.id)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 )}
 
@@ -388,23 +388,15 @@ export default function MinutesClient({ initialMinutes, initialPagination, meeti
                             Page {pagination.page} of {pagination.pages} · {pagination.total} documents
                         </p>
                         <div className="flex gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
+                            <Button variant="outline" size="sm"
                                 disabled={pagination.page === 1 || isPending}
-                                onClick={() => fetchMinutes(debouncedSearch, filterType, pagination.page - 1)}
-                            >
-                                <ChevronLeft className="h-4 w-4 mr-1" />
-                                Previous
+                                onClick={() => fetchMinutes(debouncedSearch, filterType, pagination.page - 1)}>
+                                <ChevronLeft className="h-4 w-4 mr-1" /> Previous
                             </Button>
-                            <Button
-                                variant="outline"
-                                size="sm"
+                            <Button variant="outline" size="sm"
                                 disabled={pagination.page === pagination.pages || isPending}
-                                onClick={() => fetchMinutes(debouncedSearch, filterType, pagination.page + 1)}
-                            >
-                                Next
-                                <ChevronRight className="h-4 w-4 ml-1" />
+                                onClick={() => fetchMinutes(debouncedSearch, filterType, pagination.page + 1)}>
+                                Next <ChevronRight className="h-4 w-4 ml-1" />
                             </Button>
                         </div>
                     </div>
@@ -420,32 +412,22 @@ export default function MinutesClient({ initialMinutes, initialPagination, meeti
                     <form onSubmit={handleUpload} className="space-y-4 mt-2">
                         <div className="space-y-1.5">
                             <Label htmlFor="min-title">Title <span className="text-destructive">*</span></Label>
-                            <Input
-                                id="min-title"
-                                placeholder="e.g. January Board Meeting 2025"
+                            <Input id="min-title" placeholder="e.g. January Board Meeting 2025"
                                 value={uploadForm.title}
-                                onChange={(e) => setUploadForm((f) => ({ ...f, title: e.target.value }))}
-                                required
-                            />
+                                onChange={(e) => setUploadForm((f) => ({ ...f, title: e.target.value }))} required />
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
                                 <Label htmlFor="min-date">Meeting Date <span className="text-destructive">*</span></Label>
-                                <Input
-                                    id="min-date"
-                                    type="date"
+                                <Input id="min-date" type="date"
                                     value={uploadForm.meetingDate}
-                                    onChange={(e) => setUploadForm((f) => ({ ...f, meetingDate: e.target.value }))}
-                                    required
-                                />
+                                    onChange={(e) => setUploadForm((f) => ({ ...f, meetingDate: e.target.value }))} required />
                             </div>
                             <div className="space-y-1.5">
                                 <Label htmlFor="min-type">Meeting Type <span className="text-destructive">*</span></Label>
-                                <Select
-                                    value={uploadForm.meetingType}
-                                    onValueChange={(v) => setUploadForm((f) => ({ ...f, meetingType: v }))}
-                                >
+                                <Select value={uploadForm.meetingType}
+                                    onValueChange={(v) => setUploadForm((f) => ({ ...f, meetingType: v }))}>
                                     <SelectTrigger id="min-type">
                                         <SelectValue placeholder="Select type" />
                                     </SelectTrigger>
@@ -460,53 +442,36 @@ export default function MinutesClient({ initialMinutes, initialPagination, meeti
 
                         <div className="space-y-1.5">
                             <Label htmlFor="min-desc">Description</Label>
-                            <textarea
-                                id="min-desc"
-                                rows={3}
+                            <textarea id="min-desc" rows={2}
                                 placeholder="Brief summary of what was discussed (optional)"
                                 value={uploadForm.description}
                                 onChange={(e) => setUploadForm((f) => ({ ...f, description: e.target.value }))}
-                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
-                            />
+                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none" />
                         </div>
 
-                        {/* File drop zone */}
+                        {/* Drop zone */}
                         <div
-                            className={cn(
-                                "rounded-lg border-2 border-dashed p-6 text-center cursor-pointer transition-colors",
-                                uploadFile
-                                    ? "border-primary bg-primary/5"
-                                    : "border-border hover:border-primary/50 hover:bg-muted/30"
-                            )}
+                            className={cn("rounded-lg border-2 border-dashed p-6 text-center cursor-pointer transition-colors",
+                                uploadFile ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-muted/30")}
                             onClick={() => fileInputRef.current?.click()}
                             onDragOver={(e) => e.preventDefault()}
                             onDrop={(e) => {
                                 e.preventDefault();
                                 const f = e.dataTransfer.files[0];
-                                if (f?.type === "application/pdf") setUploadFile(f);
+                                if (f?.name.toLowerCase().endsWith(".pdf")) setUploadFile(f);
                                 else toast.error("Only PDF files are accepted");
                             }}
                         >
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="application/pdf"
-                                className="hidden"
-                                onChange={(e) => {
-                                    const f = e.target.files?.[0];
-                                    if (f) setUploadFile(f);
-                                }}
-                            />
+                            <input ref={fileInputRef} type="file" accept="application/pdf,.pdf" className="hidden"
+                                onChange={(e) => { const f = e.target.files?.[0]; if (f) setUploadFile(f); }} />
                             {uploadFile ? (
                                 <div className="flex flex-col items-center gap-1.5">
                                     <FileText className="h-8 w-8 text-primary" />
                                     <p className="text-sm font-medium">{uploadFile.name}</p>
                                     <p className="text-xs text-muted-foreground">{formatBytes(uploadFile.size)}</p>
-                                    <button
-                                        type="button"
+                                    <button type="button"
                                         onClick={(e) => { e.stopPropagation(); setUploadFile(null); }}
-                                        className="text-xs text-muted-foreground hover:text-destructive mt-1"
-                                    >
+                                        className="text-xs text-muted-foreground hover:text-destructive mt-1">
                                         Remove
                                     </button>
                                 </div>
@@ -524,20 +489,43 @@ export default function MinutesClient({ initialMinutes, initialPagination, meeti
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={uploading}>
-                                {uploading ? (
-                                    <>
-                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                        Uploading…
-                                    </>
-                                ) : (
-                                    <>
-                                        <Upload className="h-4 w-4 mr-1.5" />
-                                        Upload
-                                    </>
-                                )}
+                                {uploading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Uploading…</> : <><Upload className="h-4 w-4 mr-1.5" />Upload</>}
                             </Button>
                         </DialogFooter>
                     </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* ── Share Dialog ── */}
+            <Dialog open={!!shareDocId} onOpenChange={(o) => { if (!o) setShareDocId(null); }}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Share2 className="h-4 w-4" /> Share Document
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3 mt-2">
+                        <p className="text-sm text-muted-foreground">
+                            Anyone with this link can open and read the PDF — no login required.
+                        </p>
+                        <div className="flex gap-2">
+                            <Input
+                                readOnly
+                                value={shareDocId ? shareUrl(shareDocId) : ""}
+                                className="font-mono text-xs"
+                                onClick={(e) => (e.target as HTMLInputElement).select()}
+                            />
+                            <Button variant="outline" size="sm" className="shrink-0" onClick={handleCopyShare}>
+                                {copied ? <><Check className="h-4 w-4 mr-1.5 text-green-500" />Copied!</> : <><Copy className="h-4 w-4 mr-1.5" />Copy</>}
+                            </Button>
+                        </div>
+                    </div>
+                    <DialogFooter className="mt-2">
+                        <Button variant="outline" onClick={() => setShareDocId(null)}>Close</Button>
+                        <a href={shareDocId ? shareUrl(shareDocId) : "#"} target="_blank" rel="noopener noreferrer">
+                            <Button><Eye className="h-4 w-4 mr-1.5" />Open PDF</Button>
+                        </a>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 

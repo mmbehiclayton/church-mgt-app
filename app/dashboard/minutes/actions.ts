@@ -80,9 +80,16 @@ export async function deleteMinutes(id: string) {
     const record = await prisma.meetingMinutes.findUnique({ where: { id } });
     if (!record) return { error: "Record not found" };
 
-    // Delete from Cloudinary (best-effort — don't block DB delete if it fails)
+    // Delete from Cloudinary (best-effort)
     try {
-        await cloudinary.uploader.destroy(record.filePath, { resource_type: "raw" });
+        // filePath may be a full URL (new) or a public_id (legacy)
+        let publicId = record.filePath;
+        if (publicId.startsWith("http")) {
+            // Extract public_id from URL: everything after /upload/v12345/
+            const match = publicId.match(/\/upload\/(?:v\d+\/)?(.+)$/);
+            if (match) publicId = match[1];
+        }
+        await cloudinary.uploader.destroy(publicId, { resource_type: "raw" });
     } catch {
         // Already deleted or never uploaded — continue
     }

@@ -21,7 +21,6 @@ export async function POST(req: NextRequest) {
         }
 
         const formData = await req.formData();
-
         const file = formData.get("file") as File | null;
         const title = (formData.get("title") as string | null)?.trim();
         const meetingDate = formData.get("meetingDate") as string | null;
@@ -36,13 +35,11 @@ export async function POST(req: NextRequest) {
             file.type === "application/pdf" ||
             file.type === "application/octet-stream" ||
             file.name.toLowerCase().endsWith(".pdf");
-
         if (!isPdf) {
             return NextResponse.json({ error: "Only PDF files are allowed" }, { status: 400 });
         }
 
-        const MAX_FILE_SIZE = 20 * 1024 * 1024;
-        if (file.size > MAX_FILE_SIZE) {
+        if (file.size > 20 * 1024 * 1024) {
             return NextResponse.json({ error: "File exceeds 20 MB limit" }, { status: 400 });
         }
 
@@ -51,13 +48,13 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Invalid meeting date" }, { status: 400 });
         }
 
-        // Upload to Cloudinary as a raw file (preserves PDF)
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        const uploadResult = await new Promise<{ public_id: string; secure_url: string; bytes: number }>(
+        // Upload to Cloudinary — store secure_url so we can serve it directly
+        const uploadResult = await new Promise<{ public_id: string; secure_url: string }>(
             (resolve, reject) => {
-                const stream = cloudinary.uploader.upload_stream(
+                cloudinary.uploader.upload_stream(
                     {
                         resource_type: "raw",
                         folder: "church-minutes",
@@ -66,11 +63,10 @@ export async function POST(req: NextRequest) {
                         format: "pdf",
                     },
                     (error, result) => {
-                        if (error || !result) reject(error ?? new Error("Upload failed"));
-                        else resolve(result as { public_id: string; secure_url: string; bytes: number });
+                        if (error || !result) reject(error ?? new Error("Cloudinary upload failed"));
+                        else resolve(result as { public_id: string; secure_url: string });
                     }
-                );
-                stream.end(buffer);
+                ).end(buffer);
             }
         );
 
@@ -81,7 +77,7 @@ export async function POST(req: NextRequest) {
                 meetingType,
                 description,
                 fileName: file.name,
-                filePath: uploadResult.public_id,   // Cloudinary public_id
+                filePath: uploadResult.secure_url,  // store the full URL — no reconstruction needed
                 fileSize: file.size,
                 uploadedById: (session.user as { id?: string }).id ?? null,
                 uploadedByName: session.user.name ?? session.user.email ?? null,
@@ -91,7 +87,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ id: record.id });
     } catch (err) {
         console.error("[minutes/upload] error:", err);
-        const message = err instanceof Error ? err.message : "Unknown error";
-        return NextResponse.json({ error: message }, { status: 500 });
+        return NextResponse.json(
+            { error: err instanceof Error ? err.message : "Unknown error" },
+            { status: 500 }
+        );
     }
 }

@@ -1,27 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/db";
 
 export const runtime = "nodejs";
 
+// Public route — no auth required — so a shared link can be opened by anyone
 export async function GET(
     _req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { id } = await params;
     const record = await prisma.meetingMinutes.findUnique({ where: { id } });
     if (!record) {
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
+        return new NextResponse("Document not found", { status: 404 });
     }
 
-    // filePath is the full Cloudinary secure_url
-    // Legacy records may store a public_id — reconstruct the URL for those
     const url = record.filePath.startsWith("http")
         ? record.filePath
         : `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/raw/upload/${record.filePath}`;
