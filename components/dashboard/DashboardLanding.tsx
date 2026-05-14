@@ -68,7 +68,7 @@ const MODULES = [
         description: "Members, departments, fellowships.",
         href: "/dashboard/membership",
         icon: Users,
-        accent: "from-indigo-500/15 to-indigo-500/5 text-indigo-600",
+        accent: "from-blue-500/15 to-blue-500/5 text-blue-600",
     },
     {
         key: "attendance" as const,
@@ -167,7 +167,7 @@ export default function DashboardLanding({ userName, access, stats }: Props) {
                     <Card className="card-lift cursor-default">
                         <CardHeader className="p-5 pb-2 flex flex-row items-center justify-between space-y-0">
                             <span className="text-sm font-medium text-muted-foreground">Active Members</span>
-                            <Users className="h-4 w-4 text-indigo-500" />
+                            <Users className="h-4 w-4 text-primary" />
                         </CardHeader>
                         <CardContent className="p-5 pt-0">
                             <div className="text-3xl font-bold">{stats.memberCount.toLocaleString()}</div>

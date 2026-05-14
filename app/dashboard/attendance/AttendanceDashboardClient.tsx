@@ -49,7 +49,7 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 const TYPE_COLOR: Record<string, string> = {
-  SUNDAY_SERVICE: "bg-indigo-500",
+  SUNDAY_SERVICE: "bg-blue-500",
   MIDWEEK_SERVICE: "bg-sky-500",
   EVENT: "bg-violet-500",
   OTHER: "bg-slate-500",
@@ -143,7 +143,7 @@ export default function AttendanceDashboardClient({ overview, canCreate }: Props
               : "No services recorded"
           }
           icon={Users}
-          accent="indigo"
+          accent="blue"
           delta={latestSession ? presentDelta : null}
         />
         <KpiCard
@@ -403,14 +403,14 @@ interface KpiCardProps {
   value: string;
   sublabel: string;
   icon: React.ComponentType<{ className?: string }>;
-  accent: "indigo" | "emerald" | "sky" | "amber";
+  accent: "blue" | "emerald" | "sky" | "amber";
   delta?: number | null;
   progress?: number;
   href?: string;
 }
 
 const ACCENTS: Record<KpiCardProps["accent"], { bg: string; text: string }> = {
-  indigo: { bg: "bg-indigo-500/10", text: "text-indigo-600 dark:text-indigo-400" },
+  blue: { bg: "bg-blue-500/10", text: "text-blue-600 dark:text-blue-400" },
   emerald: { bg: "bg-emerald-500/10", text: "text-emerald-600 dark:text-emerald-400" },
   sky: { bg: "bg-sky-500/10", text: "text-sky-600 dark:text-sky-400" },
   amber: { bg: "bg-amber-500/10", text: "text-amber-600 dark:text-amber-400" },

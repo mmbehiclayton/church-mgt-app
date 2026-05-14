@@ -76,9 +76,9 @@ export default function DashboardFilters({ categories }: { categories: Category[
     };
 
     return (
-        <div className="bg-white p-3 rounded-lg border shadow-sm space-y-2 sm:space-y-0 sm:flex sm:items-center sm:gap-4">
+        <div className="bg-card p-3 rounded-lg border border-border shadow-sm space-y-2 sm:space-y-0 sm:flex sm:items-center sm:gap-4">
             <div className="flex items-center gap-2 justify-between sm:justify-start">
-                <span className="text-sm font-medium text-gray-700">Filters:</span>
+                <span className="text-sm font-medium text-foreground">Filters:</span>
                 {(date?.from || selectedCategories.length > 0) && (
                     <Button
                         variant="ghost"

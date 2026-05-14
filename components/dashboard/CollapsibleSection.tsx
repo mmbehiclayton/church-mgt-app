@@ -23,15 +23,15 @@ export default function CollapsibleSection({
 
     return (
         <Card className={cn("overflow-hidden transition-all duration-200", className)}>
-            <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0 bg-gray-50/50 border-b">
-                <CardTitle className="text-base font-semibold text-gray-700">
+            <CardHeader className="py-3 px-4 flex flex-row items-center justify-between space-y-0 bg-muted/30 border-b border-border">
+                <CardTitle className="text-base font-semibold text-foreground">
                     {title}
                 </CardTitle>
                 <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => setIsOpen(!isOpen)}
-                    className="h-8 w-8 p-0 text-gray-500 hover:text-gray-900"
+                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                 >
                     {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                     <span className="sr-only">Toggle {title}</span>

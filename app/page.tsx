@@ -46,7 +46,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-background">
       {/* Brand panel — hidden on mobile */}
-      <div className="hidden lg:flex relative flex-col justify-between p-12 overflow-hidden text-white bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800">
+      <div className="hidden lg:flex relative flex-col justify-between p-12 overflow-hidden text-white bg-gradient-to-br from-blue-500 via-blue-600 to-blue-800">
         {/* Decorative glow */}
         <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute bottom-0 right-0 h-[28rem] w-[28rem] rounded-full bg-violet-400/20 blur-3xl translate-x-1/3 translate-y-1/3" />
@@ -77,29 +77,29 @@ export default function LoginPage() {
               <h1 className="text-4xl font-bold tracking-tight leading-tight">
                 Church Management System.
               </h1>
-              <p className="mt-4 text-indigo-100/90 text-base max-w-md leading-relaxed">
+              <p className="mt-4 text-blue-100/90 text-base max-w-md leading-relaxed">
                 Members, attendance, finances, and SMS — woven into one calm, secure platform built for the people doing the work on Sundays.
               </p>
             </div>
           </div>
 
-          <ul className="space-y-3 text-sm text-indigo-100/90">
+          <ul className="space-y-3 text-sm text-blue-100/90">
             <li className="flex items-start gap-3">
-              <Users className="h-5 w-5 mt-0.5 shrink-0 text-indigo-200" />
+              <Users className="h-5 w-5 mt-0.5 shrink-0 text-blue-200" />
               <span>Full membership graph: departments, fellowships, attendance trends.</span>
             </li>
             <li className="flex items-start gap-3">
-              <Sparkles className="h-5 w-5 mt-0.5 shrink-0 text-indigo-200" />
+              <Sparkles className="h-5 w-5 mt-0.5 shrink-0 text-blue-200" />
               <span>Bulk SMS to any group, with delivery receipts and templates.</span>
             </li>
             <li className="flex items-start gap-3">
-              <ShieldCheck className="h-5 w-5 mt-0.5 shrink-0 text-indigo-200" />
+              <ShieldCheck className="h-5 w-5 mt-0.5 shrink-0 text-blue-200" />
               <span>Role-based access — only the right hands touch the right data.</span>
             </li>
           </ul>
         </div>
 
-        <div className="relative z-10 text-xs text-indigo-200/70">
+        <div className="relative z-10 text-xs text-blue-200/70">
           © {new Date().getFullYear()} Church Management System
         </div>
       </div>

@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import type { UserManagementUser } from "@/types/users";
+import { cn } from "@/lib/utils";
 
 interface UsersTableProps {
     users: UserManagementUser[];
@@ -30,263 +31,170 @@ export default function UsersTable({ users }: UsersTableProps) {
     const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
     const handleSelectAll = (checked: boolean) => {
-        if (checked) {
-            setSelectedIds(users.map(u => u.id));
-        } else {
-            setSelectedIds([]);
-        }
+        setSelectedIds(checked ? users.map(u => u.id) : []);
     };
 
     const handleSelectRow = (id: string, checked: boolean) => {
-        if (checked) {
-            setSelectedIds(prev => [...prev, id]);
-        } else {
-            setSelectedIds(prev => prev.filter(x => x !== id));
-        }
+        setSelectedIds(prev => checked ? [...prev, id] : prev.filter(x => x !== id));
     };
 
     const executeBulkDelete = async () => {
         setBulkDeleting(true);
         const currentUserId = await getCurrentUserId();
-
         if (!currentUserId) {
-            toast.error("Error", {
-                description: "Unable to verify current user",
-            });
+            toast.error("Unable to verify current user");
             setBulkDeleting(false);
             setShowBulkDeleteDialog(false);
             return;
         }
-
-        let successCount = 0;
-        let errorCount = 0;
-
+        let successCount = 0, errorCount = 0;
         for (const userId of selectedIds) {
             const result = await deleteUser(userId, currentUserId);
-            if (result.error) {
-                errorCount++;
-            } else {
-                successCount++;
-            }
+            result.error ? errorCount++ : successCount++;
         }
-
         setBulkDeleting(false);
         setShowBulkDeleteDialog(false);
         setSelectedIds([]);
-
-        if (successCount > 0) {
-            toast.success("Success", {
-                description: `Deleted ${successCount} user(s)`,
-            });
-        }
-
-        if (errorCount > 0) {
-            toast.error("Warning", {
-                description: `Failed to delete ${errorCount} user(s)`,
-            });
-        }
-
+        if (successCount > 0) toast.success(`Deleted ${successCount} user(s)`);
+        if (errorCount > 0) toast.error(`Failed to delete ${errorCount} user(s)`);
         router.refresh();
     };
 
-    const handleBulkDelete = () => {
-        setShowBulkDeleteDialog(true);
+    const getRoleBadge = (roleName: string) => {
+        const n = roleName.toUpperCase();
+        if (n === "SUPER ADMIN") return "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300";
+        if (n === "ADMIN") return "bg-primary/10 text-primary dark:bg-primary/20";
+        return "bg-muted text-muted-foreground";
     };
 
-    const getRoleBadgeColor = (roleName: string) => {
-        switch (roleName.toUpperCase()) {
-            case "SUPER ADMIN":
-                return "bg-blue-100 text-blue-800 border-blue-200";
-            case "ADMIN":
-                return "bg-indigo-100 text-indigo-800 border-indigo-200";
-            case "VIEWER":
-                return "bg-gray-100 text-gray-800 border-gray-200";
-            default:
-                return "bg-gray-100 text-gray-800 border-gray-200";
-        }
-    };
-
-    const getStatusBadgeColor = (isActive: boolean) => {
-        return isActive
-            ? "bg-green-100 text-green-800 border-green-200"
-            : "bg-red-100 text-red-800 border-red-200";
-    };
-
-    // Generate avatar color based on user name/email
     const getAvatarColor = (name: string | null, email: string) => {
-        const str = name || email;
         const colors = [
-            "bg-blue-500",
-            "bg-green-500",
-            "bg-purple-500",
-            "bg-pink-500",
-            "bg-indigo-500",
-            "bg-yellow-500",
-            "bg-red-500",
-            "bg-teal-500",
+            "bg-blue-500", "bg-emerald-500", "bg-violet-500",
+            "bg-pink-500", "bg-amber-500", "bg-cyan-500",
         ];
-        const index = str.charCodeAt(0) % colors.length;
-        return colors[index];
+        return colors[(name || email).charCodeAt(0) % colors.length];
     };
 
-    // Get initials from name or email
     const getInitials = (name: string | null, email: string) => {
         if (name) {
             const parts = name.split(" ");
-            if (parts.length >= 2) {
-                return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-            }
-            return name.substring(0, 2).toUpperCase();
+            return parts.length >= 2
+                ? `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+                : name.substring(0, 2).toUpperCase();
         }
         return email.substring(0, 2).toUpperCase();
     };
 
     return (
         <>
-            <div className="bg-white rounded-lg shadow">
-                <div className="p-6 border-b border-gray-200">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                            <h2 className="text-lg font-semibold text-gray-900">Users</h2>
-                            {selectedIds.length > 0 && (
-                                <p className="text-sm text-gray-500 mt-1">
-                                    {selectedIds.length} user(s) selected
-                                </p>
-                            )}
-                        </div>
-                        <div className="flex gap-2">
-                            {selectedIds.length > 0 && (
-                                <Button
-                                    onClick={handleBulkDelete}
-                                    disabled={bulkDeleting}
-                                    variant="destructive"
-                                    size="sm"
-                                    className="flex items-center gap-2"
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                    Delete Selected
-                                </Button>
-                            )}
-                            <Button onClick={() => setShowAddModal(true)} className="flex items-center gap-2">
-                                <UserPlus className="h-4 w-4" />
-                                Add User
+            <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                {/* Toolbar */}
+                <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-foreground">
+                        {users.length} user{users.length !== 1 ? "s" : ""}
+                        {selectedIds.length > 0 && (
+                            <span className="ml-2 font-normal text-muted-foreground">· {selectedIds.length} selected</span>
+                        )}
+                    </p>
+                    <div className="flex items-center gap-2">
+                        {selectedIds.length > 0 && (
+                            <Button onClick={() => setShowBulkDeleteDialog(true)} disabled={bulkDeleting} variant="destructive" size="sm">
+                                <Trash2 className="h-4 w-4 mr-1.5" />
+                                Delete {selectedIds.length}
                             </Button>
-                        </div>
+                        )}
+                        <Button onClick={() => setShowAddModal(true)} size="sm">
+                            <UserPlus className="h-4 w-4 mr-1.5" />
+                            Add User
+                        </Button>
                     </div>
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-gray-50 border-b border-gray-200">
-                            <tr>
-                                <th className="px-6 py-3 text-left">
+                    <table className="w-full text-sm">
+                        <thead>
+                            <tr className="border-b border-border bg-muted/40">
+                                <th className="px-4 py-3 w-10">
                                     <Checkbox
-                                        checked={selectedIds.length === users.length && users.length > 0}
-                                        onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                                        checked={users.length > 0 && selectedIds.length === users.length}
+                                        onCheckedChange={(c) => handleSelectAll(c as boolean)}
                                     />
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    #
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    User
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Role
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Status
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Last Login
-                                </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Actions
-                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-10">#</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">User</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Role</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider hidden md:table-cell">Last Login</th>
+                                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
+                        <tbody className="divide-y divide-border">
                             {users.map((user, index) => (
-                                <tr
-                                    key={user.id}
-                                    className={`hover:bg-gray-50 transition-colors ${selectedIds.includes(user.id) ? "bg-blue-50" : ""
-                                        }`}
-                                >
-                                    <td className="px-6 py-4">
+                                <tr key={user.id} className={cn(
+                                    "transition-colors hover:bg-muted/20",
+                                    selectedIds.includes(user.id) && "bg-primary/5"
+                                )}>
+                                    <td className="px-4 py-3">
                                         <Checkbox
                                             checked={selectedIds.includes(user.id)}
-                                            onCheckedChange={(checked) => handleSelectRow(user.id, checked as boolean)}
+                                            onCheckedChange={(c) => handleSelectRow(user.id, c as boolean)}
                                         />
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {index + 1}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
+                                    <td className="px-4 py-3 text-muted-foreground tabular-nums">{index + 1}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap">
                                         <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-full ${getAvatarColor(user.name, user.email)} flex items-center justify-center text-white font-semibold`}>
+                                            <div className={cn("h-9 w-9 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0", getAvatarColor(user.name, user.email))}>
                                                 {getInitials(user.name, user.email)}
                                             </div>
                                             <div>
-                                                <div className="text-sm font-medium text-gray-900">
-                                                    {user.name || "No Name"}
-                                                </div>
-                                                <div className="text-sm text-gray-500">{user.email}</div>
+                                                <p className="font-medium text-foreground">{user.name || "No Name"}</p>
+                                                <p className="text-xs text-muted-foreground">{user.email}</p>
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="flex flex-wrap gap-2">
+                                    <td className="px-4 py-3 whitespace-nowrap">
+                                        <div className="flex flex-wrap gap-1">
                                             {user.userRoles.length > 0 ? (
-                                                user.userRoles.map((userRole) => (
-                                                    <span
-                                                        key={userRole.role.id}
-                                                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getRoleBadgeColor(userRole.role.name)}`}
-                                                    >
-                                                        {userRole.role.name}
+                                                user.userRoles.map((ur) => (
+                                                    <span key={ur.role.id} className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium", getRoleBadge(ur.role.name))}>
+                                                        {ur.role.name}
                                                     </span>
                                                 ))
                                             ) : (
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getRoleBadgeColor(user.role)}`}>
+                                                <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium", getRoleBadge(user.role))}>
                                                     {user.role}
                                                 </span>
                                             )}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadgeColor(user.isActive)}`}>
+                                    <td className="px-4 py-3 whitespace-nowrap">
+                                        <span className={cn(
+                                            "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
+                                            user.isActive
+                                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                                                : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+                                        )}>
                                             {user.isActive ? "Active" : "Inactive"}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <td className="px-4 py-3 text-muted-foreground whitespace-nowrap hidden md:table-cell">
                                         {user.lastLogin
                                             ? formatDistanceToNow(new Date(user.lastLogin), { addSuffix: true })
                                             : "Never"}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => setEditingUser(user)}
-                                                className="text-blue-600 hover:text-blue-900 hover:bg-blue-50"
-                                            >
-                                                <Pencil className="h-4 w-4" />
+                                    <td className="px-4 py-3 whitespace-nowrap text-right">
+                                        <div className="flex items-center justify-end gap-1">
+                                            <Button variant="ghost" size="sm" onClick={() => setEditingUser(user)}
+                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-primary" title="Edit">
+                                                <Pencil className="h-3.5 w-3.5" />
                                             </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => setResetPasswordUser(user)}
-                                                className="text-yellow-600 hover:text-yellow-900 hover:bg-yellow-50"
-                                            >
-                                                <KeyRound className="h-4 w-4" />
+                                            <Button variant="ghost" size="sm" onClick={() => setResetPasswordUser(user)}
+                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-amber-500" title="Reset password">
+                                                <KeyRound className="h-3.5 w-3.5" />
                                             </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => setDeletingUser(user)}
-                                                className="text-red-600 hover:text-red-900 hover:bg-red-50"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
+                                            <Button variant="ghost" size="sm" onClick={() => setDeletingUser(user)}
+                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive" title="Delete">
+                                                <Trash2 className="h-3.5 w-3.5" />
                                             </Button>
                                         </div>
                                     </td>
@@ -294,11 +202,11 @@ export default function UsersTable({ users }: UsersTableProps) {
                             ))}
                             {users.length === 0 && (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center">
-                                        <div className="flex flex-col items-center justify-center text-gray-500">
-                                            <User className="h-12 w-12 mb-2 text-gray-400" />
+                                    <td colSpan={7} className="px-6 py-16 text-center">
+                                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                            <User className="h-10 w-10 opacity-30" />
                                             <p className="text-sm font-medium">No users found</p>
-                                            <p className="text-xs mt-1">Get started by adding a new user</p>
+                                            <p className="text-xs">Get started by adding a new user</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -308,44 +216,19 @@ export default function UsersTable({ users }: UsersTableProps) {
                 </div>
             </div>
 
-            {showAddModal && (
-                <AddUserModal open={showAddModal} onClose={() => setShowAddModal(false)} />
-            )}
-
-            {editingUser && (
-                <EditUserModal
-                    user={editingUser}
-                    open={!!editingUser}
-                    onClose={() => setEditingUser(null)}
-                />
-            )}
-
-            {resetPasswordUser && (
-                <ResetPasswordModal
-                    user={resetPasswordUser}
-                    open={!!resetPasswordUser}
-                    onClose={() => setResetPasswordUser(null)}
-                />
-            )}
-
-            {deletingUser && (
-                <DeleteUserDialog
-                    user={deletingUser}
-                    open={!!deletingUser}
-                    onClose={() => setDeletingUser(null)}
-                />
-            )}
+            {showAddModal && <AddUserModal open={showAddModal} onClose={() => setShowAddModal(false)} />}
+            {editingUser && <EditUserModal user={editingUser} open={!!editingUser} onClose={() => setEditingUser(null)} />}
+            {resetPasswordUser && <ResetPasswordModal user={resetPasswordUser} open={!!resetPasswordUser} onClose={() => setResetPasswordUser(null)} />}
+            {deletingUser && <DeleteUserDialog user={deletingUser} open={!!deletingUser} onClose={() => setDeletingUser(null)} />}
 
             <ConfirmationDialog
                 open={showBulkDeleteDialog}
                 onOpenChange={setShowBulkDeleteDialog}
                 title="Delete Users"
-                description={`Are you sure you want to delete ${selectedIds.length} user(s)?`}
-                confirmText="Delete"
-                cancelText="Cancel"
+                description={`Are you sure you want to delete ${selectedIds.length} user(s)? This cannot be undone.`}
+                confirmText="Delete" cancelText="Cancel"
                 onConfirm={executeBulkDelete}
-                variant="danger"
-                loading={bulkDeleting}
+                variant="danger" loading={bulkDeleting}
             />
         </>
     );

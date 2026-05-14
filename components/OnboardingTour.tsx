@@ -90,7 +90,7 @@ export default function OnboardingTour() {
         )}
       >
         {/* Top gradient strip */}
-        <div className="h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500" />
+        <div className="h-1 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-700" />
 
         <button
           onClick={() => close()}
