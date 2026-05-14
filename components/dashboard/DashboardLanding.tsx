@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { format } from "date-fns";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +14,8 @@ import {
     ArrowRight,
     LayoutDashboard,
     Sparkles,
+    BookOpen,
+    ChevronRight,
 } from "lucide-react";
 
 interface AccessMap {
@@ -57,58 +58,65 @@ const MODULES = [
     {
         key: "finance" as const,
         title: "Finance",
-        description: "Contributions, expenses, M-Pesa imports.",
+        description: "Contributions, expenses & M-Pesa imports",
         href: "/dashboard/finance",
         icon: Wallet,
-        accent: "from-emerald-500/15 to-emerald-500/5 text-emerald-600",
+        colour: "text-emerald-600 dark:text-emerald-400",
+        bg: "bg-emerald-500/10",
     },
     {
         key: "members" as const,
         title: "Membership",
-        description: "Members, departments, fellowships.",
+        description: "Members, departments & fellowships",
         href: "/dashboard/membership",
         icon: Users,
-        accent: "from-blue-500/15 to-blue-500/5 text-blue-600",
+        colour: "text-blue-600 dark:text-blue-400",
+        bg: "bg-blue-500/10",
     },
     {
         key: "attendance" as const,
         title: "Attendance",
-        description: "Sunday and midweek services, watchlist.",
+        description: "Sunday & midweek services, watchlist",
         href: "/dashboard/attendance",
         icon: Calendar,
-        accent: "from-sky-500/15 to-sky-500/5 text-sky-600",
+        colour: "text-sky-600 dark:text-sky-400",
+        bg: "bg-sky-500/10",
     },
     {
         key: "sms" as const,
         title: "SMS",
-        description: "Bulk messaging, templates, delivery reports.",
+        description: "Bulk messaging, templates & delivery reports",
         href: "/dashboard/sms",
         icon: MessageSquare,
-        accent: "from-violet-500/15 to-violet-500/5 text-violet-600",
+        colour: "text-violet-600 dark:text-violet-400",
+        bg: "bg-violet-500/10",
     },
     {
         key: "users" as const,
         title: "Users",
-        description: "Invite, deactivate, audit admins.",
+        description: "Invite, deactivate & audit admins",
         href: "/dashboard/users",
         icon: Shield,
-        accent: "from-amber-500/15 to-amber-500/5 text-amber-600",
+        colour: "text-amber-600 dark:text-amber-400",
+        bg: "bg-amber-500/10",
     },
     {
         key: "rbac" as const,
         title: "Roles & Permissions",
-        description: "Granular access control.",
+        description: "Granular access control",
         href: "/dashboard/rbac",
         icon: LayoutDashboard,
-        accent: "from-rose-500/15 to-rose-500/5 text-rose-600",
+        colour: "text-rose-600 dark:text-rose-400",
+        bg: "bg-rose-500/10",
     },
     {
         key: "settings" as const,
         title: "Settings",
-        description: "Organization, finance, structure.",
+        description: "Organisation, finance & structure",
         href: "/dashboard/settings",
         icon: Settings,
-        accent: "from-slate-500/15 to-slate-500/5 text-slate-600",
+        colour: "text-slate-600 dark:text-slate-400",
+        bg: "bg-slate-500/10",
     },
 ];
 
@@ -121,209 +129,194 @@ function greeting(): string {
     return "Working late";
 }
 
+const SESSION_TYPE: Record<string, string> = {
+    SUNDAY_SERVICE: "Sunday",
+    MIDWEEK_SERVICE: "Midweek",
+    EVENT: "Event",
+    OTHER: "Other",
+};
+
+const CAMPAIGN_STATUS_STYLE: Record<string, string> = {
+    SENT: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+    PARTIAL: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+    SENDING: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+    FAILED: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+    DRAFT: "bg-muted text-muted-foreground",
+};
+
 export default function DashboardLanding({ userName, access, stats }: Props) {
-    const accessibleModules = MODULES.filter(m => access[m.key]);
+    const accessibleModules = MODULES.filter(m => access[m.key as keyof AccessMap]);
+    const firstName = userName?.split(" ")[0] ?? null;
 
     if (accessibleModules.length === 0) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
-                <Card className="max-w-md text-center">
-                    <CardContent className="py-12">
-                        <div className="h-12 w-12 mx-auto rounded-full bg-muted flex items-center justify-center mb-4">
-                            <Shield className="h-6 w-6 text-muted-foreground" />
-                        </div>
-                        <h2 className="text-xl font-semibold">No accessible modules</h2>
-                        <p className="text-sm text-muted-foreground mt-2">
-                            Your account does not currently have access to any modules. Ask an administrator to grant you a role.
-                        </p>
-                    </CardContent>
-                </Card>
+                <div className="text-center space-y-2">
+                    <div className="h-12 w-12 mx-auto rounded-full bg-muted flex items-center justify-center mb-4">
+                        <Shield className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <h2 className="text-lg font-semibold">No accessible modules</h2>
+                    <p className="text-sm text-muted-foreground max-w-xs">
+                        Ask an administrator to grant you a role.
+                    </p>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="space-y-8">
-            {/* Hero */}
-            <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-card to-violet-500/5 px-6 py-8 md:p-10">
-                <div className="absolute -top-12 -right-12 h-48 w-48 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
-                <div className="relative">
-                    <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-primary mb-3">
-                        <Sparkles className="h-3.5 w-3.5" />
-                        {greeting()}
+        <div className="space-y-6 max-w-5xl mx-auto">
+
+            {/* ── Hero bar ── */}
+            <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-r from-primary/10 via-card to-violet-500/5 px-5 py-5">
+                <div className="absolute -top-10 -right-10 h-36 w-36 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+                <div className="relative flex items-center justify-between gap-4 flex-wrap">
+                    <div>
+                        <p className="text-xs font-medium uppercase tracking-widest text-primary flex items-center gap-1.5 mb-1">
+                            <Sparkles className="h-3 w-3" /> {greeting()}
+                        </p>
+                        <h1 className="text-2xl font-bold tracking-tight">
+                            {firstName ? `Welcome back, ${firstName}.` : "Welcome back."}
+                        </h1>
+                        <p className="text-sm text-muted-foreground mt-0.5">
+                            Here&apos;s what&apos;s happening with the church today.
+                        </p>
                     </div>
-                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-                        {userName ? `Welcome back, ${userName.split(" ")[0]}.` : "Welcome back."}
-                    </h1>
-                    <p className="text-muted-foreground mt-2 max-w-2xl">
-                        Here&apos;s what&apos;s happening with the church today.
-                    </p>
+                    {/* Quick-action buttons */}
+                    <div className="flex flex-wrap gap-2 shrink-0">
+                        {access.sms && (
+                            <Link href="/dashboard/sms/compose">
+                                <Button size="sm" variant="outline">
+                                    <MessageSquare className="h-3.5 w-3.5 mr-1.5" /> New SMS
+                                </Button>
+                            </Link>
+                        )}
+                        {access.attendance && (
+                            <Link href="/dashboard/attendance/mark">
+                                <Button size="sm">
+                                    <Calendar className="h-3.5 w-3.5 mr-1.5" /> Mark Attendance
+                                </Button>
+                            </Link>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            {/* At a glance */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {access.members && (
-                    <Card className="card-lift cursor-default">
-                        <CardHeader className="p-5 pb-2 flex flex-row items-center justify-between space-y-0">
-                            <span className="text-sm font-medium text-muted-foreground">Active Members</span>
-                            <Users className="h-4 w-4 text-primary" />
-                        </CardHeader>
-                        <CardContent className="p-5 pt-0">
-                            <div className="text-3xl font-bold">{stats.memberCount.toLocaleString()}</div>
-                            <Link
-                                href="/dashboard/membership"
-                                className="text-xs text-primary inline-flex items-center mt-2 hover:underline"
-                            >
-                                Manage roster <ArrowRight className="h-3 w-3 ml-1" />
-                            </Link>
-                        </CardContent>
-                    </Card>
-                )}
+            {/* ── Compact stat strip ── */}
+            {(access.members || access.attendance || access.sms) && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {access.members && (
+                        <Link href="/dashboard/membership" className="group">
+                            <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 hover:border-primary/40 hover:bg-muted/30 transition-colors">
+                                <div className="h-9 w-9 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                                    <Users className="h-4 w-4" />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-xs text-muted-foreground">Active Members</p>
+                                    <p className="text-xl font-bold tabular-nums leading-tight">{stats.memberCount.toLocaleString()}</p>
+                                </div>
+                                <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                        </Link>
+                    )}
 
-                {access.attendance && (
-                    <Card className="card-lift cursor-default">
-                        <CardHeader className="p-5 pb-2 flex flex-row items-center justify-between space-y-0">
-                            <span className="text-sm font-medium text-muted-foreground">Latest Service</span>
-                            <Calendar className="h-4 w-4 text-sky-500" />
-                        </CardHeader>
-                        <CardContent className="p-5 pt-0">
-                            {stats.latestSession ? (
-                                <>
-                                    <div className="text-3xl font-bold">{stats.latestSession._count.records}</div>
-                                    <div className="text-xs text-muted-foreground mt-1">
-                                        {format(new Date(stats.latestSession.date), "MMM d, yyyy")} ·{" "}
-                                        {stats.latestSession.type.replace("_", " ")}
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="text-3xl font-bold">—</div>
-                                    <div className="text-xs text-muted-foreground mt-1">No sessions yet</div>
-                                </>
-                            )}
-                            <Link
-                                href="/dashboard/attendance"
-                                className="text-xs text-primary inline-flex items-center mt-2 hover:underline"
-                            >
-                                Mark attendance <ArrowRight className="h-3 w-3 ml-1" />
-                            </Link>
-                        </CardContent>
-                    </Card>
-                )}
+                    {access.attendance && (
+                        <Link href="/dashboard/attendance" className="group">
+                            <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 hover:border-primary/40 hover:bg-muted/30 transition-colors">
+                                <div className="h-9 w-9 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                                    <Calendar className="h-4 w-4" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs text-muted-foreground">Latest Service</p>
+                                    {stats.latestSession ? (
+                                        <>
+                                            <p className="text-xl font-bold tabular-nums leading-tight">{stats.latestSession._count.records}</p>
+                                            <p className="text-[11px] text-muted-foreground truncate">
+                                                {SESSION_TYPE[stats.latestSession.type] ?? stats.latestSession.type} · {format(new Date(stats.latestSession.date), "MMM d")}
+                                            </p>
+                                        </>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">No sessions yet</p>
+                                    )}
+                                </div>
+                                <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                        </Link>
+                    )}
 
-                {access.sms && (
-                    <Card className="card-lift cursor-default">
-                        <CardHeader className="p-5 pb-2 flex flex-row items-center justify-between space-y-0">
-                            <span className="text-sm font-medium text-muted-foreground">Last SMS Campaign</span>
-                            <MessageSquare className="h-4 w-4 text-violet-500" />
-                        </CardHeader>
-                        <CardContent className="p-5 pt-0">
-                            {stats.recentCampaign ? (
-                                <>
-                                    <div className="font-semibold truncate">
-                                        {stats.recentCampaign.name || stats.recentCampaign.message.slice(0, 32)}
-                                    </div>
-                                    <div className="flex items-center gap-2 mt-1.5">
-                                        <Badge variant="secondary" className="text-[10px]">
-                                            {stats.recentCampaign.status}
-                                        </Badge>
-                                        <span className="text-xs text-muted-foreground">
-                                            {stats.recentCampaign.sentCount} / {stats.recentCampaign.totalRecipients} sent
-                                        </span>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="text-3xl font-bold">—</div>
-                                    <div className="text-xs text-muted-foreground mt-1">No campaigns yet</div>
-                                </>
-                            )}
-                            <Link
-                                href="/dashboard/sms"
-                                className="text-xs text-primary inline-flex items-center mt-2 hover:underline"
-                            >
-                                Open SMS <ArrowRight className="h-3 w-3 ml-1" />
-                            </Link>
-                        </CardContent>
-                    </Card>
-                )}
-            </div>
+                    {access.sms && (
+                        <Link href="/dashboard/sms" className="group">
+                            <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 hover:border-primary/40 hover:bg-muted/30 transition-colors">
+                                <div className="h-9 w-9 rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400 flex items-center justify-center shrink-0">
+                                    <MessageSquare className="h-4 w-4" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs text-muted-foreground">Last Campaign</p>
+                                    {stats.recentCampaign ? (
+                                        <>
+                                            <p className="text-sm font-semibold truncate leading-tight mt-0.5">
+                                                {stats.recentCampaign.name || stats.recentCampaign.message.slice(0, 28)}
+                                            </p>
+                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${CAMPAIGN_STATUS_STYLE[stats.recentCampaign.status] ?? ""}`}>
+                                                    {stats.recentCampaign.status}
+                                                </Badge>
+                                                <span className="text-[11px] text-muted-foreground tabular-nums">
+                                                    {stats.recentCampaign.sentCount}/{stats.recentCampaign.totalRecipients} sent
+                                                </span>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">No campaigns yet</p>
+                                    )}
+                                </div>
+                                <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                        </Link>
+                    )}
+                </div>
+            )}
 
-            {/* Modules grid */}
+            {/* ── Module grid ── */}
             <div>
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-semibold tracking-tight">Your modules</h2>
-                    <span className="text-xs text-muted-foreground">
-                        {accessibleModules.length} accessible
-                    </span>
+                <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Modules</h2>
+                    <span className="text-xs text-muted-foreground">{accessibleModules.length} available</span>
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {accessibleModules.map(m => {
                         const Icon = m.icon;
                         return (
-                            <Link key={m.key} href={m.href} className="group block">
-                                <Card className="card-lift h-full">
-                                    <CardContent className="p-5">
-                                        <div
-                                            className={`h-10 w-10 rounded-xl bg-gradient-to-br ${m.accent} flex items-center justify-center mb-4`}
-                                        >
-                                            <Icon className="h-5 w-5" />
-                                        </div>
-                                        <div className="font-semibold tracking-tight group-hover:text-primary transition-colors">
-                                            {m.title}
-                                        </div>
-                                        <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                                            {m.description}
-                                        </p>
-                                        <div className="flex items-center text-xs text-primary mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            Open <ArrowRight className="h-3 w-3 ml-1" />
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                            <Link key={m.key} href={m.href} className="group">
+                                <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-3.5 py-3 hover:border-primary/40 hover:bg-muted/30 transition-colors h-full">
+                                    <div className={`h-8 w-8 rounded-lg ${m.bg} ${m.colour} flex items-center justify-center shrink-0`}>
+                                        <Icon className="h-4 w-4" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-medium leading-tight group-hover:text-primary transition-colors">{m.title}</p>
+                                        <p className="text-[11px] text-muted-foreground leading-tight mt-0.5 truncate">{m.description}</p>
+                                    </div>
+                                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
                             </Link>
                         );
                     })}
+
+                    {/* Meeting Minutes — always shown if visible in sidebar */}
+                    <Link href="/dashboard/minutes" className="group">
+                        <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-3.5 py-3 hover:border-primary/40 hover:bg-muted/30 transition-colors h-full">
+                            <div className="h-8 w-8 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+                                <BookOpen className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium leading-tight group-hover:text-primary transition-colors">Meeting Minutes</p>
+                                <p className="text-[11px] text-muted-foreground leading-tight mt-0.5 truncate">Upload & browse PDF records</p>
+                            </div>
+                            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                    </Link>
                 </div>
             </div>
-
-            {/* Quick actions */}
-            {(access.sms || access.attendance) && (
-                <div className="rounded-xl border border-border bg-card p-5">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <div className="font-semibold tracking-tight">Quick actions</div>
-                            <div className="text-sm text-muted-foreground">Common tasks at your fingertips</div>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            {access.sms && (
-                                <Link href="/dashboard/sms/compose">
-                                    <Button variant="outline" size="sm">
-                                        <MessageSquare className="h-3.5 w-3.5 mr-2" />
-                                        New SMS
-                                    </Button>
-                                </Link>
-                            )}
-                            {access.attendance && (
-                                <Link href="/dashboard/attendance">
-                                    <Button variant="outline" size="sm">
-                                        <Calendar className="h-3.5 w-3.5 mr-2" />
-                                        Mark Attendance
-                                    </Button>
-                                </Link>
-                            )}
-                            {access.members && (
-                                <Link href="/dashboard/membership">
-                                    <Button variant="outline" size="sm">
-                                        <Users className="h-3.5 w-3.5 mr-2" />
-                                        View Members
-                                    </Button>
-                                </Link>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
