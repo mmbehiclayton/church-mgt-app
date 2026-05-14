@@ -1409,6 +1409,31 @@ export async function deleteMember(id: string) {
     }
 }
 
+export async function getMembersWithoutPhone() {
+    try {
+        await requirePermission('members', 'read');
+        const members = await prisma.member.findMany({
+            where: {
+                phoneNumber: "",
+            },
+            select: {
+                id: true,
+                fullName: true,
+                phoneNumber: true,
+                gender: true,
+                estate: true,
+                homeFellowship: { select: { name: true } },
+                departments: { select: { department: { select: { name: true } } } },
+            },
+            orderBy: { fullName: "asc" },
+        });
+        return { data: members };
+    } catch (error) {
+        console.error("getMembersWithoutPhone error:", error);
+        return { error: "Failed to fetch members" };
+    }
+}
+
 export async function bulkUpdateMembers(
     ids: string[],
     update: {
