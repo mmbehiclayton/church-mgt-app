@@ -330,7 +330,7 @@ export async function searchMembers(query: string): Promise<{ id: string; fullNa
     }
 }
 
-export async function getTransactions(filter?: { categoryIds?: string[], startDate?: Date, endDate?: Date }) {
+export async function getTransactions(filter?: { categoryIds?: string[], startDate?: Date, endDate?: Date, ref?: string }) {
     try {
         await requirePermission('transactions', 'read');
     } catch (error) {
@@ -348,6 +348,10 @@ export async function getTransactions(filter?: { categoryIds?: string[], startDa
         where.transactionDate = {};
         if (filter.startDate) where.transactionDate.gte = filter.startDate;
         if (filter.endDate) where.transactionDate.lte = filter.endDate;
+    }
+
+    if (filter?.ref) {
+        where.reference = { contains: filter.ref, mode: 'insensitive' };
     }
 
     return await prisma.transaction.findMany({

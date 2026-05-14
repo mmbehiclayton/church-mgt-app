@@ -21,7 +21,7 @@ import {
 export const dynamic = "force-dynamic";
 
 interface PageProps {
-    searchParams: Promise<{ from?: string; to?: string; categories?: string }>;
+    searchParams: Promise<{ from?: string; to?: string; categories?: string; ref?: string }>;
 }
 
 export default async function FinanceDashboardPage({ searchParams }: PageProps) {
@@ -30,7 +30,8 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
     const endDate = sp.to ? new Date(sp.to) : undefined;
     if (endDate) endDate.setHours(23, 59, 59, 999);
     const categoryIds = sp.categories ? sp.categories.split(",") : undefined;
-    const filters = { startDate, endDate, categoryIds };
+    const ref = sp.ref?.trim() || undefined;
+    const filters = { startDate, endDate, categoryIds, ref };
 
     const [
         canReadTransactions,

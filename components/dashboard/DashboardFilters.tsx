@@ -2,9 +2,10 @@
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
+import { Calendar as CalendarIcon, Check, ChevronsUpDown, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import {
     Popover,
@@ -19,7 +20,7 @@ import {
     CommandItem,
     CommandList
 } from "@/components/ui/command";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DateRange } from "react-day-picker";
 
 interface Category {
@@ -40,32 +41,45 @@ export default function DashboardFilters({ categories }: { categories: Category[
 
     // -- Category State --
     const [openCategory, setOpenCategory] = useState(false);
-    // Parse "cat=id1,id2"
     const initialCats = searchParams.get("categories")?.split(",") || [];
     const [selectedCategories, setSelectedCategories] = useState<string[]>(initialCats);
 
-    // Apply Filters Effect
+    // -- Reference search state (debounced) --
+    const [refInput, setRefInput] = useState(searchParams.get("ref") || "");
+    const refTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Apply Filters Effect (date + categories)
     useEffect(() => {
         const params = new URLSearchParams(searchParams);
 
-        // Date
         if (date?.from) params.set("from", format(date.from, "yyyy-MM-dd"));
         else params.delete("from");
 
         if (date?.to) params.set("to", format(date.to, "yyyy-MM-dd"));
         else params.delete("to");
 
-        // Categories
-        if (selectedCategories.length > 0) {
-            params.set("categories", selectedCategories.join(","));
-        } else {
-            params.delete("categories");
-        }
+        if (selectedCategories.length > 0) params.set("categories", selectedCategories.join(","));
+        else params.delete("categories");
 
         if (params.toString() !== searchParams.toString()) {
             router.push(`${pathname}?${params.toString()}`);
         }
     }, [date, selectedCategories, pathname, router, searchParams]);
+
+    // Debounced reference search
+    useEffect(() => {
+        if (refTimer.current) clearTimeout(refTimer.current);
+        refTimer.current = setTimeout(() => {
+            const params = new URLSearchParams(searchParams);
+            if (refInput.trim()) params.set("ref", refInput.trim());
+            else params.delete("ref");
+            if (params.toString() !== searchParams.toString()) {
+                router.push(`${pathname}?${params.toString()}`);
+            }
+        }, 350);
+        return () => { if (refTimer.current) clearTimeout(refTimer.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [refInput]);
 
     const toggleCategory = (id: string) => {
         if (selectedCategories.includes(id)) {
@@ -75,26 +89,36 @@ export default function DashboardFilters({ categories }: { categories: Category[
         }
     };
 
+    const hasFilters = !!(date?.from || date?.to || selectedCategories.length > 0 || refInput.trim());
+
+    function resetAll() {
+        setDate(undefined);
+        setSelectedCategories([]);
+        setRefInput("");
+    }
+
     return (
-        <div className="bg-card p-3 rounded-lg border border-border shadow-sm space-y-2 sm:space-y-0 sm:flex sm:items-center sm:gap-4">
-            <div className="flex items-center gap-2 justify-between sm:justify-start">
-                <span className="text-sm font-medium text-foreground">Filters:</span>
-                {(date?.from || selectedCategories.length > 0) && (
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                            setDate(undefined);
-                            setSelectedCategories([]);
-                        }}
-                        className="text-red-500 hover:text-red-600 h-8 sm:hidden"
+        <div className="bg-card p-3 rounded-lg border border-border shadow-sm flex flex-wrap items-center gap-2">
+            {/* Reference search */}
+            <div className="relative w-full sm:w-48">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                <Input
+                    placeholder="Transaction code…"
+                    value={refInput}
+                    onChange={e => setRefInput(e.target.value)}
+                    className="pl-8 h-9 text-sm font-mono"
+                />
+                {refInput && (
+                    <button
+                        onClick={() => setRefInput("")}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted-foreground hover:text-foreground"
                     >
-                        Reset
-                    </Button>
+                        <X className="h-3.5 w-3.5" />
+                    </button>
                 )}
             </div>
 
-            <div className="flex flex-col gap-2 w-full sm:flex-row sm:w-auto sm:items-center">
+            <div className="flex flex-wrap gap-2 items-center">
                 {/* Start Date */}
                 <Popover>
                     <PopoverTrigger asChild>
@@ -186,16 +210,14 @@ export default function DashboardFilters({ categories }: { categories: Category[
                 </PopoverContent>
             </Popover>
 
-            {(date?.from || selectedCategories.length > 0) && (
+            {hasFilters && (
                 <Button
                     variant="ghost"
-                    onClick={() => {
-                        setDate(undefined);
-                        setSelectedCategories([]);
-                    }}
-                    className="text-red-500 hover:text-red-600 hidden sm:inline-flex"
+                    size="sm"
+                    onClick={resetAll}
+                    className="text-muted-foreground hover:text-foreground h-9 px-2.5"
                 >
-                    Reset
+                    <X className="h-3.5 w-3.5 mr-1" /> Clear
                 </Button>
             )}
         </div>
