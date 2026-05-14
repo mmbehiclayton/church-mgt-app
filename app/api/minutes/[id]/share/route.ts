@@ -28,8 +28,9 @@ export async function GET(
 
     const publicId = extractPublicId(record.filePath);
 
-    const signedUrl = cloudinary.utils.private_download_url(publicId, "pdf", {
+    const signedUrl = cloudinary.utils.private_download_url(publicId, "", {
         resource_type: "raw",
+        type: "upload",
         expires_at: Math.floor(Date.now() / 1000) + 3600,
         attachment: false,
     });

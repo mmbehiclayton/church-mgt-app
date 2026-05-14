@@ -38,9 +38,12 @@ export async function GET(
     const download = req.nextUrl.searchParams.get("download") === "1";
     const publicId = extractPublicId(record.filePath);
 
-    // Generate a signed URL valid for 1 hour
-    const signedUrl = cloudinary.utils.private_download_url(publicId, "pdf", {
+    // Generate a signed URL valid for 1 hour.
+    // Must pass type:"upload" — without it Cloudinary defaults to "authenticated"
+    // and returns 404. Pass format:"" so it doesn't double-append ".pdf".
+    const signedUrl = cloudinary.utils.private_download_url(publicId, "", {
         resource_type: "raw",
+        type: "upload",
         expires_at: Math.floor(Date.now() / 1000) + 3600,
         attachment: download,
     });
