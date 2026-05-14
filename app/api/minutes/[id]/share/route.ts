@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
+import { v2 as cloudinary } from "cloudinary";
 
 export const runtime = "nodejs";
+
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+function extractPublicId(filePath: string): string {
+    const match = filePath.match(/\/raw\/upload\/(?:v\d+\/)?(.+)$/);
+    return match ? match[1] : filePath;
+}
 
 // Public route — no auth required — so a shared link can be opened by anyone
 export async function GET(
@@ -14,9 +26,25 @@ export async function GET(
         return new NextResponse("Document not found", { status: 404 });
     }
 
-    const url = record.filePath.startsWith("http")
-        ? record.filePath
-        : `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/raw/upload/${record.filePath}`;
+    const publicId = extractPublicId(record.filePath);
 
-    return NextResponse.redirect(url);
+    const signedUrl = cloudinary.utils.private_download_url(publicId, "pdf", {
+        resource_type: "raw",
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        attachment: false,
+    });
+
+    const upstream = await fetch(signedUrl);
+    if (!upstream.ok) {
+        return new NextResponse(`Could not load document (${upstream.status})`, { status: 502 });
+    }
+
+    return new NextResponse(upstream.body, {
+        status: 200,
+        headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `inline; filename="${record.fileName}"`,
+            "Cache-Control": "private, max-age=3600",
+        },
+    });
 }
