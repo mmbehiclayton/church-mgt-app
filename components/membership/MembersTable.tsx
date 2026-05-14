@@ -462,7 +462,7 @@ export default function MembersTable({
                                                 "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
                                                 member.gender === "Male"
                                                     ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
-                                                    : "bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300"
+                                                    : "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
                                             )}
                                         >
                                             {member.gender}
@@ -474,7 +474,7 @@ export default function MembersTable({
                                                 {member.departments.map(({ department }) => (
                                                     <span
                                                         key={department.id}
-                                                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
+                                                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
                                                     >
                                                         {department.name}
                                                     </span>
