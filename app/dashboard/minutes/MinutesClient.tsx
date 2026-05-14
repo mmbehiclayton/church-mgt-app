@@ -173,8 +173,8 @@ export default function MinutesClient({ initialMinutes, initialPagination, meeti
             setUploadForm({ title: "", meetingDate: "", meetingType: "", description: "" });
             setUploadFile(null);
             fetchMinutes(debouncedSearch, filterType, 1);
-        } catch {
-            toast.error("Upload failed — please try again");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Upload failed — please try again");
         } finally {
             setUploading(false);
         }
