@@ -157,10 +157,13 @@ function SingleReport({ sessions, canSms }: Props) {
     const [department, setDepartment] = useState(ALL);
     const [gender, setGender] = useState(ALL);
 
-    async function load(id: string) {
-        setSessionId(id);
+    async function generate() {
+        if (!sessionId) {
+            toast.error("Select a service first");
+            return;
+        }
         setLoading(true);
-        const result = await getSessionReport(id);
+        const result = await getSessionReport(sessionId);
         setLoading(false);
         if ("error" in result) {
             toast.error(result.error);
@@ -230,7 +233,7 @@ function SingleReport({ sessions, canSms }: Props) {
                 <CardContent className="p-4 flex flex-wrap items-end gap-3">
                     <div className="flex-1 min-w-[240px] space-y-1.5">
                         <label className="text-xs font-medium text-muted-foreground">Service</label>
-                        <Select value={sessionId} onValueChange={load}>
+                        <Select value={sessionId} onValueChange={setSessionId}>
                             <SelectTrigger><SelectValue placeholder="Choose a service…" /></SelectTrigger>
                             <SelectContent>
                                 {sessions.map(s => (
@@ -241,6 +244,10 @@ function SingleReport({ sessions, canSms }: Props) {
                             </SelectContent>
                         </Select>
                     </div>
+                    <Button onClick={generate} disabled={!sessionId || loading}>
+                        {loading ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <FileBarChart className="h-4 w-4 mr-1.5" />}
+                        Generate Report
+                    </Button>
                     {report && (
                         <div className="flex flex-wrap gap-2">
                             <Button variant="outline" size="sm" onClick={() => exportReport && exportSessionReportPdf(exportReport, filteredRows)}>
