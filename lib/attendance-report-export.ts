@@ -6,7 +6,45 @@ import type {
     SessionReport,
     SessionReportRow,
     ComparisonReport,
+    ReportBranding,
 } from "@/app/dashboard/attendance/attendance-actions";
+
+export interface LoadedLogo {
+    dataUrl: string;
+    width: number;
+    height: number;
+    format: "PNG" | "JPEG";
+}
+
+/**
+ * Best-effort fetch of the church logo as a data URL (with natural
+ * dimensions), so it can be embedded into PDF/Excel. Returns null on any
+ * failure (e.g. CORS) — callers should degrade gracefully to text-only.
+ */
+export async function loadLogo(url: string | null): Promise<LoadedLogo | null> {
+    if (!url) return null;
+    try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const blob = await res.blob();
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+        const dims = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+            img.onerror = reject;
+            img.src = dataUrl;
+        });
+        const fmt: "PNG" | "JPEG" = /image\/png/i.test(dataUrl) ? "PNG" : "JPEG";
+        return { dataUrl, width: dims.width, height: dims.height, format: fmt };
+    } catch {
+        return null;
+    }
+}
 
 const TYPE_LABEL: Record<string, string> = {
     SUNDAY_SERVICE: "Sunday Service",
@@ -49,6 +87,76 @@ function toCsv(rows: (string | number)[][]): string {
         .join("\n");
 }
 
+/** Compact "Led by … · email · phone" line from branding. */
+function contactLine(branding?: ReportBranding): string {
+    if (!branding) return "";
+    const parts: string[] = [];
+    if (branding.leaderName) parts.push(`Led by ${branding.leaderName}`);
+    if (branding.phone) parts.push(branding.phone);
+    if (branding.email) parts.push(branding.email);
+    return parts.join("  ·  ");
+}
+
+/**
+ * Draw the church letterhead (logo + name + contacts) at the top of a PDF.
+ * Returns the Y position where body content should start.
+ */
+function pdfBrandingHeader(doc: jsPDF, branding: ReportBranding | undefined, logo: LoadedLogo | null): number {
+    let textX = 14;
+    let y = 16;
+    if (logo) {
+        const h = 18; // mm
+        const w = Math.max(8, Math.min(40, (logo.width / logo.height) * h));
+        try {
+            doc.addImage(logo.dataUrl, logo.format, 14, 12, w, h);
+            textX = 14 + w + 5;
+        } catch {
+            /* ignore bad image */
+        }
+    }
+    if (branding) {
+        doc.setFontSize(15);
+        doc.setFont("helvetica", "bold");
+        doc.text(branding.name, textX, y);
+        const contact = contactLine(branding);
+        if (contact) {
+            y += 6;
+            doc.setFontSize(9);
+            doc.setFont("helvetica", "normal");
+            doc.text(contact, textX, y);
+        }
+    }
+    // Divider under the letterhead
+    const dividerY = Math.max(y + 4, logo ? 33 : y + 4);
+    doc.setDrawColor(200);
+    doc.line(14, dividerY, 196, dividerY);
+    return dividerY + 7;
+}
+
+/** Add a branding metadata block to the top of an ExcelJS worksheet. */
+function excelBrandingRows(ws: ExcelJS.Worksheet, branding: ReportBranding | undefined, logo: LoadedLogo | null, workbook: ExcelJS.Workbook) {
+    if (branding) {
+        const nameRow = ws.addRow([branding.name]);
+        nameRow.font = { bold: true, size: 14 };
+        const contact = contactLine(branding);
+        if (contact) ws.addRow([contact]).font = { size: 10 };
+    }
+    // Float the logo to the right of the metadata (cols A/B) so they don't overlap.
+    if (logo) {
+        try {
+            const ratio = logo.width / logo.height;
+            const imageId = workbook.addImage({
+                base64: logo.dataUrl,
+                extension: logo.format === "PNG" ? "png" : "jpeg",
+            });
+            ws.addImage(imageId, { tl: { col: 4, row: 0 }, ext: { width: Math.round(64 * ratio), height: 64 } });
+        } catch {
+            /* ignore */
+        }
+    }
+    ws.addRow([]);
+}
+
 /* ── Single-session exports ─────────────────────────────────────────────── */
 
 function rosterRows(rows: SessionReportRow[]) {
@@ -63,13 +171,21 @@ function rosterRows(rows: SessionReportRow[]) {
     ]);
 }
 
-export function exportSessionReportCsv(report: SessionReport, filteredRows: SessionReportRow[]) {
+export function exportSessionReportCsv(report: SessionReport, filteredRows: SessionReportRow[], branding?: ReportBranding) {
+    const meta: (string | number)[][] = [];
+    if (branding) {
+        meta.push([branding.name]);
+        const contact = contactLine(branding);
+        if (contact) meta.push([contact]);
+        meta.push([`${typeLabel(report.session.type)} — ${format(new Date(report.session.date), "PPP")}`]);
+        meta.push([]);
+    }
     const header = ["#", "Name", "Phone", "Gender", "Fellowship", "Departments", "Status"];
-    const csv = toCsv([header, ...rosterRows(filteredRows)]);
+    const csv = toCsv([...meta, header, ...rosterRows(filteredRows)]);
     downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), `attendance_${report.session.type.toLowerCase()}_${sessionStamp(report)}.csv`);
 }
 
-export async function exportSessionReportExcel(report: SessionReport, filteredRows: SessionReportRow[]) {
+export async function exportSessionReportExcel(report: SessionReport, filteredRows: SessionReportRow[], branding?: ReportBranding, logo: LoadedLogo | null = null) {
     const workbook = new ExcelJS.Workbook();
     const dateStr = format(new Date(report.session.date), "PPP");
 
@@ -88,6 +204,7 @@ export async function exportSessionReportExcel(report: SessionReport, filteredRo
     const summary = workbook.addWorksheet("Summary");
     summary.getColumn(1).width = 24;
     summary.getColumn(2).width = 28;
+    excelBrandingRows(summary, branding, logo, workbook);
     summary.addRow(["Attendance Report", ""]).font = { bold: true, size: 14 };
     summary.addRow(["Service", typeLabel(report.session.type)]);
     summary.addRow(["Date", dateStr]);
@@ -138,21 +255,25 @@ export async function exportSessionReportExcel(report: SessionReport, filteredRo
     );
 }
 
-export function exportSessionReportPdf(report: SessionReport, filteredRows: SessionReportRow[]) {
+export function exportSessionReportPdf(report: SessionReport, filteredRows: SessionReportRow[], branding?: ReportBranding, logo: LoadedLogo | null = null) {
     const doc = new jsPDF();
     const dateStr = format(new Date(report.session.date), "PPP");
 
-    doc.setFontSize(16);
-    doc.text("Attendance Report", 14, 18);
+    let startY = pdfBrandingHeader(doc, branding, logo);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("Attendance Report", 14, startY);
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(`${typeLabel(report.session.type)} · ${dateStr}`, 14, 25);
+    doc.text(`${typeLabel(report.session.type)} · ${dateStr}`, 14, startY + 6);
     doc.text(
         `Present: ${report.summary.present}   Absent: ${report.summary.absent}   Excused: ${report.summary.excused}   Rate: ${report.summary.rate}%`,
         14,
-        31
+        startY + 12
     );
 
-    let startY = 37;
+    startY = startY + 18;
     const section = (title: string, rows: SessionReportRow[]) => {
         if (rows.length === 0) return;
         doc.setFontSize(12);
@@ -205,12 +326,20 @@ function comparisonMatrix(report: ComparisonReport) {
     return { head, rows };
 }
 
-export function exportComparisonCsv(report: ComparisonReport) {
+export function exportComparisonCsv(report: ComparisonReport, branding?: ReportBranding) {
     const { head, rows } = comparisonMatrix(report);
-    downloadBlob(new Blob([toCsv([head, ...rows])], { type: "text/csv;charset=utf-8" }), `attendance_comparison_${compStamp()}.csv`);
+    const meta: (string | number)[][] = [];
+    if (branding) {
+        meta.push([branding.name]);
+        const contact = contactLine(branding);
+        if (contact) meta.push([contact]);
+        meta.push([`Attendance Comparison — ${report.sessions.length} services`]);
+        meta.push([]);
+    }
+    downloadBlob(new Blob([toCsv([...meta, head, ...rows])], { type: "text/csv;charset=utf-8" }), `attendance_comparison_${compStamp()}.csv`);
 }
 
-export async function exportComparisonExcel(report: ComparisonReport) {
+export async function exportComparisonExcel(report: ComparisonReport, branding?: ReportBranding, logo: LoadedLogo | null = null) {
     const workbook = new ExcelJS.Workbook();
     const styleHeader = (row: ExcelJS.Row) => {
         row.font = { bold: true };
@@ -223,6 +352,7 @@ export async function exportComparisonExcel(report: ComparisonReport) {
     const { head, rows } = comparisonMatrix(report);
     cmp.getColumn(1).width = 16;
     report.sessions.forEach((_, i) => (cmp.getColumn(i + 2).width = 20));
+    excelBrandingRows(cmp, branding, logo, workbook);
     styleHeader(cmp.addRow(head));
     rows.forEach(r => cmp.addRow(r));
 
@@ -243,16 +373,19 @@ export async function exportComparisonExcel(report: ComparisonReport) {
     );
 }
 
-export function exportComparisonPdf(report: ComparisonReport) {
+export function exportComparisonPdf(report: ComparisonReport, branding?: ReportBranding, logo: LoadedLogo | null = null) {
     const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text("Attendance Comparison", 14, 18);
+    const headerY = pdfBrandingHeader(doc, branding, logo);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("Attendance Comparison", 14, headerY);
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(`Generated ${format(new Date(), "PPP")} · ${report.sessions.length} services`, 14, 25);
+    doc.text(`Generated ${format(new Date(), "PPP")} · ${report.sessions.length} services`, 14, headerY + 6);
 
     const { head, rows } = comparisonMatrix(report);
     autoTable(doc, {
-        startY: 31,
+        startY: headerY + 12,
         head: [head],
         body: rows.map(r => r.map(String)),
         styles: { fontSize: 8 },

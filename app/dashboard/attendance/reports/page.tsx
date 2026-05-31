@@ -1,5 +1,5 @@
 import { hasPermission } from "@/lib/rbac";
-import { getReportSessionsList } from "../attendance-actions";
+import { getReportSessionsList, getReportBranding } from "../attendance-actions";
 import ReportsClient from "./ReportsClient";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +19,10 @@ export default async function AttendanceReportsPage() {
         );
     }
 
-    const sessions = await getReportSessionsList();
-    const canSms = await hasPermission("sms", "create");
-    return <ReportsClient sessions={sessions} canSms={canSms} />;
+    const [sessions, branding, canSms] = await Promise.all([
+        getReportSessionsList(),
+        getReportBranding(),
+        hasPermission("sms", "create"),
+    ]);
+    return <ReportsClient sessions={sessions} branding={branding} canSms={canSms} />;
 }

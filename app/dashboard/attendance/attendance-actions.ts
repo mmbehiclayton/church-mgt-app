@@ -328,6 +328,32 @@ export async function deleteAttendanceSession(id: string): Promise<{ success?: b
  * Reports & analytics
  * ────────────────────────────────────────────────────────────────────────── */
 
+export interface ReportBranding {
+  name: string;
+  leaderName: string | null;
+  email: string | null;
+  phone: string | null;
+  logoUrl: string | null;
+}
+
+/**
+ * Church branding for report headers. Guarded by `attendance:read` (not
+ * `settings:read`) so any report viewer can render the letterhead.
+ */
+export async function getReportBranding(): Promise<ReportBranding> {
+  await requirePermission("attendance", "read");
+  const org = await prisma.organization.findFirst({
+    select: { name: true, leaderName: true, email: true, phone: true, logoUrl: true },
+  });
+  return {
+    name: org?.name || "Church",
+    leaderName: org?.leaderName || null,
+    email: org?.email || null,
+    phone: org?.phone || null,
+    logoUrl: org?.logoUrl || null,
+  };
+}
+
 export type ReportStatus = "PRESENT" | "ABSENT" | "EXCUSED" | "NOT_RECORDED";
 
 export interface ReportSessionListItem {

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
     ArrowLeft,
@@ -55,6 +55,7 @@ import {
     type SessionReport,
     type SessionReportRow,
     type ComparisonReport,
+    type ReportBranding,
 } from "../attendance-actions";
 import {
     exportSessionReportCsv,
@@ -63,6 +64,8 @@ import {
     exportComparisonCsv,
     exportComparisonExcel,
     exportComparisonPdf,
+    loadLogo,
+    type LoadedLogo,
 } from "@/lib/attendance-report-export";
 
 const TYPE_LABEL: Record<string, string> = {
@@ -81,6 +84,14 @@ const ALL = "ALL";
 
 interface Props {
     sessions: ReportSessionListItem[];
+    branding: ReportBranding;
+    canSms: boolean;
+}
+
+interface SubProps {
+    sessions: ReportSessionListItem[];
+    branding: ReportBranding;
+    logo: LoadedLogo | null;
     canSms: boolean;
 }
 
@@ -88,8 +99,37 @@ function sessionLabel(s: ReportSessionListItem) {
     return `${TYPE_LABEL[s.type] ?? s.type} · ${format(new Date(s.date), "dd MMM yyyy")}`;
 }
 
-export default function ReportsClient({ sessions, canSms }: Props) {
+/** Branded letterhead — shown only when printing. */
+function PrintHeader({ branding }: { branding: ReportBranding }) {
+    const contacts = [
+        branding.leaderName ? `Led by ${branding.leaderName}` : null,
+        branding.phone,
+        branding.email,
+    ].filter(Boolean).join("  ·  ");
+    return (
+        <div className="hidden print:flex items-center gap-4 border-b border-black/20 pb-3 mb-4">
+            {branding.logoUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={branding.logoUrl} alt="" className="h-16 w-16 object-contain" />
+            )}
+            <div>
+                <div className="text-xl font-bold">{branding.name}</div>
+                {contacts && <div className="text-xs">{contacts}</div>}
+            </div>
+        </div>
+    );
+}
+
+export default function ReportsClient({ sessions, branding, canSms }: Props) {
     const [mode, setMode] = useState<"single" | "compare">("single");
+    const [logo, setLogo] = useState<LoadedLogo | null>(null);
+
+    // Preload the logo once for embedding into PDF/Excel exports (best-effort).
+    useEffect(() => {
+        let active = true;
+        loadLogo(branding.logoUrl).then(l => { if (active) setLogo(l); });
+        return () => { active = false; };
+    }, [branding.logoUrl]);
 
     return (
         <div className="space-y-6">
@@ -138,9 +178,9 @@ export default function ReportsClient({ sessions, canSms }: Props) {
                     bordered
                 />
             ) : mode === "single" ? (
-                <SingleReport sessions={sessions} canSms={canSms} />
+                <SingleReport sessions={sessions} branding={branding} logo={logo} canSms={canSms} />
             ) : (
-                <CompareReport sessions={sessions} canSms={canSms} />
+                <CompareReport sessions={sessions} branding={branding} logo={logo} canSms={canSms} />
             )}
         </div>
     );
@@ -148,7 +188,7 @@ export default function ReportsClient({ sessions, canSms }: Props) {
 
 /* ── Single service report ──────────────────────────────────────────────── */
 
-function SingleReport({ sessions, canSms }: Props) {
+function SingleReport({ sessions, branding, logo, canSms }: SubProps) {
     const [sessionId, setSessionId] = useState<string>(sessions[0]?.id ?? "");
     const [report, setReport] = useState<SessionReport | null>(null);
     const [loading, setLoading] = useState(false);
@@ -250,13 +290,13 @@ function SingleReport({ sessions, canSms }: Props) {
                     </Button>
                     {report && (
                         <div className="flex flex-wrap gap-2">
-                            <Button variant="outline" size="sm" onClick={() => exportReport && exportSessionReportPdf(exportReport, filteredRows)}>
+                            <Button variant="outline" size="sm" onClick={() => exportReport && exportSessionReportPdf(exportReport, filteredRows, branding, logo)}>
                                 <FileText className="h-3.5 w-3.5 mr-1.5" /> PDF
                             </Button>
-                            <Button variant="outline" size="sm" onClick={() => exportReport && exportSessionReportExcel(exportReport, filteredRows)}>
+                            <Button variant="outline" size="sm" onClick={() => exportReport && exportSessionReportExcel(exportReport, filteredRows, branding, logo)}>
                                 <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" /> Excel
                             </Button>
-                            <Button variant="outline" size="sm" onClick={() => exportReport && exportSessionReportCsv(exportReport, filteredRows)}>
+                            <Button variant="outline" size="sm" onClick={() => exportReport && exportSessionReportCsv(exportReport, filteredRows, branding)}>
                                 <Download className="h-3.5 w-3.5 mr-1.5" /> CSV
                             </Button>
                             <Button variant="outline" size="sm" onClick={() => window.print()}>
@@ -275,9 +315,10 @@ function SingleReport({ sessions, canSms }: Props) {
                 <EmptyState icon={FileBarChart} title="Select a service" description="Pick a service above to generate its report." bordered />
             ) : (
                 <div className="space-y-6">
-                    {/* Print header (only visible when printing) */}
+                    {/* Print letterhead (only visible when printing) */}
+                    <PrintHeader branding={branding} />
                     <div className="hidden print:block mb-4">
-                        <h1 className="text-xl font-bold">Attendance Report</h1>
+                        <h1 className="text-lg font-bold">Attendance Report</h1>
                         <p className="text-sm">
                             {TYPE_LABEL[report.session.type] ?? report.session.type} · {format(new Date(report.session.date), "PPP")}
                             {report.session.description ? ` · ${report.session.description}` : ""}
@@ -469,7 +510,7 @@ function RosterTable({ rows, canSms, showStatus }: { rows: SessionReportRow[]; c
 
 /* ── Compare services ───────────────────────────────────────────────────── */
 
-function CompareReport({ sessions, canSms }: Props) {
+function CompareReport({ sessions, branding, logo, canSms }: SubProps) {
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [comparison, setComparison] = useState<ComparisonReport | null>(null);
     const [loading, setLoading] = useState(false);
@@ -538,13 +579,13 @@ function CompareReport({ sessions, canSms }: Props) {
                 <div className="space-y-6">
                     {/* Export bar */}
                     <div className="flex flex-wrap gap-2 print:hidden">
-                        <Button variant="outline" size="sm" onClick={() => exportComparisonPdf(comparison)}>
+                        <Button variant="outline" size="sm" onClick={() => exportComparisonPdf(comparison, branding, logo)}>
                             <FileText className="h-3.5 w-3.5 mr-1.5" /> PDF
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => exportComparisonExcel(comparison)}>
+                        <Button variant="outline" size="sm" onClick={() => exportComparisonExcel(comparison, branding, logo)}>
                             <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" /> Excel
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => exportComparisonCsv(comparison)}>
+                        <Button variant="outline" size="sm" onClick={() => exportComparisonCsv(comparison, branding)}>
                             <Download className="h-3.5 w-3.5 mr-1.5" /> CSV
                         </Button>
                         <Button variant="outline" size="sm" onClick={() => window.print()}>
@@ -552,8 +593,9 @@ function CompareReport({ sessions, canSms }: Props) {
                         </Button>
                     </div>
 
+                    <PrintHeader branding={branding} />
                     <div className="hidden print:block">
-                        <h1 className="text-xl font-bold">Attendance Comparison</h1>
+                        <h1 className="text-lg font-bold">Attendance Comparison</h1>
                         <p className="text-sm">{comparison.sessions.length} services · {format(new Date(), "PPP")}</p>
                     </div>
 
