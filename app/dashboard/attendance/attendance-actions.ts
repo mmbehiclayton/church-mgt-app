@@ -391,6 +391,7 @@ export interface SessionReportRow {
   fellowshipName: string;
   departments: string[];
   status: ReportStatus;
+  notes: string | null;
 }
 
 export interface GroupBreakdown {
@@ -441,23 +442,27 @@ export async function getSessionReport(sessionId: string): Promise<SessionReport
     }),
     prisma.attendanceRecord.findMany({
       where: { sessionId },
-      select: { memberId: true, status: true },
+      select: { memberId: true, status: true, notes: true },
     }),
   ]);
 
-  const statusMap = new Map<string, ReportStatus>();
-  for (const r of records) statusMap.set(r.memberId, r.status as ReportStatus);
+  const statusMap = new Map<string, { status: ReportStatus; notes: string | null }>();
+  for (const r of records) statusMap.set(r.memberId, { status: r.status as ReportStatus, notes: r.notes });
 
-  const rows: SessionReportRow[] = members.map(m => ({
-    id: m.id,
-    fullName: m.fullName,
-    phoneNumber: m.phoneNumber,
-    gender: m.gender,
-    fellowshipId: m.homeFellowshipId,
-    fellowshipName: m.homeFellowship?.name ?? "Unassigned",
-    departments: m.departments.map(d => d.department.name),
-    status: statusMap.get(m.id) ?? "NOT_RECORDED",
-  }));
+  const rows: SessionReportRow[] = members.map(m => {
+    const rec = statusMap.get(m.id);
+    return {
+      id: m.id,
+      fullName: m.fullName,
+      phoneNumber: m.phoneNumber,
+      gender: m.gender,
+      fellowshipId: m.homeFellowshipId,
+      fellowshipName: m.homeFellowship?.name ?? "Unassigned",
+      departments: m.departments.map(d => d.department.name),
+      status: rec?.status ?? "NOT_RECORDED",
+      notes: rec?.notes ?? null,
+    };
+  });
 
   const summary = {
     present: rows.filter(r => r.status === "PRESENT").length,
@@ -659,5 +664,97 @@ export async function getComparisonReport(sessionIds: string[]): Promise<Compari
     });
 
   return { sessions: sessionSummaries, consistentlyPresent, consistentlyAbsent, byFellowship };
+}
+
+/**
+ * Per-member attendance history across the most recent sessions.
+ *
+ * NOTE on watchlists — there are deliberately two notions in this module:
+ *  • the GLOBAL rolling watchlist (`getWatchlist`): members absent in the last
+ *    2 consecutive submitted Sunday services — used by the watchlist page/KPI.
+ *  • the per-report CONTEXTUAL watchlist (in `getSessionReport`): members absent
+ *    in a chosen service AND the immediately preceding same-type service — so an
+ *    older report stays accurate to its own date.
+ * They answer different questions; keep them distinct.
+ */
+/** Member lookup for the report member-history search (guarded by attendance:read). */
+export async function searchMembersForReports(query: string): Promise<{ id: string; fullName: string; phoneNumber: string }[]> {
+  await requirePermission("attendance", "read");
+  if (!query.trim()) return [];
+  return prisma.member.findMany({
+    where: {
+      OR: [
+        { fullName: { contains: query, mode: "insensitive" } },
+        { phoneNumber: { contains: query } },
+      ],
+    },
+    select: { id: true, fullName: true, phoneNumber: true },
+    orderBy: { fullName: "asc" },
+    take: 10,
+  });
+}
+
+export interface MemberHistory {
+  member: { id: string; fullName: string; phoneNumber: string; fellowshipName: string; gender: string };
+  sessions: { id: string; date: string; type: string; status: ReportStatus; notes: string | null }[];
+  summary: { present: number; absent: number; excused: number; recorded: number; total: number; rate: number };
+}
+
+export async function getMemberAttendanceHistory(memberId: string, limit = 16): Promise<MemberHistory | { error: string }> {
+  await requirePermission("attendance", "read");
+
+  const member = await prisma.member.findUnique({
+    where: { id: memberId },
+    select: { id: true, fullName: true, phoneNumber: true, gender: true, homeFellowship: { select: { name: true } } },
+  });
+  if (!member) return { error: "Member not found" };
+
+  // Most recent submitted sessions, newest first
+  const sessions = await prisma.attendanceSession.findMany({
+    where: { status: "SUBMITTED" },
+    orderBy: { date: "desc" },
+    take: limit,
+    select: {
+      id: true,
+      date: true,
+      type: true,
+      records: { where: { memberId }, select: { status: true, notes: true } },
+    },
+  });
+
+  const history = sessions.map(s => {
+    const rec = s.records[0];
+    return {
+      id: s.id,
+      date: s.date.toISOString(),
+      type: s.type,
+      status: (rec?.status as ReportStatus) ?? "NOT_RECORDED",
+      notes: rec?.notes ?? null,
+    };
+  });
+
+  const present = history.filter(h => h.status === "PRESENT").length;
+  const absent = history.filter(h => h.status === "ABSENT").length;
+  const excused = history.filter(h => h.status === "EXCUSED").length;
+  const recorded = history.filter(h => h.status !== "NOT_RECORDED").length;
+
+  return {
+    member: {
+      id: member.id,
+      fullName: member.fullName,
+      phoneNumber: member.phoneNumber,
+      gender: member.gender,
+      fellowshipName: member.homeFellowship?.name ?? "Unassigned",
+    },
+    sessions: history,
+    summary: {
+      present,
+      absent,
+      excused,
+      recorded,
+      total: history.length,
+      rate: recorded > 0 ? Math.round((present / recorded) * 1000) / 10 : 0,
+    },
+  };
 }
 

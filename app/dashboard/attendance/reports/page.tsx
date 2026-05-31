@@ -1,6 +1,8 @@
 import { hasPermission } from "@/lib/rbac";
 import { getReportSessionsList, getReportBranding } from "../attendance-actions";
 import ReportsClient from "./ReportsClient";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +21,12 @@ export default async function AttendanceReportsPage() {
         );
     }
 
-    const [sessions, branding, canSms] = await Promise.all([
+    const [sessions, branding, canSms, session] = await Promise.all([
         getReportSessionsList(),
         getReportBranding(),
         hasPermission("sms", "create"),
+        getServerSession(authOptions),
     ]);
-    return <ReportsClient sessions={sessions} branding={branding} canSms={canSms} />;
+    const generatedBy = session?.user?.name || session?.user?.email || undefined;
+    return <ReportsClient sessions={sessions} branding={branding} canSms={canSms} generatedBy={generatedBy} />;
 }

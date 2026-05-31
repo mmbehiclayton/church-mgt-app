@@ -133,6 +133,22 @@ function pdfBrandingHeader(doc: jsPDF, branding: ReportBranding | undefined, log
     return dividerY + 7;
 }
 
+/** Footer line shown on every PDF page: attribution + page numbers. */
+function pdfFooter(doc: jsPDF, generatedBy?: string) {
+    const stamp = `Generated ${generatedBy ? `by ${generatedBy} ` : ""}on ${format(new Date(), "PPP p")}`;
+    const pageCount = doc.getNumberOfPages();
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7);
+        doc.setTextColor(130);
+        doc.text(stamp, 14, pageH - 8);
+        doc.text(`Page ${i} of ${pageCount}`, pageW - 14, pageH - 8, { align: "right" });
+    }
+    doc.setTextColor(0);
+}
+
 /** Add a branding metadata block to the top of an ExcelJS worksheet. */
 function excelBrandingRows(ws: ExcelJS.Worksheet, branding: ReportBranding | undefined, logo: LoadedLogo | null, workbook: ExcelJS.Workbook) {
     if (branding) {
@@ -168,24 +184,26 @@ function rosterRows(rows: SessionReportRow[]) {
         r.fellowshipName,
         r.departments.join(", ") || "—",
         STATUS_LABEL[r.status] ?? r.status,
+        r.notes || "",
     ]);
 }
 
-export function exportSessionReportCsv(report: SessionReport, filteredRows: SessionReportRow[], branding?: ReportBranding) {
+export function exportSessionReportCsv(report: SessionReport, filteredRows: SessionReportRow[], branding?: ReportBranding, generatedBy?: string) {
     const meta: (string | number)[][] = [];
     if (branding) {
         meta.push([branding.name]);
         const contact = contactLine(branding);
         if (contact) meta.push([contact]);
         meta.push([`${typeLabel(report.session.type)} — ${format(new Date(report.session.date), "PPP")}`]);
+        meta.push([`Generated ${generatedBy ? `by ${generatedBy} ` : ""}on ${format(new Date(), "PPP p")}`]);
         meta.push([]);
     }
-    const header = ["#", "Name", "Phone", "Gender", "Fellowship", "Departments", "Status"];
+    const header = ["#", "Name", "Phone", "Gender", "Fellowship", "Departments", "Status", "Notes"];
     const csv = toCsv([...meta, header, ...rosterRows(filteredRows)]);
     downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), `attendance_${report.session.type.toLowerCase()}_${sessionStamp(report)}.csv`);
 }
 
-export async function exportSessionReportExcel(report: SessionReport, filteredRows: SessionReportRow[], branding?: ReportBranding, logo: LoadedLogo | null = null) {
+export async function exportSessionReportExcel(report: SessionReport, filteredRows: SessionReportRow[], branding?: ReportBranding, logo: LoadedLogo | null = null, generatedBy?: string) {
     const workbook = new ExcelJS.Workbook();
     const dateStr = format(new Date(report.session.date), "PPP");
 
@@ -219,12 +237,14 @@ export async function exportSessionReportExcel(report: SessionReport, filteredRo
     if (report.summary.notRecorded > 0) summary.addRow(["Not recorded", report.summary.notRecorded]);
     summary.addRow(["Total members", report.summary.total]);
     summary.addRow(["Attendance rate", `${report.summary.rate}%`]);
+    summary.addRow([]);
+    summary.addRow(["Generated", `${generatedBy ? `by ${generatedBy} ` : ""}on ${format(new Date(), "PPP p")}`]).font = { italic: true, size: 9 };
 
     // Roster sheets per status
     const addRoster = (name: string, rows: SessionReportRow[]) => {
         const ws = workbook.addWorksheet(name);
-        [6, 22, 16, 10, 22, 28, 14].forEach((w, i) => (ws.getColumn(i + 1).width = w));
-        const head = ws.addRow(["#", "Name", "Phone", "Gender", "Fellowship", "Departments", "Status"]);
+        [6, 22, 16, 10, 22, 28, 14, 30].forEach((w, i) => (ws.getColumn(i + 1).width = w));
+        const head = ws.addRow(["#", "Name", "Phone", "Gender", "Fellowship", "Departments", "Status", "Notes"]);
         styleHeader(head);
         rosterRows(rows).forEach(r => ws.addRow(r));
     };
@@ -255,7 +275,7 @@ export async function exportSessionReportExcel(report: SessionReport, filteredRo
     );
 }
 
-export function exportSessionReportPdf(report: SessionReport, filteredRows: SessionReportRow[], branding?: ReportBranding, logo: LoadedLogo | null = null) {
+export function exportSessionReportPdf(report: SessionReport, filteredRows: SessionReportRow[], branding?: ReportBranding, logo: LoadedLogo | null = null, generatedBy?: string) {
     const doc = new jsPDF();
     const dateStr = format(new Date(report.session.date), "PPP");
 
@@ -274,24 +294,41 @@ export function exportSessionReportPdf(report: SessionReport, filteredRows: Sess
     );
 
     startY = startY + 18;
-    const section = (title: string, rows: SessionReportRow[]) => {
+    const section = (title: string, rows: SessionReportRow[], withNotes: boolean, fill: [number, number, number]) => {
         if (rows.length === 0) return;
         doc.setFontSize(12);
         doc.text(`${title} (${rows.length})`, 14, startY);
+        const head = withNotes
+            ? [["#", "Name", "Phone", "Gender", "Fellowship", "Notes"]]
+            : [["#", "Name", "Phone", "Gender", "Fellowship"]];
         autoTable(doc, {
             startY: startY + 3,
-            head: [["#", "Name", "Phone", "Gender", "Fellowship"]],
-            body: rows.map((r, i) => [i + 1, r.fullName, r.phoneNumber || "", r.gender || "", r.fellowshipName]),
+            head,
+            body: rows.map((r, i) => {
+                const base = [i + 1, r.fullName, r.phoneNumber || "", r.gender || "", r.fellowshipName];
+                return withNotes ? [...base, r.notes || ""] : base;
+            }),
             styles: { fontSize: 8 },
-            headStyles: { fillColor: [37, 99, 235] },
+            headStyles: { fillColor: fill },
         });
         // @ts-expect-error lastAutoTable is added by the autotable plugin
         startY = doc.lastAutoTable.finalY + 8;
     };
 
-    section("Present", filteredRows.filter(r => r.status === "PRESENT"));
-    section("Absent", filteredRows.filter(r => r.status === "ABSENT"));
-    section("Excused", filteredRows.filter(r => r.status === "EXCUSED"));
+    const presentRows = filteredRows.filter(r => r.status === "PRESENT");
+    const absentRows = filteredRows.filter(r => r.status === "ABSENT" || r.status === "NOT_RECORDED");
+    const excusedRows = filteredRows.filter(r => r.status === "EXCUSED");
+
+    if (presentRows.length === 0 && absentRows.length === 0 && excusedRows.length === 0) {
+        doc.setFontSize(10);
+        doc.setTextColor(120);
+        doc.text("No members match the selected filters.", 14, startY);
+        doc.setTextColor(0);
+    } else {
+        section("Present", presentRows, false, [16, 185, 129]);
+        section("Absent", absentRows, true, [239, 68, 68]);
+        section("Excused", excusedRows, true, [217, 119, 6]);
+    }
 
     if (report.watchlist.length > 0) {
         doc.setFontSize(12);
@@ -305,6 +342,7 @@ export function exportSessionReportPdf(report: SessionReport, filteredRows: Sess
         });
     }
 
+    pdfFooter(doc, generatedBy);
     downloadBlob(doc.output("blob"), `attendance_${report.session.type.toLowerCase()}_${sessionStamp(report)}.pdf`);
 }
 
@@ -326,7 +364,7 @@ function comparisonMatrix(report: ComparisonReport) {
     return { head, rows };
 }
 
-export function exportComparisonCsv(report: ComparisonReport, branding?: ReportBranding) {
+export function exportComparisonCsv(report: ComparisonReport, branding?: ReportBranding, generatedBy?: string) {
     const { head, rows } = comparisonMatrix(report);
     const meta: (string | number)[][] = [];
     if (branding) {
@@ -334,12 +372,13 @@ export function exportComparisonCsv(report: ComparisonReport, branding?: ReportB
         const contact = contactLine(branding);
         if (contact) meta.push([contact]);
         meta.push([`Attendance Comparison — ${report.sessions.length} services`]);
+        meta.push([`Generated ${generatedBy ? `by ${generatedBy} ` : ""}on ${format(new Date(), "PPP p")}`]);
         meta.push([]);
     }
     downloadBlob(new Blob([toCsv([...meta, head, ...rows])], { type: "text/csv;charset=utf-8" }), `attendance_comparison_${compStamp()}.csv`);
 }
 
-export async function exportComparisonExcel(report: ComparisonReport, branding?: ReportBranding, logo: LoadedLogo | null = null) {
+export async function exportComparisonExcel(report: ComparisonReport, branding?: ReportBranding, logo: LoadedLogo | null = null, generatedBy?: string) {
     const workbook = new ExcelJS.Workbook();
     const styleHeader = (row: ExcelJS.Row) => {
         row.font = { bold: true };
@@ -366,6 +405,9 @@ export async function exportComparisonExcel(report: ComparisonReport, branding?:
     styleHeader(absent.addRow(["#", "Name", "Phone", "Fellowship"]));
     report.consistentlyAbsent.forEach((m, i) => absent.addRow([i + 1, m.fullName, m.phoneNumber || "", m.fellowshipName]));
 
+    cmp.addRow([]);
+    cmp.addRow([`Generated ${generatedBy ? `by ${generatedBy} ` : ""}on ${format(new Date(), "PPP p")}`]).font = { italic: true, size: 9 };
+
     const buffer = await workbook.xlsx.writeBuffer();
     downloadBlob(
         new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
@@ -373,7 +415,7 @@ export async function exportComparisonExcel(report: ComparisonReport, branding?:
     );
 }
 
-export function exportComparisonPdf(report: ComparisonReport, branding?: ReportBranding, logo: LoadedLogo | null = null) {
+export function exportComparisonPdf(report: ComparisonReport, branding?: ReportBranding, logo: LoadedLogo | null = null, generatedBy?: string) {
     const doc = new jsPDF();
     const headerY = pdfBrandingHeader(doc, branding, logo);
     doc.setFont("helvetica", "bold");
@@ -381,7 +423,7 @@ export function exportComparisonPdf(report: ComparisonReport, branding?: ReportB
     doc.text("Attendance Comparison", 14, headerY);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(`Generated ${format(new Date(), "PPP")} · ${report.sessions.length} services`, 14, headerY + 6);
+    doc.text(`${report.sessions.length} services compared`, 14, headerY + 6);
 
     const { head, rows } = comparisonMatrix(report);
     autoTable(doc, {
@@ -419,5 +461,6 @@ export function exportComparisonPdf(report: ComparisonReport, branding?: ReportB
         });
     }
 
+    pdfFooter(doc, generatedBy);
     downloadBlob(doc.output("blob"), `attendance_comparison_${compStamp()}.pdf`);
 }
