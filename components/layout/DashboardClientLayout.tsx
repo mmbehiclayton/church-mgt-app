@@ -26,7 +26,7 @@ export default function DashboardClientLayout({
 
     return (
         <CommandPaletteProvider>
-            <div className="flex h-screen bg-background overflow-hidden">
+            <div className="flex h-screen bg-background overflow-hidden print:block print:h-auto print:overflow-visible">
                 {/* Mobile sidebar overlay */}
                 {sidebarOpen && (
                     <div
@@ -37,7 +37,7 @@ export default function DashboardClientLayout({
 
                 {/* Sidebar */}
                 <div
-                    className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-200 ease-in-out md:static md:translate-x-0 ${
+                    className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-200 ease-in-out md:static md:translate-x-0 print:hidden ${
                         sidebarOpen ? "translate-x-0" : "-translate-x-full"
                     }`}
                 >
@@ -45,21 +45,25 @@ export default function DashboardClientLayout({
                 </div>
 
                 {/* Main */}
-                <div className="flex-1 flex flex-col h-full overflow-hidden">
-                    <Header
-                        onMenuClick={() => setSidebarOpen(!sidebarOpen)}
-                        organization={organization}
-                    />
-                    <main className="flex-1 overflow-y-auto scrollbar-thin p-4 md:p-6 scroll-smooth pb-20 md:pb-6">
+                <div className="flex-1 flex flex-col h-full overflow-hidden print:h-auto print:overflow-visible">
+                    <div className="print:hidden">
+                        <Header
+                            onMenuClick={() => setSidebarOpen(!sidebarOpen)}
+                            organization={organization}
+                        />
+                    </div>
+                    <main className="flex-1 overflow-y-auto scrollbar-thin p-4 md:p-6 scroll-smooth pb-20 md:pb-6 print:overflow-visible print:p-0">
                         {children}
                     </main>
-                    <div className="flex-shrink-0 hidden md:block">
+                    <div className="flex-shrink-0 hidden md:block print:hidden">
                         <Footer />
                     </div>
                 </div>
             </div>
 
-            <MobileBottomNav />
+            <div className="print:hidden">
+                <MobileBottomNav />
+            </div>
             <OnboardingTour />
         </CommandPaletteProvider>
     );

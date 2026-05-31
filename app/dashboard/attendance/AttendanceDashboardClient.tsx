@@ -16,6 +16,7 @@ import {
   Activity,
   ChevronRight,
   Trash2,
+  FileBarChart,
 } from "lucide-react";
 import {
   Bar,
@@ -134,6 +135,12 @@ export default function AttendanceDashboardClient({ overview, canCreate, canMana
         icon={Calendar}
         actions={
           <div className="flex gap-2">
+            <Link href="/dashboard/attendance/reports">
+              <Button variant="outline">
+                <FileBarChart className="h-4 w-4 mr-2" />
+                Reports
+              </Button>
+            </Link>
             <Link href="/dashboard/attendance/watchlist">
               <Button variant="outline">
                 <AlertTriangle className="h-4 w-4 mr-2" />

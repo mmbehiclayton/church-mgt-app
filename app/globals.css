@@ -177,3 +177,26 @@
     border-color: oklch(0.55 0.20 221 / 0.3);
   }
 }
+
+/* ── Print ──────────────────────────────────────────────────────────────── */
+@media print {
+  /* Force light, ink-friendly output regardless of theme */
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  /* Strip shadows/animations that waste ink */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  /* Keep tables, cards and chart blocks from splitting across pages */
+  tr,
+  .print\:break-inside-avoid {
+    break-inside: avoid;
+  }
+  @page {
+    margin: 14mm;
+  }
+}
