@@ -101,10 +101,11 @@ export async function importTransactions(data: {
 
 // --- Categories ---
 
-export async function getCategories() {
+export async function getCategories(options?: { activeOnly?: boolean }) {
     try {
         await requirePermission('categories', 'read');
         return await prisma.category.findMany({
+            where: options?.activeOnly ? { isActive: true } : undefined,
             orderBy: { createdAt: "desc" }
         });
     } catch (error) {
@@ -112,6 +113,22 @@ export async function getCategories() {
             console.error('Get Categories Error:', error);
         }
         return [];
+    }
+}
+
+export async function setCategoryActive(id: string, isActive: boolean) {
+    try {
+        await requirePermission('categories', 'update');
+        await prisma.category.update({
+            where: { id },
+            data: { isActive },
+        });
+        revalidatePath("/dashboard");
+        revalidatePath("/dashboard/finance");
+        return { success: true };
+    } catch (error) {
+        console.error("Set Category Active Error:", error);
+        return { error: "Failed to update category status" };
     }
 }
 
@@ -448,6 +465,188 @@ export async function getDashboardStats(filters?: DashboardFilters) {
         categoryBreakdown: enrichedByCategory,
         revenueTrend
     };
+}
+
+// --- Finance reports ---
+
+export interface FinanceReportBranding {
+    name: string;
+    leaderName: string | null;
+    email: string | null;
+    phone: string | null;
+    logoUrl: string | null;
+}
+
+/** Church branding for finance report headers (guarded by transactions:read). */
+export async function getFinanceReportBranding(): Promise<FinanceReportBranding> {
+    try {
+        await requirePermission('transactions', 'read');
+    } catch {
+        return { name: "Church", leaderName: null, email: null, phone: null, logoUrl: null };
+    }
+    const org = await prisma.organization.findFirst({
+        select: { name: true, leaderName: true, email: true, phone: true, logoUrl: true },
+    });
+    return {
+        name: org?.name || "Church",
+        leaderName: org?.leaderName || null,
+        email: org?.email || null,
+        phone: org?.phone || null,
+        logoUrl: org?.logoUrl || null,
+    };
+}
+
+export interface CategoryContributionRow {
+    id: string;
+    name: string;
+    isActive: boolean;
+    total: number;
+    count: number;
+    avg: number;
+    share: number; // % of grand total
+}
+
+export interface CategoryReportTransaction {
+    categoryId: string;
+    categoryName: string;
+    date: string; // ISO
+    reference: string;
+    memberName: string | null;
+    amount: number;
+}
+
+export interface CategoryContributionReport {
+    scope: string; // human label: "All categories" | "3 categories" | category name
+    period: { from: string | null; to: string | null };
+    categories: CategoryContributionRow[];
+    grandTotal: number;
+    grandCount: number;
+    grandAvg: number;
+    monthlyTrend: { month: string; total: number }[];
+    transactions: CategoryReportTransaction[]; // for detailed reports
+}
+
+/**
+ * Contribution analytics across one, several, or all categories.
+ * Inactive categories are always included (they still hold historical data).
+ */
+export async function getCategoryContributionReport(filters?: {
+    categoryIds?: string[];
+    startDate?: Date;
+    endDate?: Date;
+}): Promise<CategoryContributionReport | { error: string }> {
+    try {
+        await requirePermission('transactions', 'read');
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const where: Record<string, any> = {};
+        if (filters?.categoryIds && filters.categoryIds.length > 0) {
+            where.categoryId = { in: filters.categoryIds };
+        }
+        if (filters?.startDate || filters?.endDate) {
+            where.transactionDate = {};
+            if (filters.startDate) where.transactionDate.gte = filters.startDate;
+            if (filters.endDate) where.transactionDate.lte = filters.endDate;
+        }
+
+        const [txns, cats] = await Promise.all([
+            prisma.transaction.findMany({
+                where,
+                select: {
+                    id: true,
+                    amount: true,
+                    transactionDate: true,
+                    reference: true,
+                    memberName: true,
+                    categoryId: true,
+                },
+                orderBy: { transactionDate: 'desc' },
+            }),
+            prisma.category.findMany({
+                where: filters?.categoryIds && filters.categoryIds.length > 0
+                    ? { id: { in: filters.categoryIds } }
+                    : undefined,
+                select: { id: true, name: true, isActive: true },
+                orderBy: { name: 'asc' },
+            }),
+        ]);
+
+        const catMap = new Map(cats.map(c => [c.id, c]));
+
+        // Per-category aggregation (seed with all in-scope categories so
+        // zero-activity ones still appear in the report).
+        const agg = new Map<string, { total: number; count: number }>();
+        for (const c of cats) agg.set(c.id, { total: 0, count: 0 });
+        for (const t of txns) {
+            const a = agg.get(t.categoryId) ?? { total: 0, count: 0 };
+            a.total += t.amount;
+            a.count += 1;
+            agg.set(t.categoryId, a);
+        }
+
+        const grandTotal = txns.reduce((s, t) => s + t.amount, 0);
+        const grandCount = txns.length;
+        const grandAvg = grandCount > 0 ? grandTotal / grandCount : 0;
+
+        const categories: CategoryContributionRow[] = Array.from(agg.entries())
+            .map(([id, a]) => {
+                const c = catMap.get(id);
+                return {
+                    id,
+                    name: c?.name ?? "Unknown",
+                    isActive: c?.isActive ?? true,
+                    total: a.total,
+                    count: a.count,
+                    avg: a.count > 0 ? a.total / a.count : 0,
+                    share: grandTotal > 0 ? Math.round((a.total / grandTotal) * 1000) / 10 : 0,
+                };
+            })
+            .sort((x, y) => y.total - x.total);
+
+        // Monthly trend (yyyy-MM)
+        const trendMap = new Map<string, number>();
+        for (const t of txns) {
+            const month = t.transactionDate.toISOString().slice(0, 7);
+            trendMap.set(month, (trendMap.get(month) ?? 0) + t.amount);
+        }
+        const monthlyTrend = Array.from(trendMap.entries())
+            .map(([month, total]) => ({ month, total }))
+            .sort((a, b) => a.month.localeCompare(b.month));
+
+        const transactions: CategoryReportTransaction[] = txns.map(t => ({
+            categoryId: t.categoryId,
+            categoryName: catMap.get(t.categoryId)?.name ?? "Unknown",
+            date: t.transactionDate.toISOString(),
+            reference: t.reference,
+            memberName: t.memberName,
+            amount: t.amount,
+        }));
+
+        // Scope label
+        let scope = "All categories";
+        if (filters?.categoryIds && filters.categoryIds.length > 0) {
+            scope = filters.categoryIds.length === 1
+                ? (catMap.get(filters.categoryIds[0])?.name ?? "1 category")
+                : `${filters.categoryIds.length} categories`;
+        }
+
+        return {
+            scope,
+            period: {
+                from: filters?.startDate ? filters.startDate.toISOString() : null,
+                to: filters?.endDate ? filters.endDate.toISOString() : null,
+            },
+            categories,
+            grandTotal,
+            grandCount,
+            grandAvg,
+            monthlyTrend,
+            transactions,
+        };
+    } catch (error) {
+        console.error("getCategoryContributionReport error:", error);
+        return { error: "Failed to generate report" };
+    }
 }
 
 // --- Organization Settings ---

@@ -5,14 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { createCategory, deleteCategory, editCategory } from "@/app/actions";
-import { Trash2, Pencil, Check, X, Tag } from "lucide-react";
+import { createCategory, deleteCategory, editCategory, setCategoryActive } from "@/app/actions";
+import { Trash2, Pencil, Check, X, Tag, Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface Category {
     id: string;
     name: string;
+    isActive?: boolean;
     createdAt: Date;
 }
 
@@ -73,6 +75,21 @@ export default function CategoriesManager({ initialCategories, onSuccess }: { in
         setEditedName("");
     };
 
+    const handleToggleActive = async (cat: Category) => {
+        const next = !(cat.isActive ?? true);
+        // Optimistic update
+        setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, isActive: next } : c));
+        const res = await setCategoryActive(cat.id, next);
+        if (res.success) {
+            toast.success(next ? "Category activated" : "Category set inactive");
+            router.refresh();
+            onSuccess?.();
+        } else {
+            toast.error(res.error || "Failed to update status");
+            setCategories(initialCategories);
+        }
+    };
+
     const handleEditSave = async (id: string) => {
         if (!editedName.trim()) {
             toast.error("Category name cannot be empty");
@@ -123,13 +140,14 @@ export default function CategoriesManager({ initialCategories, onSuccess }: { in
                         <TableHeader className="bg-muted/50">
                             <TableRow>
                                 <TableHead className="font-semibold text-slate-700">Name</TableHead>
-                                <TableHead className="w-[120px] text-right font-semibold text-slate-700">Actions</TableHead>
+                                <TableHead className="w-[90px] font-semibold text-slate-700">Status</TableHead>
+                                <TableHead className="w-[150px] text-right font-semibold text-slate-700">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {categories.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={2} className="h-32">
+                                    <TableCell colSpan={3} className="h-32">
                                         <div className="flex flex-col items-center justify-center text-center text-muted-foreground">
                                             <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center mb-3">
                                                 <Tag className="h-5 w-5 text-slate-300" />
@@ -155,7 +173,14 @@ export default function CategoriesManager({ initialCategories, onSuccess }: { in
                                                     }}
                                                 />
                                             ) : (
-                                                <span className="font-medium text-slate-700">{cat.name}</span>
+                                                <span className={cn("font-medium", (cat.isActive ?? true) ? "text-slate-700" : "text-slate-400")}>{cat.name}</span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            {(cat.isActive ?? true) ? (
+                                                <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">Active</span>
+                                            ) : (
+                                                <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">Inactive</span>
                                             )}
                                         </TableCell>
                                         <TableCell className="text-right">
@@ -170,6 +195,15 @@ export default function CategoriesManager({ initialCategories, onSuccess }: { in
                                                 </div>
                                             ) : (
                                                 <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-slate-400 hover:text-amber-600 hover:bg-amber-50"
+                                                        title={(cat.isActive ?? true) ? "Set inactive" : "Activate"}
+                                                        onClick={() => handleToggleActive(cat)}
+                                                    >
+                                                        {(cat.isActive ?? true) ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                                    </Button>
                                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50" onClick={() => handleEditStart(cat)}>
                                                         <Pencil className="h-4 w-4" />
                                                     </Button>

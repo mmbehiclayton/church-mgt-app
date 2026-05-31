@@ -6,45 +6,22 @@ import type {
     SessionReport,
     SessionReportRow,
     ComparisonReport,
-    ReportBranding,
 } from "@/app/dashboard/attendance/attendance-actions";
+import {
+    type ReportBranding,
+    type LoadedLogo,
+    loadLogo,
+    downloadBlob,
+    contactLine,
+    pdfBrandingHeader,
+    pdfFooter,
+    excelBrandingRows,
+    toCsv,
+} from "@/lib/report-shared";
 
-export interface LoadedLogo {
-    dataUrl: string;
-    width: number;
-    height: number;
-    format: "PNG" | "JPEG";
-}
-
-/**
- * Best-effort fetch of the church logo as a data URL (with natural
- * dimensions), so it can be embedded into PDF/Excel. Returns null on any
- * failure (e.g. CORS) — callers should degrade gracefully to text-only.
- */
-export async function loadLogo(url: string | null): Promise<LoadedLogo | null> {
-    if (!url) return null;
-    try {
-        const res = await fetch(url);
-        if (!res.ok) return null;
-        const blob = await res.blob();
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-        });
-        const dims = await new Promise<{ width: number; height: number }>((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
-            img.onerror = reject;
-            img.src = dataUrl;
-        });
-        const fmt: "PNG" | "JPEG" = /image\/png/i.test(dataUrl) ? "PNG" : "JPEG";
-        return { dataUrl, width: dims.width, height: dims.height, format: fmt };
-    } catch {
-        return null;
-    }
-}
+// Re-export so existing importers (ReportsClient) keep working.
+export { loadLogo };
+export type { LoadedLogo };
 
 const TYPE_LABEL: Record<string, string> = {
     SUNDAY_SERVICE: "Sunday Service",
@@ -60,117 +37,12 @@ const STATUS_LABEL: Record<string, string> = {
     NOT_RECORDED: "Not recorded",
 };
 
-/** Trigger a browser download for a Blob. */
-function downloadBlob(blob: Blob, filename: string) {
-    const url = window.URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    document.body.appendChild(anchor);
-    anchor.href = url;
-    anchor.download = filename;
-    anchor.click();
-    document.body.removeChild(anchor);
-    window.URL.revokeObjectURL(url);
-}
-
 function typeLabel(type: string) {
     return TYPE_LABEL[type] ?? type;
 }
 
 function sessionStamp(report: SessionReport) {
     return format(new Date(report.session.date), "yyyy-MM-dd");
-}
-
-/** Build a CSV string from rows, escaping quotes. */
-function toCsv(rows: (string | number)[][]): string {
-    return rows
-        .map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(","))
-        .join("\n");
-}
-
-/** Compact "Led by … · email · phone" line from branding. */
-function contactLine(branding?: ReportBranding): string {
-    if (!branding) return "";
-    const parts: string[] = [];
-    if (branding.leaderName) parts.push(`Led by ${branding.leaderName}`);
-    if (branding.phone) parts.push(branding.phone);
-    if (branding.email) parts.push(branding.email);
-    return parts.join("  ·  ");
-}
-
-/**
- * Draw the church letterhead (logo + name + contacts) at the top of a PDF.
- * Returns the Y position where body content should start.
- */
-function pdfBrandingHeader(doc: jsPDF, branding: ReportBranding | undefined, logo: LoadedLogo | null): number {
-    let textX = 14;
-    let y = 16;
-    if (logo) {
-        const h = 18; // mm
-        const w = Math.max(8, Math.min(40, (logo.width / logo.height) * h));
-        try {
-            doc.addImage(logo.dataUrl, logo.format, 14, 12, w, h);
-            textX = 14 + w + 5;
-        } catch {
-            /* ignore bad image */
-        }
-    }
-    if (branding) {
-        doc.setFontSize(15);
-        doc.setFont("helvetica", "bold");
-        doc.text(branding.name, textX, y);
-        const contact = contactLine(branding);
-        if (contact) {
-            y += 6;
-            doc.setFontSize(9);
-            doc.setFont("helvetica", "normal");
-            doc.text(contact, textX, y);
-        }
-    }
-    // Divider under the letterhead
-    const dividerY = Math.max(y + 4, logo ? 33 : y + 4);
-    doc.setDrawColor(200);
-    doc.line(14, dividerY, 196, dividerY);
-    return dividerY + 7;
-}
-
-/** Footer line shown on every PDF page: attribution + page numbers. */
-function pdfFooter(doc: jsPDF, generatedBy?: string) {
-    const stamp = `Generated ${generatedBy ? `by ${generatedBy} ` : ""}on ${format(new Date(), "PPP p")}`;
-    const pageCount = doc.getNumberOfPages();
-    const pageW = doc.internal.pageSize.getWidth();
-    const pageH = doc.internal.pageSize.getHeight();
-    for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(7);
-        doc.setTextColor(130);
-        doc.text(stamp, 14, pageH - 8);
-        doc.text(`Page ${i} of ${pageCount}`, pageW - 14, pageH - 8, { align: "right" });
-    }
-    doc.setTextColor(0);
-}
-
-/** Add a branding metadata block to the top of an ExcelJS worksheet. */
-function excelBrandingRows(ws: ExcelJS.Worksheet, branding: ReportBranding | undefined, logo: LoadedLogo | null, workbook: ExcelJS.Workbook) {
-    if (branding) {
-        const nameRow = ws.addRow([branding.name]);
-        nameRow.font = { bold: true, size: 14 };
-        const contact = contactLine(branding);
-        if (contact) ws.addRow([contact]).font = { size: 10 };
-    }
-    // Float the logo to the right of the metadata (cols A/B) so they don't overlap.
-    if (logo) {
-        try {
-            const ratio = logo.width / logo.height;
-            const imageId = workbook.addImage({
-                base64: logo.dataUrl,
-                extension: logo.format === "PNG" ? "png" : "jpeg",
-            });
-            ws.addImage(imageId, { tl: { col: 4, row: 0 }, ext: { width: Math.round(64 * ratio), height: 64 } });
-        } catch {
-            /* ignore */
-        }
-    }
-    ws.addRow([]);
 }
 
 /* ── Single-session exports ─────────────────────────────────────────────── */

@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 interface Category {
     id: string;
     name: string;
+    isActive?: boolean;
 }
 
 interface TransactionData {
@@ -217,9 +218,15 @@ export default function TransactionForm({
                             <SelectValue placeholder="Select category" />
                         </SelectTrigger>
                         <SelectContent>
-                            {categories.map((c) => (
-                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                            ))}
+                            {categories
+                                // Only active categories for new entries; keep the
+                                // currently-selected one visible even if it's inactive.
+                                .filter((c) => (c.isActive ?? true) || c.id === categoryId)
+                                .map((c) => (
+                                    <SelectItem key={c.id} value={c.id}>
+                                        {c.name}{(c.isActive ?? true) ? "" : " (inactive)"}
+                                    </SelectItem>
+                                ))}
                         </SelectContent>
                     </Select>
                 </div>

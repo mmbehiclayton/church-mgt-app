@@ -8,8 +8,9 @@ import DashboardFilters from "@/components/dashboard/DashboardFilters";
 import KPIGrid from "@/components/dashboard/KPIGrid";
 import AnalyticsCharts from "@/components/dashboard/AnalyticsCharts";
 import { hasPermission } from "@/lib/rbac";
-import { Menu, Wallet } from "lucide-react";
+import { Menu, Wallet, FileBarChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -78,34 +79,43 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
                     <p className="text-sm text-muted-foreground mt-0.5">Contributions, transactions and category breakdown.</p>
                 </div>
 
-                {hasActions && (
-                    <>
-                        {/* Mobile actions menu */}
-                        <div className="md:hidden">
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" size="icon"><Menu className="h-4 w-4" /></Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-52">
-                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                    <DropdownMenuSeparator />
-                                    {canCreateTransactions && <TransactionModal categories={categories} asMenuItem />}
-                                    {canManageCategories && <CategoryModal initialCategories={categories} asMenuItem />}
-                                    {canCreateTransactions && <ImportButton asMenuItem />}
-                                    {canExportReports && <ExportButtons categories={categories} asMenuItem />}
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <Link href="/dashboard/finance/reports">
+                        <Button variant="outline" size="sm">
+                            <FileBarChart className="h-4 w-4 mr-1.5" />
+                            Reports
+                        </Button>
+                    </Link>
 
-                        {/* Desktop action buttons */}
-                        <div className="hidden md:flex gap-2 flex-wrap">
-                            {canCreateTransactions && <TransactionModal categories={categories} />}
-                            {canManageCategories && <CategoryModal initialCategories={categories} />}
-                            {canCreateTransactions && <ImportButton />}
-                            {canExportReports && <ExportButtons categories={categories} />}
-                        </div>
-                    </>
-                )}
+                    {hasActions && (
+                        <>
+                            {/* Mobile actions menu */}
+                            <div className="md:hidden">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" size="icon"><Menu className="h-4 w-4" /></Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-52">
+                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        {canCreateTransactions && <TransactionModal categories={categories} asMenuItem />}
+                                        {canManageCategories && <CategoryModal initialCategories={categories} asMenuItem />}
+                                        {canCreateTransactions && <ImportButton asMenuItem />}
+                                        {canExportReports && <ExportButtons categories={categories} asMenuItem />}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+
+                            {/* Desktop action buttons */}
+                            <div className="hidden md:flex gap-2 flex-wrap">
+                                {canCreateTransactions && <TransactionModal categories={categories} />}
+                                {canManageCategories && <CategoryModal initialCategories={categories} />}
+                                {canCreateTransactions && <ImportButton />}
+                                {canExportReports && <ExportButtons categories={categories} />}
+                            </div>
+                        </>
+                    )}
+                </div>
             </div>
 
             {/* Filters */}

@@ -69,19 +69,29 @@ export default function AnalyticsCharts({ revenueTrend, categoryStats }: Analyti
                 <CardContent>
                     <div className="w-full h-[300px] overflow-hidden" style={{ height: 300 }}>
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={categoryStats} layout="vertical">
+                            <BarChart data={categoryStats} margin={{ top: 8, right: 8, left: 8, bottom: 40 }}>
                                 <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                                <XAxis type="number" hide />
-                                <YAxis
+                                <XAxis
                                     dataKey="name"
-                                    type="category"
-                                    width={100}
-                                    tick={{ fontSize: 12 }}
+                                    interval={0}
+                                    angle={-35}
+                                    textAnchor="end"
+                                    height={60}
+                                    tick={{ fontSize: 11 }}
+                                    stroke="#888888"
+                                    tickLine={false}
+                                />
+                                <YAxis
+                                    stroke="#888888"
+                                    fontSize={12}
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tickFormatter={(value) => `Ksh${value >= 1000 ? `${Math.round(value / 1000)}k` : value}`}
                                 />
                                 <Tooltip
                                     formatter={(value: number | undefined) => [`Ksh ${value?.toLocaleString() ?? 0}`, "Total"]}
                                 />
-                                <Bar dataKey="amount" fill="#10b981" radius={[0, 4, 4, 0]} />
+                                <Bar dataKey="amount" fill="#10b981" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>

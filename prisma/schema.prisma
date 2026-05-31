@@ -92,6 +92,7 @@ model UserPermission {
 model Category {
   id           String        @id @default(uuid())
   name         String        @unique
+  isActive     Boolean       @default(true)
   transactions Transaction[]
   createdAt    DateTime      @default(now())
 }

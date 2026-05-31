@@ -18,6 +18,7 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 interface Category {
     id: string;
     name: string;
+    isActive?: boolean;
 }
 
 // Reuse the interface or import it if shared (but for now simple duplication is fine to avoid file churn)
