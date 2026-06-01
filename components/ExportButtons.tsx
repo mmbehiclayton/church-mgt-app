@@ -102,9 +102,9 @@ export default function ExportButtons({ categories, branding, asMenuItem = false
                 : "All Categories";
 
             // 1. Add Metadata Rows (sourced from organization settings)
-            worksheet.addRow(['ORGANIZATION:', branding?.name || 'Church']);
-            if (branding?.leaderName) worksheet.addRow(['LEADER:', branding.leaderName]);
-            if (branding?.phone) worksheet.addRow(['PHONE:', branding.phone]);
+            worksheet.addRow(['REGION:', branding?.name || 'Church']);
+            if (branding?.leaderName) worksheet.addRow(["BISHOP'S NAME:", branding.leaderName]);
+            if (branding?.phone) worksheet.addRow(["BISHOP'S PHONE:", branding.phone]);
             if (branding?.email) worksheet.addRow(['EMAIL:', branding.email]);
             worksheet.addRow(['CATEGORY:', categoryNames]);
             const metaRowCount = worksheet.rowCount;

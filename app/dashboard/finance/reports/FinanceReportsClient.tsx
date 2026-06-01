@@ -415,7 +415,7 @@ function DetailedTransactions({ report }: { report: CategoryContributionReport }
 
 function PrintHeader({ branding }: { branding: FinanceReportBranding }) {
     const contacts = [
-        branding.leaderName ? `Led by ${branding.leaderName}` : null,
+        branding.leaderName ? `Bishop: ${branding.leaderName}` : null,
         branding.phone,
         branding.email,
     ].filter(Boolean).join("  ·  ");

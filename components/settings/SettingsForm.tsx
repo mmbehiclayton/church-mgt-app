@@ -100,12 +100,12 @@ export default function SettingsForm({ organization }: SettingsFormProps) {
             <CardContent>
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="name">Organization Name</Label>
+                        <Label htmlFor="name">Region</Label>
                         <Input id="name" {...register("name")} required />
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="leaderName">Leader/Head Name</Label>
+                        <Label htmlFor="leaderName">Bishop&apos;s Name</Label>
                         <Input id="leaderName" {...register("leaderName")} />
                     </div>
 
@@ -115,7 +115,7 @@ export default function SettingsForm({ organization }: SettingsFormProps) {
                             <Input id="email" type="email" {...register("email")} />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="phone">Phone Number</Label>
+                            <Label htmlFor="phone">Bishop&apos;s Phone</Label>
                             <Input id="phone" {...register("phone")} />
                         </div>
                     </div>

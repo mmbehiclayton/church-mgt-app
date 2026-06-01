@@ -114,7 +114,7 @@ function sessionLabel(s: ReportSessionListItem) {
 /** Branded letterhead — shown only when printing. */
 function PrintHeader({ branding }: { branding: ReportBranding }) {
     const contacts = [
-        branding.leaderName ? `Led by ${branding.leaderName}` : null,
+        branding.leaderName ? `Bishop: ${branding.leaderName}` : null,
         branding.phone,
         branding.email,
     ].filter(Boolean).join("  ·  ");
