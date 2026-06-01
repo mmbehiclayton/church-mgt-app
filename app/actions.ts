@@ -163,7 +163,7 @@ export async function deleteCategory(id: string) {
         });
 
         if (count > 0) {
-            return { error: "Cannot delete category with existing transactions" };
+            return { error: "This category has transactions and can't be deleted. Set it inactive instead to hide it from new entries while keeping its history." };
         }
 
         await prisma.category.delete({

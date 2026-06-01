@@ -1,4 +1,4 @@
-import { getCategories, getTransactions, getDashboardStats } from "@/app/actions";
+import { getCategories, getTransactions, getDashboardStats, getFinanceReportBranding } from "@/app/actions";
 import TransactionModal from "@/components/finance/TransactionModal";
 import CategoryModal from "@/components/finance/CategoryModal";
 import TransactionsTable from "@/components/TransactionsTable";
@@ -62,10 +62,11 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
         );
     }
 
-    const [categories, transactions, stats] = await Promise.all([
+    const [categories, transactions, stats, branding] = await Promise.all([
         canReadCategories ? getCategories() : Promise.resolve([]),
         getTransactions(filters),
         getDashboardStats(filters),
+        canExportReports ? getFinanceReportBranding() : Promise.resolve(undefined),
     ]);
 
     const hasActions = canCreateTransactions || canManageCategories || canExportReports;
@@ -101,7 +102,7 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
                                         {canCreateTransactions && <TransactionModal categories={categories} asMenuItem />}
                                         {canManageCategories && <CategoryModal initialCategories={categories} asMenuItem />}
                                         {canCreateTransactions && <ImportButton asMenuItem />}
-                                        {canExportReports && <ExportButtons categories={categories} asMenuItem />}
+                                        {canExportReports && <ExportButtons categories={categories} branding={branding} asMenuItem />}
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </div>
@@ -111,7 +112,7 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
                                 {canCreateTransactions && <TransactionModal categories={categories} />}
                                 {canManageCategories && <CategoryModal initialCategories={categories} />}
                                 {canCreateTransactions && <ImportButton />}
-                                {canExportReports && <ExportButtons categories={categories} />}
+                                {canExportReports && <ExportButtons categories={categories} branding={branding} />}
                             </div>
                         </>
                     )}

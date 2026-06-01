@@ -39,9 +39,16 @@ interface Category {
     name: string;
 }
 
+interface OrgBranding {
+    name: string;
+    leaderName: string | null;
+    email: string | null;
+    phone: string | null;
+}
+
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
-export default function ExportButtons({ categories, asMenuItem = false }: { categories: Category[], asMenuItem?: boolean }) {
+export default function ExportButtons({ categories, branding, asMenuItem = false }: { categories: Category[], branding?: OrgBranding, asMenuItem?: boolean }) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
 
@@ -94,17 +101,19 @@ export default function ExportButtons({ categories, asMenuItem = false }: { cate
                 ? categories.filter(c => selectedCategories.includes(c.id)).map(c => c.name).join(", ")
                 : "All Categories";
 
-            // 1. Add Metadata Rows
-            worksheet.addRow(['REGION:', 'MWIKI REGION']);
-            worksheet.addRow(['BISHOPS NAME:', 'D.A.B ENG. OLWENY']);
-            worksheet.addRow(["BISHOP'S NUMBER:", '0722738771']);
+            // 1. Add Metadata Rows (sourced from organization settings)
+            worksheet.addRow(['ORGANIZATION:', branding?.name || 'Church']);
+            if (branding?.leaderName) worksheet.addRow(['LEADER:', branding.leaderName]);
+            if (branding?.phone) worksheet.addRow(['PHONE:', branding.phone]);
+            if (branding?.email) worksheet.addRow(['EMAIL:', branding.email]);
             worksheet.addRow(['CATEGORY:', categoryNames]);
+            const metaRowCount = worksheet.rowCount;
             worksheet.addRow([]); // Empty row for spacing
 
             // Style Metadata keys (Column A)
-            [1, 2, 3, 4].forEach(rowIdx => {
+            for (let rowIdx = 1; rowIdx <= metaRowCount; rowIdx++) {
                 worksheet.getCell(`A${rowIdx}`).font = { bold: true };
-            });
+            }
 
             // 2. Define Columns (Widths only, headers added manually)
             worksheet.getColumn(1).width = 20; // Reference
@@ -188,8 +197,7 @@ export default function ExportButtons({ categories, asMenuItem = false }: { cate
             const buffer = await workbook.xlsx.writeBuffer();
             const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
-            // Construct Filename
-            // Format: MWIKI MAIN ALTAR {CATEGORY} SUPPORT {YEAR}
+            // Construct Filename — Format: {ORG} {CATEGORY} SUPPORT {YEAR}
             const year = new Date().getFullYear();
             let fileCategoryName = "GENERAL"; // Default for all
 
@@ -200,7 +208,8 @@ export default function ExportButtons({ categories, asMenuItem = false }: { cate
                 fileCategoryName = "COMBINED";
             }
 
-            const fileName = `MWIKI MAIN ALTAR ${fileCategoryName} SUPPORT ${year}.xlsx`;
+            const orgPrefix = (branding?.name || "CHURCH").toUpperCase();
+            const fileName = `${orgPrefix} ${fileCategoryName} SUPPORT ${year}.xlsx`;
 
             // Create download link
             const url = window.URL.createObjectURL(blob);
@@ -227,7 +236,7 @@ export default function ExportButtons({ categories, asMenuItem = false }: { cate
             const transactions = await fetchData();
 
             const doc = new jsPDF();
-            doc.text("Church Transactions Report", 14, 20);
+            doc.text(`${branding?.name || "Church"} — Transactions Report`, 14, 20);
             doc.setFontSize(10);
             doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
             if (startDate && endDate) {
