@@ -11,7 +11,6 @@ import {
     MessageSquare,
     Shield,
     Settings,
-    ArrowRight,
     LayoutDashboard,
     Sparkles,
     BookOpen,
@@ -165,7 +164,7 @@ export default function DashboardLanding({ userName, access, stats }: Props) {
     }
 
     return (
-        <div className="space-y-6 max-w-5xl mx-auto">
+        <div className="space-y-6">
 
             {/* ── Hero bar ── */}
             <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-r from-primary/10 via-card to-violet-500/5 px-5 py-5">

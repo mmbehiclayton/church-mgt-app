@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Image from "next/image";
-import { Eye, EyeOff, Loader2, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function LoginPage() {
@@ -44,85 +44,20 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-background">
-      {/* Brand panel — hidden on mobile */}
-      <div className="hidden lg:flex relative flex-col justify-between p-12 overflow-hidden text-white bg-gradient-to-br from-blue-500 via-blue-600 to-blue-800">
-        {/* Decorative glow */}
-        <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute bottom-0 right-0 h-[28rem] w-[28rem] rounded-full bg-violet-400/20 blur-3xl translate-x-1/3 translate-y-1/3" />
-        {/* Subtle pattern */}
-        <div
-          aria-hidden
-          className="absolute inset-0 opacity-[0.08]"
-          style={{
-            backgroundImage:
-              'radial-gradient(circle at 25% 30%, white 0, transparent 2px), radial-gradient(circle at 75% 70%, white 0, transparent 2px)',
-            backgroundSize: '60px 60px, 50px 50px',
-          }}
-        />
-
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center text-white">
-            <Image src="/dove.jpg" alt="" width={22} height={22} priority />
+    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
+      <div className="w-full max-w-sm rounded-2xl border border-border bg-card shadow-sm p-6 sm:p-8">
+        {/* Brand */}
+        <div className="flex flex-col items-center text-center mb-8">
+          <div className="h-12 w-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center mb-4">
+            <Image src="/dove.jpg" alt="" width={26} height={26} priority />
           </div>
-          <div className="font-semibold text-lg tracking-tight">Church CMS</div>
+          <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Sign in to continue to your dashboard.
+          </p>
         </div>
 
-        <div className="relative z-10 space-y-8">
-          <div className="flex items-start gap-5">
-            <div className="hidden xl:flex h-20 w-20 rounded-2xl bg-white/15 backdrop-blur-sm items-center justify-center text-white shrink-0">
-              <Image src="/dove.jpg" alt="" width={48} height={48} />
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold tracking-tight leading-tight">
-                Church Management System.
-              </h1>
-              <p className="mt-4 text-blue-100/90 text-base max-w-md leading-relaxed">
-                Members, attendance, finances, and SMS — woven into one calm, secure platform built for the people doing the work on Sundays.
-              </p>
-            </div>
-          </div>
-
-          <ul className="space-y-3 text-sm text-blue-100/90">
-            <li className="flex items-start gap-3">
-              <Users className="h-5 w-5 mt-0.5 shrink-0 text-blue-200" />
-              <span>Full membership graph: departments, fellowships, attendance trends.</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <Sparkles className="h-5 w-5 mt-0.5 shrink-0 text-blue-200" />
-              <span>Bulk SMS to any group, with delivery receipts and templates.</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <ShieldCheck className="h-5 w-5 mt-0.5 shrink-0 text-blue-200" />
-              <span>Role-based access — only the right hands touch the right data.</span>
-            </li>
-          </ul>
-        </div>
-
-        <div className="relative z-10 text-xs text-blue-200/70">
-          © {new Date().getFullYear()} Church Management System
-        </div>
-      </div>
-
-      {/* Form panel */}
-      <div className="flex items-center justify-center p-6 sm:p-12">
-        <div className="w-full max-w-sm">
-          {/* Mobile-only brand bar */}
-          <div className="lg:hidden flex items-center gap-3 mb-10">
-            <div className="h-10 w-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center">
-              <Image src="/dove.jpg" alt="" width={22} height={22} priority />
-            </div>
-            <div className="font-semibold text-lg tracking-tight">Church CMS</div>
-          </div>
-
-          <div className="space-y-2 mb-8">
-            <h2 className="text-2xl font-semibold tracking-tight">Welcome back</h2>
-            <p className="text-muted-foreground text-sm">
-              Sign in to continue to your dashboard.
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
             <div className="space-y-1.5">
               <Label htmlFor="email" className="text-xs font-medium">
                 Email
@@ -199,10 +134,9 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <p className="text-xs text-muted-foreground text-center mt-8">
-            Need access? Ask an administrator to invite you.
-          </p>
-        </div>
+        <p className="text-xs text-muted-foreground text-center mt-8">
+          Need access? Ask an administrator to invite you.
+        </p>
       </div>
     </div>
   );
