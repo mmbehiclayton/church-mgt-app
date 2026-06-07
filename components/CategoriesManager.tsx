@@ -135,13 +135,13 @@ export default function CategoriesManager({ initialCategories, onSuccess }: { in
                     </Button>
                 </div>
 
-                <div className="border rounded-md overflow-hidden">
+                <div className="border rounded-md overflow-x-auto">
                     <Table>
                         <TableHeader className="bg-muted/50">
                             <TableRow>
-                                <TableHead className="font-semibold text-slate-700">Name</TableHead>
-                                <TableHead className="w-[90px] font-semibold text-slate-700">Status</TableHead>
-                                <TableHead className="w-[150px] text-right font-semibold text-slate-700">Actions</TableHead>
+                                <TableHead className="font-semibold text-foreground">Name</TableHead>
+                                <TableHead className="w-[90px] font-semibold text-foreground">Status</TableHead>
+                                <TableHead className="w-[132px] text-right font-semibold text-foreground">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -149,17 +149,17 @@ export default function CategoriesManager({ initialCategories, onSuccess }: { in
                                 <TableRow>
                                     <TableCell colSpan={3} className="h-32">
                                         <div className="flex flex-col items-center justify-center text-center text-muted-foreground">
-                                            <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-                                                <Tag className="h-5 w-5 text-slate-300" />
+                                            <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
+                                                <Tag className="h-5 w-5 text-muted-foreground/50" />
                                             </div>
-                                            <p className="font-medium text-slate-600">No categories found</p>
+                                            <p className="font-medium text-foreground">No categories found</p>
                                             <p className="text-sm">Add your first category to get started.</p>
                                         </div>
                                     </TableCell>
                                 </TableRow>
                             ) : (
                                 categories.map((cat) => (
-                                    <TableRow key={cat.id} className="group transition-colors hover:bg-slate-50">
+                                    <TableRow key={cat.id} className="transition-colors hover:bg-muted/50">
                                         <TableCell>
                                             {editingCategoryId === cat.id ? (
                                                 <Input
@@ -173,41 +173,41 @@ export default function CategoriesManager({ initialCategories, onSuccess }: { in
                                                     }}
                                                 />
                                             ) : (
-                                                <span className={cn("font-medium", (cat.isActive ?? true) ? "text-slate-700" : "text-slate-400")}>{cat.name}</span>
+                                                <span className={cn("font-medium", (cat.isActive ?? true) ? "text-foreground" : "text-muted-foreground")}>{cat.name}</span>
                                             )}
                                         </TableCell>
                                         <TableCell>
                                             {(cat.isActive ?? true) ? (
-                                                <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">Active</span>
+                                                <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">Active</span>
                                             ) : (
-                                                <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">Inactive</span>
+                                                <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">Inactive</span>
                                             )}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             {editingCategoryId === cat.id ? (
                                                 <div className="flex justify-end gap-1">
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-100" onClick={() => handleEditSave(cat.id)}>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-100 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/40" onClick={() => handleEditSave(cat.id)}>
                                                         <Check className="h-4 w-4" />
                                                     </Button>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-600 hover:bg-slate-200" onClick={handleEditCancel}>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted" onClick={handleEditCancel}>
                                                         <X className="h-4 w-4" />
                                                     </Button>
                                                 </div>
                                             ) : (
-                                                <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div className="flex justify-end gap-1">
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-8 w-8 text-slate-400 hover:text-amber-600 hover:bg-amber-50"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-amber-600 hover:bg-amber-50 dark:hover:text-amber-400 dark:hover:bg-amber-950/40"
                                                         title={(cat.isActive ?? true) ? "Set inactive" : "Activate"}
                                                         onClick={() => handleToggleActive(cat)}
                                                     >
                                                         {(cat.isActive ?? true) ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                                     </Button>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50" onClick={() => handleEditStart(cat)}>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-blue-600 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-950/40" title="Rename" onClick={() => handleEditStart(cat)}>
                                                         <Pencil className="h-4 w-4" />
                                                     </Button>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDelete(cat.id)}>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-950/40" title="Delete" onClick={() => handleDelete(cat.id)}>
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
                                                 </div>

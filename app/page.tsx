@@ -66,7 +66,7 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                placeholder="you@church.org"
+                placeholder="Email Address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

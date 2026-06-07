@@ -113,7 +113,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                     <Image src="/dove.jpg" alt="" width={20} height={20} priority />
                 </div>
                 <div className="leading-tight">
-                    <div className="font-semibold tracking-tight">Church CMS</div>
+                    <div className="font-semibold tracking-tight">Mwiki Altar</div>
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Admin</div>
                 </div>
             </div>

@@ -16,7 +16,7 @@ interface Step {
 const STEPS: Step[] = [
   {
     icon: Sparkles,
-    title: "Welcome to Church CMS",
+    title: "Welcome to Mwiki Altar",
     description:
       "A quick 30-second tour so you know where everything lives. You can re-open it from settings later.",
   },

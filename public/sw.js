@@ -1,4 +1,4 @@
-/* Church Management System — service worker
+/* Mwiki Main Altar CMS — service worker
  *
  * Strategy:
  *  - Static assets (Next.js _next/static, /icons, /favicon): cache-first.

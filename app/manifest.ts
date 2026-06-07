@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Church Management System',
-    short_name: 'Church CMS',
+    name: 'Mwiki Main Altar CMS',
+    short_name: 'Mwiki Altar',
     description: 'Members, attendance, finance, and SMS — all in one church admin platform.',
     start_url: '/dashboard',
     scope: '/',

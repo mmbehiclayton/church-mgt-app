@@ -17,16 +17,16 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Church Management System",
-    template: "%s · Church CMS",
+    default: "Mwiki Main Altar CMS",
+    template: "%s · Mwiki Altar",
   },
   description:
     "All-in-one platform for members, attendance, finance, and SMS communication.",
-  applicationName: "Church CMS",
+  applicationName: "Mwiki Altar",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Church CMS",
+    title: "Mwiki Altar",
   },
   icons: {
     icon: [

@@ -91,7 +91,7 @@ const dataUri = `data:image/jpeg;base64,${logoBuf.toString("base64")}`;
 const tileW = Math.round(512 * 0.62);
 const off = Math.round((512 - tileW) / 2);
 const tileR = Math.round(tileW * 0.18);
-const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Church CMS dove logo">
+const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mwiki Altar dove logo">
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="${INDIGO_TOP}"/>
