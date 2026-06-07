@@ -110,7 +110,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
             {/* Brand header */}
             <div className="px-5 h-16 flex items-center gap-3 border-b border-sidebar-border shrink-0">
                 <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 text-white flex items-center justify-center shadow-sm">
-                    <Image src="/dove.jpg" alt="" width={20} height={20} priority />
+                    <Image src="/mwiki-logo.png" alt="" width={24} height={24} priority />
                 </div>
                 <div className="leading-tight">
                     <div className="font-semibold tracking-tight">Church CMS</div>
