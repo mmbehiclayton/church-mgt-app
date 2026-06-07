@@ -81,13 +81,6 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap">
-                    <Link href="/dashboard/finance/reports">
-                        <Button variant="outline" size="sm">
-                            <FileBarChart className="h-4 w-4 mr-1.5" />
-                            Reports
-                        </Button>
-                    </Link>
-
                     {hasActions && (
                         <>
                             {/* Mobile actions menu */}
@@ -116,6 +109,13 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
                             </div>
                         </>
                     )}
+
+                    <Link href="/dashboard/finance/reports">
+                        <Button variant="outline" size="sm">
+                            <FileBarChart className="h-4 w-4 mr-1.5" />
+                            Reports
+                        </Button>
+                    </Link>
                 </div>
             </div>
 
@@ -132,7 +132,6 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
 
             {/* Charts */}
             <AnalyticsCharts
-                revenueTrend={stats.revenueTrend}
                 categoryStats={stats.categoryBreakdown}
             />
 

@@ -327,17 +327,22 @@ export default function TransactionsTable({ transactions, categories }: { transa
                             {transactions.map((t) => (
                                 <li
                                     key={t.id}
-                                    className={cn("flex gap-3 px-3 py-3", selectedIds.includes(t.id) && "bg-primary/5")}
+                                    className={cn("flex items-center gap-2.5 px-3 py-2", selectedIds.includes(t.id) && "bg-primary/5")}
                                 >
                                     <Checkbox
                                         checked={selectedIds.includes(t.id)}
                                         onCheckedChange={v => toggleRow(t.id, v as boolean)}
-                                        className="mt-1 shrink-0"
+                                        className="shrink-0"
                                     />
                                     <div className="min-w-0 flex-1">
-                                        {/* Reference + actions */}
-                                        <div className="flex items-center justify-between gap-2">
-                                            <RefCell t={t} />
+                                        {/* Code + amount + actions */}
+                                        <div className="flex items-center gap-2">
+                                            <div className="min-w-0 flex-1">
+                                                <RefCell t={t} />
+                                            </div>
+                                            <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums whitespace-nowrap shrink-0">
+                                                Ksh {t.amount.toLocaleString()}
+                                            </span>
                                             <RowActions
                                                 t={t}
                                                 categories={categories}
@@ -345,29 +350,11 @@ export default function TransactionsTable({ transactions, categories }: { transa
                                                 onDelete={setDeleteSingleId}
                                             />
                                         </div>
-                                        {/* Amount + category */}
-                                        <div className="mt-1 flex items-center justify-between gap-2">
-                                            <span className="text-base font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                                                Ksh {t.amount.toLocaleString()}
-                                            </span>
-                                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 whitespace-nowrap shrink-0">
+                                        {/* Category + date */}
+                                        <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 whitespace-nowrap">
                                                 {t.category?.name || "Uncategorized"}
                                             </Badge>
-                                        </div>
-                                        {/* Member / account + date */}
-                                        <div className="mt-1.5 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                                            <span className="flex items-center gap-1 min-w-0">
-                                                {t.memberName ? (
-                                                    <>
-                                                        <User className="h-3 w-3 shrink-0" />
-                                                        <span className="truncate">{t.memberName}</span>
-                                                    </>
-                                                ) : (
-                                                    <span className="truncate font-mono">
-                                                        {t.account || "—"}{t.bank ? ` · ${t.bank}` : ""}
-                                                    </span>
-                                                )}
-                                            </span>
                                             <span className="shrink-0 whitespace-nowrap">
                                                 {format(new Date(t.transactionDate), "dd MMM yyyy")}
                                             </span>

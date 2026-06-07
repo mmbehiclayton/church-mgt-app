@@ -461,12 +461,20 @@ export async function getDashboardStats(filters?: DashboardFilters) {
         })
     ]);
 
-    const categoryMap = new Map(categories.map(c => [c.id, c.name]));
+    const categoryMap = new Map(categories.map(c => [c.id, c]));
 
-    const enrichedByCategory = byCategory.map((item: { categoryId: string; _sum: { amount: number | null } }) => ({
-        name: categoryMap.get(item.categoryId) || "Unknown",
-        amount: item._sum.amount || 0
-    }));
+    // Only surface active categories in the breakdown / top-category analytics.
+    const enrichedByCategory = byCategory
+        .map((item: { categoryId: string; _sum: { amount: number | null } }) => {
+            const cat = categoryMap.get(item.categoryId);
+            return {
+                name: cat?.name || "Unknown",
+                amount: item._sum.amount || 0,
+                isActive: cat?.isActive ?? true,
+            };
+        })
+        .filter(c => c.isActive)
+        .map(({ name, amount }) => ({ name, amount }));
 
     // Group by Date text (YYYY-MM-DD)
     const trendMap = new Map<string, number>();
