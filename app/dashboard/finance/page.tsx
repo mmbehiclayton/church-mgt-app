@@ -6,7 +6,7 @@ import ExportButtons from "@/components/ExportButtons";
 import ImportButton from "@/components/ImportButton";
 import DashboardFilters from "@/components/dashboard/DashboardFilters";
 import KPIGrid from "@/components/dashboard/KPIGrid";
-import AnalyticsCharts from "@/components/dashboard/AnalyticsCharts";
+import CategorySummary from "@/components/dashboard/CategorySummary";
 import { hasPermission } from "@/lib/rbac";
 import { Menu, Wallet, FileBarChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -69,7 +69,8 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
         canExportReports ? getFinanceReportBranding() : Promise.resolve(undefined),
     ]);
 
-    const hasActions = canCreateTransactions || canManageCategories || canExportReports;
+    // Categories / Import / Export live in the secondary actions menu (New Transaction is now standalone).
+    const hasSecondaryActions = canManageCategories || canCreateTransactions || canExportReports;
 
     return (
         <div className="space-y-5 pb-10">
@@ -81,7 +82,8 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap">
-                    {hasActions && (
+                    {/* Secondary actions: Categories / Import / Export */}
+                    {hasSecondaryActions && (
                         <>
                             {/* Mobile actions menu */}
                             <div className="md:hidden">
@@ -92,7 +94,6 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
                                     <DropdownMenuContent align="end" className="w-52">
                                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                         <DropdownMenuSeparator />
-                                        {canCreateTransactions && <TransactionModal categories={categories} asMenuItem />}
                                         {canManageCategories && <CategoryModal initialCategories={categories} asMenuItem />}
                                         {canCreateTransactions && <ImportButton asMenuItem />}
                                         {canExportReports && <ExportButtons categories={categories} branding={branding} asMenuItem />}
@@ -100,15 +101,17 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
                                 </DropdownMenu>
                             </div>
 
-                            {/* Desktop action buttons */}
+                            {/* Desktop secondary buttons */}
                             <div className="hidden md:flex gap-2 flex-wrap">
-                                {canCreateTransactions && <TransactionModal categories={categories} />}
                                 {canManageCategories && <CategoryModal initialCategories={categories} />}
                                 {canCreateTransactions && <ImportButton />}
                                 {canExportReports && <ExportButtons categories={categories} branding={branding} />}
                             </div>
                         </>
                     )}
+
+                    {/* Primary action — standalone, before Reports */}
+                    {canCreateTransactions && <TransactionModal categories={categories} />}
 
                     <Link href="/dashboard/finance/reports">
                         <Button variant="outline" size="sm">
@@ -131,9 +134,7 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
             />
 
             {/* Charts */}
-            <AnalyticsCharts
-                categoryStats={stats.categoryBreakdown}
-            />
+            <CategorySummary categoryStats={stats.categoryBreakdown} />
 
             {/* Transactions table */}
             <div>

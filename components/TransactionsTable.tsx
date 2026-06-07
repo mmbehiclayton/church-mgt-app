@@ -73,6 +73,14 @@ function CopyRef({ reference }: { reference: string }) {
     );
 }
 
+/** Best-effort transaction time: explicit field → parsed from the M-Pesa message → derived from the date. */
+function displayTime(t: Transaction): string {
+    if (t.transactionTime) return t.transactionTime;
+    const match = t.rawMessage?.match(/at\s+(\d{1,2}:\d{2}\s?(?:[AP]M)?)/i);
+    if (match) return match[1].trim();
+    return format(new Date(t.transactionDate), "HH:mm");
+}
+
 /** Shared ⋯ actions menu used by both the desktop table and the mobile cards. */
 function RowActions({
     t,
@@ -350,13 +358,13 @@ export default function TransactionsTable({ transactions, categories }: { transa
                                                 onDelete={setDeleteSingleId}
                                             />
                                         </div>
-                                        {/* Category + date */}
+                                        {/* Category + date + time */}
                                         <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 whitespace-nowrap">
+                                            <Badge variant="secondary" className="min-w-0 truncate text-[10px] px-1.5 py-0">
                                                 {t.category?.name || "Uncategorized"}
                                             </Badge>
-                                            <span className="shrink-0 whitespace-nowrap">
-                                                {format(new Date(t.transactionDate), "dd MMM yyyy")}
+                                            <span className="shrink-0 whitespace-nowrap tabular-nums">
+                                                {format(new Date(t.transactionDate), "dd MMM yyyy")} · {displayTime(t)}
                                             </span>
                                         </div>
                                     </div>
