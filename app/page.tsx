@@ -49,7 +49,7 @@ export default function LoginPage() {
         {/* Brand */}
         <div className="flex flex-col items-center text-center mb-8">
           <div className="h-12 w-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center mb-4">
-            <Image src="/mwiki-logo.png" alt="" width={30} height={30} priority />
+            <Image src="/dove.jpg" alt="" width={26} height={26} priority />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
           <p className="text-muted-foreground text-sm mt-1">
