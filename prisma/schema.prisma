@@ -111,6 +111,8 @@ model Transaction {
   rawMessage      String
   memberId        String?
   memberName      String?
+  reconciled      Boolean  @default(false)
+  reconciledAt    DateTime?
   createdAt       DateTime @default(now())
 
   category        Category @relation(fields: [categoryId], references: [id])
@@ -119,6 +121,7 @@ model Transaction {
   @@index([transactionDate])
   @@index([reference])
   @@index([memberId])
+  @@index([reconciled])
 }
 
 model Organization {

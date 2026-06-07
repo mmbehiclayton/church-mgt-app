@@ -86,7 +86,12 @@ export default function ExportButtons({ categories, branding, asMenuItem = false
             filters.endDate.setHours(23, 59, 59, 999);
         }
 
-        return await getTransactions(filters);
+        const data = await getTransactions(filters);
+        // Order by capture time (createdAt) ascending — earliest captured first,
+        // latest captured last — regardless of the transaction's own date.
+        return [...data].sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
     };
 
     const handleExportExcel = async () => {

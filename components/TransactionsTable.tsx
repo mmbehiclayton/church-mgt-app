@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Trash2, MoreHorizontal, User } from "lucide-react";
-import { deleteTransactions } from "@/app/actions";
+import { Trash2, MoreHorizontal, User, CheckCircle2, Circle, Copy, Check } from "lucide-react";
+import { deleteTransactions, setTransactionsReconciled } from "@/app/actions";
+import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import TransactionModal from "@/components/finance/TransactionModal";
 import { toast } from "sonner";
@@ -20,6 +21,34 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+function CopyRef({ reference }: { reference: string }) {
+    const [copied, setCopied] = useState(false);
+
+    async function copy(e: React.MouseEvent) {
+        e.stopPropagation();
+        try {
+            await navigator.clipboard.writeText(reference);
+            setCopied(true);
+            toast.success("Transaction ID copied");
+            setTimeout(() => setCopied(false), 1500);
+        } catch {
+            toast.error("Failed to copy");
+        }
+    }
+
+    return (
+        <button
+            type="button"
+            onClick={copy}
+            aria-label="Copy transaction ID"
+            title="Copy transaction ID"
+            className="shrink-0 rounded p-1 -m-0.5 text-muted-foreground transition-colors hover:text-foreground hover:bg-muted active:bg-muted"
+        >
+            {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+        </button>
+    );
+}
 
 interface Category {
     id: string;
@@ -41,6 +70,7 @@ interface Transaction {
     rawMessage: string;
     memberId?: string | null;
     memberName?: string | null;
+    reconciled: boolean;
 }
 
 export default function TransactionsTable({ transactions, categories }: { transactions: Transaction[]; categories: Category[] }) {
@@ -86,15 +116,44 @@ export default function TransactionsTable({ transactions, categories }: { transa
         }
     }
 
+    async function toggleReconciled(ids: string[], reconciled: boolean) {
+        const res = await setTransactionsReconciled(ids, reconciled);
+        if (res.success) {
+            const label = reconciled ? "reconciled" : "unreconciled";
+            toast.success(ids.length > 1 ? `${ids.length} transactions marked ${label}` : `Transaction marked ${label}`);
+            setSelectedIds([]);
+            router.refresh();
+        } else {
+            toast.error(res.error || "Failed to update reconciliation status");
+        }
+    }
+
+    const selectedTransactions = transactions.filter(t => selectedIds.includes(t.id));
+    const allSelectedReconciled = selectedTransactions.length > 0 && selectedTransactions.every(t => t.reconciled);
+
     return (
         <>
             {/* Bulk selection bar */}
             {selectedIds.length > 0 && (
-                <div className="flex items-center justify-between px-4 py-2.5 bg-muted/50 border-b border-border">
+                <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 bg-muted/50 border-b border-border">
                     <span className="text-sm font-medium">{selectedIds.length} selected</span>
-                    <Button variant="destructive" size="sm" onClick={() => setShowBulkDelete(true)} disabled={loading}>
-                        <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete selected
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => toggleReconciled(selectedIds, !allSelectedReconciled)}
+                            disabled={loading}
+                        >
+                            {allSelectedReconciled ? (
+                                <><Circle className="h-3.5 w-3.5 mr-1.5" /> Mark unreconciled</>
+                            ) : (
+                                <><CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Mark reconciled</>
+                            )}
+                        </Button>
+                        <Button variant="destructive" size="sm" onClick={() => setShowBulkDelete(true)} disabled={loading}>
+                            <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete selected
+                        </Button>
+                    </div>
                 </div>
             )}
 
@@ -129,7 +188,21 @@ export default function TransactionsTable({ transactions, categories }: { transa
                                     />
                                 </TableCell>
                                 <TableCell className="text-muted-foreground text-xs tabular-nums">{index + 1}</TableCell>
-                                <TableCell className="font-mono text-xs font-medium">{t.reference}</TableCell>
+                                <TableCell className="font-mono text-xs font-medium">
+                                    <div className="flex items-center gap-1.5">
+                                        <span
+                                            className={cn(
+                                                "inline-flex items-center gap-1 truncate",
+                                                t.reconciled && "text-blue-600 dark:text-blue-400"
+                                            )}
+                                            title={t.reconciled ? "Reconciled" : "Not reconciled"}
+                                        >
+                                            {t.reconciled && <CheckCircle2 className="h-3 w-3 shrink-0" />}
+                                            {t.reference}
+                                        </span>
+                                        <CopyRef reference={t.reference} />
+                                    </div>
+                                </TableCell>
                                 <TableCell className="text-right font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums whitespace-nowrap">
                                     Ksh {t.amount.toLocaleString()}
                                 </TableCell>
@@ -167,6 +240,14 @@ export default function TransactionsTable({ transactions, categories }: { transa
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                            <DropdownMenuItem onClick={() => toggleReconciled([t.id], !t.reconciled)}>
+                                                {t.reconciled ? (
+                                                    <><Circle className="mr-2 h-4 w-4" /> Mark unreconciled</>
+                                                ) : (
+                                                    <><CheckCircle2 className="mr-2 h-4 w-4" /> Mark reconciled</>
+                                                )}
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
                                             <TransactionModal
                                                 categories={categories}
                                                 asMenuItem

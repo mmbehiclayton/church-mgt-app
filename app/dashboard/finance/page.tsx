@@ -142,7 +142,13 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
                     <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                         Transactions
                     </h2>
-                    <span className="text-xs text-muted-foreground">{transactions.length} records</span>
+                    <div className="flex items-center gap-3">
+                        <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <span className="h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400" />
+                            Reconciled
+                        </span>
+                        <span className="text-xs text-muted-foreground">{transactions.length} records</span>
+                    </div>
                 </div>
                 <div className="rounded-xl border border-border bg-card overflow-hidden">
                     <TransactionsTable transactions={transactions} categories={categories} />

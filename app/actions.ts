@@ -224,6 +224,26 @@ export async function deleteTransactions(ids: string[]) {
     }
 }
 
+export async function setTransactionsReconciled(ids: string[], reconciled: boolean) {
+    try {
+        await requirePermission('transactions', 'update');
+        if (ids.length === 0) return { success: true };
+        await prisma.transaction.updateMany({
+            where: { id: { in: ids } },
+            data: {
+                reconciled,
+                reconciledAt: reconciled ? new Date() : null,
+            },
+        });
+        revalidatePath("/dashboard");
+        revalidatePath("/dashboard/finance");
+        return { success: true };
+    } catch (error) {
+        console.error("Reconcile Transactions Error:", error);
+        return { error: "Failed to update reconciliation status" };
+    }
+}
+
 export async function saveTransaction(data: {
     categoryId: string;
     amount: number;
