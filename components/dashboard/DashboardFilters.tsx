@@ -118,19 +118,19 @@ export default function DashboardFilters({ categories }: { categories: Category[
                 )}
             </div>
 
-            <div className="flex flex-wrap gap-2 items-center">
+            <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto sm:flex-wrap sm:items-center">
                 {/* Start Date */}
                 <Popover>
                     <PopoverTrigger asChild>
                         <Button
                             variant={"outline"}
                             className={cn(
-                                "w-full sm:w-[150px] justify-start text-left font-normal",
+                                "w-full sm:w-[150px] justify-start text-left font-normal truncate",
                                 !date?.from && "text-muted-foreground"
                             )}
                         >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {date?.from ? format(date.from, "PPP") : <span>Start Date</span>}
+                            <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                            <span className="truncate">{date?.from ? format(date.from, "MMM d, yyyy") : "Start Date"}</span>
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -149,12 +149,12 @@ export default function DashboardFilters({ categories }: { categories: Category[
                         <Button
                             variant={"outline"}
                             className={cn(
-                                "w-full sm:w-[150px] justify-start text-left font-normal",
+                                "w-full sm:w-[150px] justify-start text-left font-normal truncate",
                                 !date?.to && "text-muted-foreground"
                             )}
                         >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {date?.to ? format(date.to, "PPP") : <span>End Date</span>}
+                            <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                            <span className="truncate">{date?.to ? format(date.to, "MMM d, yyyy") : "End Date"}</span>
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">

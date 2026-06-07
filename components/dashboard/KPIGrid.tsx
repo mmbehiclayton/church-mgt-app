@@ -41,16 +41,16 @@ export default function KPIGrid({ totalRevenue, transactionCount, avgTransaction
     ];
 
     return (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
             {stats.map(({ label, value, sub, icon: Icon, colour, bg }) => (
-                <div key={label} className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
-                    <div className={`h-9 w-9 rounded-lg ${bg} ${colour} flex items-center justify-center shrink-0`}>
+                <div key={label} className="flex items-center gap-2.5 sm:gap-3 rounded-lg border border-border bg-card px-3 py-2.5 sm:px-4 sm:py-3">
+                    <div className={`h-8 w-8 sm:h-9 sm:w-9 rounded-lg ${bg} ${colour} flex items-center justify-center shrink-0`}>
                         <Icon className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground">{label}</p>
-                        <p className="text-lg font-bold tabular-nums leading-tight truncate" title={value}>{value}</p>
-                        {sub && <p className="text-[11px] text-muted-foreground">{sub}</p>}
+                        <p className="text-[11px] sm:text-xs text-muted-foreground truncate">{label}</p>
+                        <p className="text-base sm:text-lg font-bold tabular-nums leading-tight truncate" title={value}>{value}</p>
+                        {sub && <p className="text-[11px] text-muted-foreground truncate">{sub}</p>}
                     </div>
                 </div>
             ))}

@@ -23,11 +23,11 @@ export default function AnalyticsCharts({ revenueTrend, categoryStats }: Analyti
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
             {/* Revenue Trend - Line Chart */}
             <Card className="col-span-4">
-                <CardHeader>
-                    <CardTitle>Transaction Trend</CardTitle>
+                <CardHeader className="p-4 sm:p-6">
+                    <CardTitle className="text-base sm:text-lg">Transaction Trend</CardTitle>
                 </CardHeader>
-                <CardContent className="pl-2">
-                    <div className="w-full h-[300px] overflow-hidden" style={{ height: 300 }}>
+                <CardContent className="pl-2 pr-2 sm:pr-6 pb-4">
+                    <div className="w-full h-[220px] sm:h-[300px] overflow-hidden">
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={revenueTrend}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -63,11 +63,11 @@ export default function AnalyticsCharts({ revenueTrend, categoryStats }: Analyti
 
             {/* Category Breakdown - Bar Chart */}
             <Card className="col-span-3">
-                <CardHeader>
-                    <CardTitle>By Category</CardTitle>
+                <CardHeader className="p-4 sm:p-6">
+                    <CardTitle className="text-base sm:text-lg">By Category</CardTitle>
                 </CardHeader>
-                <CardContent>
-                    <div className="w-full h-[300px] overflow-hidden" style={{ height: 300 }}>
+                <CardContent className="px-2 sm:px-6 pb-4">
+                    <div className="w-full h-[220px] sm:h-[300px] overflow-hidden">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={categoryStats} margin={{ top: 8, right: 8, left: 8, bottom: 40 }}>
                                 <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
