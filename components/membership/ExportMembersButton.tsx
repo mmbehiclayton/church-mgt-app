@@ -17,12 +17,19 @@ interface HomeFellowship {
     name: string;
 }
 
+interface AccountabilityGroup {
+    id: string;
+    name: string;
+}
+
 interface Member {
     id: string;
     fullName: string;
     phoneNumber: string;
     gender: string;
+    status?: string | null;
     homeFellowshipId: string | null;
+    accountabilityGroup?: { name: string } | null;
     departments: { department: Department }[];
 }
 
@@ -30,12 +37,13 @@ interface ExportMembersButtonProps {
     members: Member[];
     departments: Department[];
     homeFellowships: HomeFellowship[];
+    accountabilityGroups?: AccountabilityGroup[];
     asMenuItem?: boolean;
 }
 
 type ExportType = "all" | "department" | "gender" | "fellowship" | "no_phone";
 
-export default function ExportMembersButton({ members, departments, homeFellowships, asMenuItem = false }: ExportMembersButtonProps) {
+export default function ExportMembersButton({ members, departments, homeFellowships, accountabilityGroups = [], asMenuItem = false }: ExportMembersButtonProps) {
     const [showDialog, setShowDialog] = useState(false);
     const [exportType, setExportType] = useState<ExportType>("all");
     const [selectedDepartment, setSelectedDepartment] = useState("");
@@ -44,26 +52,27 @@ export default function ExportMembersButton({ members, departments, homeFellowsh
     const [exporting, setExporting] = useState(false);
 
     const buildAndDownload = async (
-        rows: { fullName: string; phoneNumber: string; gender: string; fellowship: string; departments: string }[],
+        rows: { fullName: string; phoneNumber: string; gender: string; status: string; section: string; fellowship: string; departments: string }[],
         label: string,
         filename: string
     ) => {
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet("Members");
+        const COLS = 8;
 
-        worksheet.mergeCells("A1:F1");
+        worksheet.mergeCells(`A1:H1`);
         const titleCell = worksheet.getCell("A1");
         titleCell.value = "Church Membership Report";
         titleCell.font = { size: 16, bold: true };
         titleCell.alignment = { horizontal: "center", vertical: "middle" };
 
-        worksheet.mergeCells("A2:F2");
+        worksheet.mergeCells("A2:H2");
         const labelCell = worksheet.getCell("A2");
         labelCell.value = label;
         labelCell.font = { size: 12 };
         labelCell.alignment = { horizontal: "center" };
 
-        worksheet.mergeCells("A3:F3");
+        worksheet.mergeCells("A3:H3");
         const dateCell = worksheet.getCell("A3");
         dateCell.value = `Generated on: ${new Date().toLocaleDateString()}`;
         dateCell.font = { size: 10, italic: true };
@@ -71,27 +80,22 @@ export default function ExportMembersButton({ members, departments, homeFellowsh
 
         worksheet.addRow([]);
 
-        const headerRow = worksheet.addRow(["#", "Full Name", "Phone Number", "Gender", "Fellowship", "Departments"]);
+        const headerRow = worksheet.addRow(["#", "Full Name", "Phone Number", "Gender", "Status", "Section (AG)", "Fellowship", "Departments"]);
         headerRow.font = { bold: true };
         headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE0E0E0" } };
 
         rows.forEach((r, i) => {
-            worksheet.addRow([i + 1, r.fullName, r.phoneNumber, r.gender, r.fellowship, r.departments]);
+            worksheet.addRow([i + 1, r.fullName, r.phoneNumber, r.gender, r.status, r.section, r.fellowship, r.departments]);
         });
 
         worksheet.addRow([]);
         const totalRow = worksheet.addRow(["Total Members:", rows.length]);
         totalRow.font = { bold: true };
 
-        worksheet.getColumn(1).width = 8;
-        worksheet.getColumn(2).width = 25;
-        worksheet.getColumn(3).width = 20;
-        worksheet.getColumn(4).width = 12;
-        worksheet.getColumn(5).width = 20;
-        worksheet.getColumn(6).width = 30;
+        [8, 25, 20, 12, 12, 18, 20, 30].forEach((w, i) => (worksheet.getColumn(i + 1).width = w));
 
         for (let row = 5; row <= 5 + rows.length; row++) {
-            for (let col = 1; col <= 6; col++) {
+            for (let col = 1; col <= COLS; col++) {
                 worksheet.getCell(row, col).border = {
                     top: { style: "thin" }, left: { style: "thin" },
                     bottom: { style: "thin" }, right: { style: "thin" },
@@ -120,6 +124,8 @@ export default function ExportMembersButton({ members, departments, homeFellowsh
                     fullName: m.fullName,
                     phoneNumber: m.phoneNumber || "",
                     gender: m.gender,
+                    status: (m as { status?: string | null }).status ?? "Active",
+                    section: (m as { accountabilityGroup?: { name: string } | null }).accountabilityGroup?.name ?? "-",
                     fellowship: m.homeFellowship?.name || "-",
                     departments: m.departments.map(d => d.department.name).join(", ") || "-",
                 }));
@@ -149,6 +155,8 @@ export default function ExportMembersButton({ members, departments, homeFellowsh
                 fullName: m.fullName,
                 phoneNumber: m.phoneNumber,
                 gender: m.gender,
+                status: (m as { status?: string | null }).status ?? "Active",
+                section: (m as { accountabilityGroup?: { name: string } | null }).accountabilityGroup?.name ?? "-",
                 fellowship: m.homeFellowship?.name || "-",
                 departments: m.departments.map(d => d.department.name).join(", ") || "-",
             }));

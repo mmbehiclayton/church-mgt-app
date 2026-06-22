@@ -1466,7 +1466,9 @@ export async function deleteHomeFellowships(ids: string[]) {
 export async function getMembers(filters?: {
     departmentId?: string
     fellowshipId?: string
+    accountabilityGroupId?: string
     gender?: string
+    status?: string
     page?: number
     limit?: number
     search?: string
@@ -1498,8 +1500,16 @@ export async function getMembers(filters?: {
             where.homeFellowshipId = filters.fellowshipId
         }
 
+        if (filters?.accountabilityGroupId) {
+            where.accountabilityGroupId = filters.accountabilityGroupId
+        }
+
         if (filters?.gender) {
             where.gender = filters.gender
+        }
+
+        if (filters?.status) {
+            where.status = filters.status
         }
 
         // Execute count and fetch in parallel for better performance
@@ -1512,8 +1522,14 @@ export async function getMembers(filters?: {
                     phoneNumber: true,
                     gender: true,
                     estate: true,
+                    status: true,
+                    dateJoined: true,
                     homeFellowshipId: true,
                     homeFellowship: {
+                        select: { id: true, name: true }
+                    },
+                    accountabilityGroupId: true,
+                    accountabilityGroup: {
                         select: { id: true, name: true }
                     },
                     departments: {
@@ -1572,25 +1588,25 @@ export async function createMember(data: {
     phoneNumber: string;
     gender: string;
     estate?: string;
+    status?: string;
+    dateJoined?: string;
     departmentIds?: string[];
     homeFellowshipId?: string;
+    accountabilityGroupId?: string;
 }) {
     try {
         await requirePermission('members', 'create');
-        // Validate full name
         if (!data.fullName || data.fullName.trim().length < 2) {
             return { error: "Full name must be at least 2 characters" };
         }
-
-        // Validate phone number (basic validation)
         if (!data.phoneNumber || data.phoneNumber.trim().length < 10) {
             return { error: "Please provide a valid phone number" };
         }
-
-        // Validate gender
         if (!data.gender || !['Male', 'Female'].includes(data.gender)) {
             return { error: "Gender must be either Male or Female" };
         }
+        const validStatuses = ['Active', 'Visitor', 'Inactive'];
+        const status = data.status && validStatuses.includes(data.status) ? data.status : 'Active';
 
         const member = await prisma.member.create({
             data: {
@@ -1598,7 +1614,10 @@ export async function createMember(data: {
                 phoneNumber: data.phoneNumber.trim(),
                 gender: data.gender,
                 estate: data.estate?.trim() || null,
+                status,
+                dateJoined: data.dateJoined ? new Date(data.dateJoined) : null,
                 homeFellowshipId: data.homeFellowshipId || null,
+                accountabilityGroupId: data.accountabilityGroupId || null,
                 departments: {
                     create: (data.departmentIds || []).map(deptId => ({
                         departmentId: deptId
@@ -1620,19 +1639,20 @@ export async function updateMember(id: string, data: {
     phoneNumber?: string;
     gender?: string;
     estate?: string;
+    status?: string;
+    dateJoined?: string | null;
     departmentIds?: string[];
     homeFellowshipId?: string | null;
+    accountabilityGroupId?: string | null;
 }) {
     try {
         await requirePermission('members', 'update');
         if (data.fullName && data.fullName.trim().length < 2) {
             return { error: "Full name must be at least 2 characters" };
         }
-
         if (data.phoneNumber && data.phoneNumber.trim().length < 10) {
             return { error: "Please provide a valid phone number" };
         }
-
         if (data.gender && !['Male', 'Female'].includes(data.gender)) {
             return { error: "Gender must be either Male or Female" };
         }
@@ -1644,12 +1664,24 @@ export async function updateMember(id: string, data: {
             estate: data.estate?.trim(),
         };
 
+        if (data.status !== undefined) {
+            const validStatuses = ['Active', 'Visitor', 'Inactive'];
+            if (validStatuses.includes(data.status)) updateData.status = data.status;
+        }
+
+        if (data.dateJoined !== undefined) {
+            updateData.dateJoined = data.dateJoined ? new Date(data.dateJoined) : null;
+        }
+
         if (data.homeFellowshipId !== undefined) {
             updateData.homeFellowshipId = data.homeFellowshipId;
         }
 
+        if (data.accountabilityGroupId !== undefined) {
+            updateData.accountabilityGroupId = data.accountabilityGroupId;
+        }
+
         if (data.departmentIds !== undefined) {
-            // Delete existing relationships and create new ones
             updateData.departments = {
                 deleteMany: {},
                 create: data.departmentIds.map(deptId => ({
@@ -1713,7 +1745,10 @@ export async function getMembersForExport(filters?: {
                 phoneNumber: true,
                 gender: true,
                 estate: true,
+                status: true,
+                dateJoined: true,
                 homeFellowship: { select: { name: true } },
+                accountabilityGroup: { select: { name: true } },
                 departments: { select: { department: { select: { name: true } } } },
             },
             orderBy: { fullName: 'asc' },
@@ -1753,8 +1788,8 @@ export async function getMembersWithoutPhone() {
 export async function bulkUpdateMembers(
     ids: string[],
     update: {
-        type: "gender" | "fellowship" | "department";
-        value: string;          // gender string | fellowshipId | departmentId
+        type: "gender" | "fellowship" | "department" | "accountabilityGroup" | "status";
+        value: string;
         mode?: "add" | "replace"; // only relevant for department
     }
 ): Promise<{ success?: boolean; count?: number; error?: string }> {
@@ -1770,22 +1805,33 @@ export async function bulkUpdateMembers(
                 data: { gender: update.value },
             });
 
+        } else if (update.type === "status") {
+            if (!["Active", "Visitor", "Inactive"].includes(update.value))
+                return { error: "Invalid status value" };
+            await prisma.member.updateMany({
+                where: { id: { in: ids } },
+                data: { status: update.value },
+            });
+
         } else if (update.type === "fellowship") {
             await prisma.member.updateMany({
                 where: { id: { in: ids } },
                 data: { homeFellowshipId: update.value || null },
             });
 
+        } else if (update.type === "accountabilityGroup") {
+            await prisma.member.updateMany({
+                where: { id: { in: ids } },
+                data: { accountabilityGroupId: update.value || null },
+            });
+
         } else if (update.type === "department") {
-            // Verify department exists
             const dept = await prisma.department.findUnique({ where: { id: update.value } });
             if (!dept) return { error: "Department not found" };
 
             if (update.mode === "replace") {
-                // Replace all departments: delete existing then insert
                 await prisma.memberDepartment.deleteMany({ where: { memberId: { in: ids } } });
             }
-            // Upsert: skip if already in department (skipDuplicates)
             await prisma.memberDepartment.createMany({
                 data: ids.map(memberId => ({ memberId, departmentId: update.value })),
                 skipDuplicates: true,
@@ -1874,6 +1920,96 @@ export async function importMembers(data: {
     } catch (error) {
         console.error("Import Members Error:", error);
         return { error: "Failed to import members" };
+    }
+}
+
+// --- Accountability Group Actions ---
+
+export async function getAccountabilityGroups() {
+    try {
+        await requirePermission('members', 'read');
+        const groups = await prisma.accountabilityGroup.findMany({
+            select: {
+                id: true,
+                name: true,
+                leader: true,
+                description: true,
+                createdAt: true,
+                updatedAt: true,
+                _count: { select: { members: true } }
+            },
+            orderBy: { name: 'asc' }
+        });
+        return groups;
+    } catch (error) {
+        console.error("Get Accountability Groups Error:", error);
+        return [];
+    }
+}
+
+export async function createAccountabilityGroup(data: { name: string; leader?: string; description?: string }) {
+    try {
+        await requirePermission('members', 'create');
+        if (!data.name || data.name.trim().length < 2) {
+            return { error: "Name must be at least 2 characters" };
+        }
+        const existing = await prisma.accountabilityGroup.findUnique({ where: { name: data.name.trim() } });
+        if (existing) return { error: "A group with this name already exists" };
+
+        const group = await prisma.accountabilityGroup.create({
+            data: {
+                name: data.name.trim(),
+                leader: data.leader?.trim() || null,
+                description: data.description?.trim() || null,
+            }
+        });
+        revalidatePath("/dashboard/membership");
+        return { success: true, group };
+    } catch (error) {
+        console.error("Create Accountability Group Error:", error);
+        return { error: "Failed to create accountability group" };
+    }
+}
+
+export async function updateAccountabilityGroup(id: string, data: { name?: string; leader?: string; description?: string }) {
+    try {
+        await requirePermission('members', 'update');
+        if (data.name && data.name.trim().length < 2) {
+            return { error: "Name must be at least 2 characters" };
+        }
+        const group = await prisma.accountabilityGroup.update({
+            where: { id },
+            data: {
+                name: data.name?.trim(),
+                leader: data.leader?.trim() ?? undefined,
+                description: data.description?.trim() ?? undefined,
+            }
+        });
+        revalidatePath("/dashboard/membership");
+        return { success: true, group };
+    } catch (error) {
+        console.error("Update Accountability Group Error:", error);
+        return { error: "Failed to update accountability group" };
+    }
+}
+
+export async function deleteAccountabilityGroup(id: string) {
+    try {
+        await requirePermission('members', 'delete');
+        const group = await prisma.accountabilityGroup.findUnique({
+            where: { id },
+            include: { _count: { select: { members: true } } }
+        });
+        if (!group) return { error: "Group not found" };
+        if (group._count.members > 0) {
+            return { error: `Cannot delete: ${group._count.members} member(s) are assigned to this group` };
+        }
+        await prisma.accountabilityGroup.delete({ where: { id } });
+        revalidatePath("/dashboard/membership");
+        return { success: true };
+    } catch (error) {
+        console.error("Delete Accountability Group Error:", error);
+        return { error: "Failed to delete accountability group" };
     }
 }
 

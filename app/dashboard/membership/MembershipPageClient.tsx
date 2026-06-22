@@ -3,17 +3,9 @@
 import MembersTable from "@/components/membership/MembersTable";
 import { usePermissions } from "@/hooks/usePermissions";
 
-interface HomeFellowship {
-    id: string;
-    name: string;
-}
-
-interface Department {
-    id: string;
-    name: string;
-    description: string | null;
-    _count: { members: number };
-}
+interface HomeFellowship { id: string; name: string; }
+interface Department { id: string; name: string; description: string | null; _count: { members: number }; }
+interface AccountabilityGroup { id: string; name: string; leader: string | null; description: string | null; _count: { members: number }; }
 
 interface Member {
     id: string;
@@ -21,31 +13,26 @@ interface Member {
     phoneNumber: string;
     gender: string;
     estate: string | null;
+    status: string | null;
+    dateJoined: Date | string | null;
     homeFellowshipId: string | null;
     homeFellowship: HomeFellowship | null;
+    accountabilityGroupId: string | null;
+    accountabilityGroup: { id: string; name: string } | null;
     departments: { department: { id: string; name: string } }[];
 }
 
-interface Pagination {
-    total: number;
-    page: number;
-    limit: number;
-    pages: number;
-}
+interface Pagination { total: number; page: number; limit: number; pages: number; }
 
 interface MembershipPageClientProps {
     members: Member[];
     pagination: Pagination;
     departments: Department[];
     homeFellowships: HomeFellowship[];
+    accountabilityGroups: AccountabilityGroup[];
 }
 
-export default function MembershipPageClient({
-    members,
-    pagination,
-    departments,
-    homeFellowships,
-}: MembershipPageClientProps) {
+export default function MembershipPageClient({ members, pagination, departments, homeFellowships, accountabilityGroups }: MembershipPageClientProps) {
     const { hasPermission } = usePermissions();
 
     if (!hasPermission("members:read")) {
@@ -53,9 +40,7 @@ export default function MembershipPageClient({
             <div className="flex items-center justify-center h-64">
                 <div className="text-center">
                     <h2 className="text-xl font-semibold">Access Denied</h2>
-                    <p className="text-muted-foreground mt-2">
-                        You don&apos;t have permission to view members.
-                    </p>
+                    <p className="text-muted-foreground mt-2">You don&apos;t have permission to view members.</p>
                 </div>
             </div>
         );
@@ -66,7 +51,7 @@ export default function MembershipPageClient({
             <div>
                 <h1 className="text-2xl font-semibold tracking-tight">Membership</h1>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                    Manage church members, departments, and fellowships
+                    Manage church members, departments, fellowships and accountability groups
                 </p>
             </div>
 
@@ -75,6 +60,7 @@ export default function MembershipPageClient({
                 pagination={pagination}
                 departments={departments}
                 homeFellowships={homeFellowships}
+                accountabilityGroups={accountabilityGroups}
             />
         </div>
     );
