@@ -139,16 +139,23 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
 
             {/* Transactions table */}
             <div>
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                     <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                         Transactions
                     </h2>
-                    <div className="flex items-center gap-3">
-                        <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <span className="h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400" />
-                            Reconciled
-                        </span>
-                        <span className="text-xs text-muted-foreground">{transactions.length} records</span>
+                    <div className="flex items-center gap-3 flex-wrap">
+                        {transactions.length > 0 && (
+                            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                                Ksh {transactions.reduce((s, t) => s + t.amount, 0).toLocaleString()}
+                            </span>
+                        )}
+                        <span className="text-xs text-muted-foreground tabular-nums">{transactions.length} records</span>
+                        {transactions.filter(t => t.reconciled).length > 0 && (
+                            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <span className="h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400" />
+                                {transactions.filter(t => t.reconciled).length} reconciled
+                            </span>
+                        )}
                     </div>
                 </div>
                 <div className="rounded-xl border border-border bg-card overflow-hidden">

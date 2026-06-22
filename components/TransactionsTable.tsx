@@ -1,12 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Trash2, MoreHorizontal, User, CheckCircle2, Circle, Copy, Check } from "lucide-react";
+import {
+    Trash2, MoreHorizontal, User, CheckCircle2, Circle,
+    Copy, Check, ChevronUp, ChevronDown, ChevronsUpDown,
+    ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
+} from "lucide-react";
 import { deleteTransactions, setTransactionsReconciled } from "@/app/actions";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
@@ -21,6 +25,8 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+const PAGE_SIZE = 50;
 
 interface Category {
     id: string;
@@ -45,9 +51,11 @@ interface Transaction {
     reconciled: boolean;
 }
 
+type SortField = "date" | "amount" | "category";
+type SortDir = "asc" | "desc";
+
 function CopyRef({ reference }: { reference: string }) {
     const [copied, setCopied] = useState(false);
-
     async function copy(e: React.MouseEvent) {
         e.stopPropagation();
         try {
@@ -59,7 +67,6 @@ function CopyRef({ reference }: { reference: string }) {
             toast.error("Failed to copy");
         }
     }
-
     return (
         <button
             type="button"
@@ -73,7 +80,6 @@ function CopyRef({ reference }: { reference: string }) {
     );
 }
 
-/** Best-effort transaction time: explicit field → parsed from the M-Pesa message → derived from the date. */
 function displayTime(t: Transaction): string {
     if (t.transactionTime) return t.transactionTime;
     const match = t.rawMessage?.match(/at\s+(\d{1,2}:\d{2}\s?(?:[AP]M)?)/i);
@@ -81,12 +87,33 @@ function displayTime(t: Transaction): string {
     return format(new Date(t.transactionDate), "HH:mm");
 }
 
-/** Shared ⋯ actions menu used by both the desktop table and the mobile cards. */
+function SortButton({
+    field, current, onSort,
+}: {
+    field: SortField;
+    current: { field: SortField; dir: SortDir };
+    onSort: (f: SortField) => void;
+}) {
+    const active = current.field === field;
+    return (
+        <button
+            onClick={() => onSort(field)}
+            className={cn(
+                "inline-flex items-center gap-0.5 group",
+                active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+            )}
+        >
+            {active
+                ? current.dir === "asc"
+                    ? <ChevronUp className="h-3 w-3" />
+                    : <ChevronDown className="h-3 w-3" />
+                : <ChevronsUpDown className="h-3 w-3 opacity-40 group-hover:opacity-70" />}
+        </button>
+    );
+}
+
 function RowActions({
-    t,
-    categories,
-    onToggleReconciled,
-    onDelete,
+    t, categories, onToggleReconciled, onDelete,
 }: {
     t: Transaction;
     categories: Category[];
@@ -104,30 +131,20 @@ function RowActions({
             <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                 <DropdownMenuItem onClick={() => onToggleReconciled([t.id], !t.reconciled)}>
-                    {t.reconciled ? (
-                        <><Circle className="mr-2 h-4 w-4" /> Mark unreconciled</>
-                    ) : (
-                        <><CheckCircle2 className="mr-2 h-4 w-4" /> Mark reconciled</>
-                    )}
+                    {t.reconciled
+                        ? <><Circle className="mr-2 h-4 w-4" /> Mark unreconciled</>
+                        : <><CheckCircle2 className="mr-2 h-4 w-4" /> Mark reconciled</>}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <TransactionModal
                     categories={categories}
                     asMenuItem
                     initialData={{
-                        id: t.id,
-                        reference: t.reference,
-                        amount: t.amount,
-                        transactionDate: t.transactionDate,
-                        transactionTime: t.transactionTime,
-                        bank: t.bank,
-                        paybill: t.paybill,
-                        account: t.account,
-                        accountName: t.accountName,
-                        rawMessage: t.rawMessage,
-                        categoryId: t.categoryId,
-                        memberId: t.memberId,
-                        memberName: t.memberName,
+                        id: t.id, reference: t.reference, amount: t.amount,
+                        transactionDate: t.transactionDate, transactionTime: t.transactionTime,
+                        bank: t.bank, paybill: t.paybill, account: t.account,
+                        accountName: t.accountName, rawMessage: t.rawMessage,
+                        categoryId: t.categoryId, memberId: t.memberId, memberName: t.memberName,
                     }}
                 />
                 <DropdownMenuSeparator />
@@ -142,7 +159,6 @@ function RowActions({
     );
 }
 
-/** Reference + reconciled colour + copy button — shared by table and cards. */
 function RefCell({ t }: { t: Transaction }) {
     return (
         <div className="flex items-center gap-1.5 min-w-0">
@@ -167,11 +183,45 @@ export default function TransactionsTable({ transactions, categories }: { transa
     const [loading, setLoading] = useState(false);
     const [showBulkDelete, setShowBulkDelete] = useState(false);
     const [deleteSingleId, setDeleteSingleId] = useState<string | null>(null);
+    const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({ field: "date", dir: "desc" });
+    const [page, setPage] = useState(1);
 
-    const allSelected = transactions.length > 0 && selectedIds.length === transactions.length;
+    // Reset to page 1 when the transaction list changes (filter applied)
+    useEffect(() => {
+        setPage(1);
+        setSelectedIds([]);
+    }, [transactions.length, transactions[0]?.id]);
+
+    function toggleSort(field: SortField) {
+        setSort(prev =>
+            prev.field === field
+                ? { field, dir: prev.dir === "asc" ? "desc" : "asc" }
+                : { field, dir: "desc" }
+        );
+        setPage(1);
+    }
+
+    const sorted = useMemo(() => {
+        const mul = sort.dir === "asc" ? 1 : -1;
+        return [...transactions].sort((a, b) => {
+            if (sort.field === "date") return mul * (new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime());
+            if (sort.field === "amount") return mul * (a.amount - b.amount);
+            if (sort.field === "category") return mul * ((a.category?.name ?? "").localeCompare(b.category?.name ?? ""));
+            return 0;
+        });
+    }, [transactions, sort]);
+
+    const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+    const paged = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    const allPageSelected = paged.length > 0 && paged.every(t => selectedIds.includes(t.id));
 
     function toggleAll(checked: boolean) {
-        setSelectedIds(checked ? transactions.map(t => t.id) : []);
+        if (checked) {
+            setSelectedIds(prev => [...new Set([...prev, ...paged.map(t => t.id)])]);
+        } else {
+            const pageIds = new Set(paged.map(t => t.id));
+            setSelectedIds(prev => prev.filter(id => !pageIds.has(id)));
+        }
     }
 
     function toggleRow(id: string, checked: boolean) {
@@ -232,11 +282,9 @@ export default function TransactionsTable({ transactions, categories }: { transa
                             onClick={() => toggleReconciled(selectedIds, !allSelectedReconciled)}
                             disabled={loading}
                         >
-                            {allSelectedReconciled ? (
-                                <><Circle className="h-3.5 w-3.5 mr-1.5" /> Mark unreconciled</>
-                            ) : (
-                                <><CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Mark reconciled</>
-                            )}
+                            {allSelectedReconciled
+                                ? <><Circle className="h-3.5 w-3.5 mr-1.5" /> Mark unreconciled</>
+                                : <><CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Mark reconciled</>}
                         </Button>
                         <Button variant="destructive" size="sm" onClick={() => setShowBulkDelete(true)} disabled={loading}>
                             <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete
@@ -249,38 +297,52 @@ export default function TransactionsTable({ transactions, categories }: { transa
                 <div className="py-12 text-center text-sm text-muted-foreground">No transactions found.</div>
             ) : (
                 <>
-                    {/* Desktop / tablet: table */}
+                    {/* Desktop table */}
                     <div className="hidden md:block overflow-x-auto">
                         <Table>
                             <TableHeader>
                                 <TableRow className="bg-muted/30 hover:bg-muted/30">
                                     <TableHead className="w-10">
-                                        <Checkbox checked={allSelected} onCheckedChange={v => toggleAll(v as boolean)} />
+                                        <Checkbox checked={allPageSelected} onCheckedChange={v => toggleAll(v as boolean)} />
                                     </TableHead>
                                     <TableHead className="w-8 text-xs">#</TableHead>
                                     <TableHead className="text-xs">Reference</TableHead>
-                                    <TableHead className="text-xs text-right">Amount</TableHead>
+                                    <TableHead className="text-xs text-right">
+                                        <span className="inline-flex items-center gap-1 justify-end">
+                                            Amount
+                                            <SortButton field="amount" current={sort} onSort={toggleSort} />
+                                        </span>
+                                    </TableHead>
                                     <TableHead className="text-xs hidden sm:table-cell">Member</TableHead>
                                     <TableHead className="text-xs hidden md:table-cell">Account</TableHead>
                                     <TableHead className="text-xs hidden lg:table-cell">Bank</TableHead>
-                                    <TableHead className="text-xs">Date</TableHead>
-                                    <TableHead className="text-xs">Category</TableHead>
+                                    <TableHead className="text-xs">
+                                        <span className="inline-flex items-center gap-1">
+                                            Date
+                                            <SortButton field="date" current={sort} onSort={toggleSort} />
+                                        </span>
+                                    </TableHead>
+                                    <TableHead className="text-xs">
+                                        <span className="inline-flex items-center gap-1">
+                                            Category
+                                            <SortButton field="category" current={sort} onSort={toggleSort} />
+                                        </span>
+                                    </TableHead>
                                     <TableHead className="w-10" />
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {transactions.map((t, index) => (
-                                    <TableRow
-                                        key={t.id}
-                                        className={selectedIds.includes(t.id) ? "bg-primary/5" : ""}
-                                    >
+                                {paged.map((t, index) => (
+                                    <TableRow key={t.id} className={selectedIds.includes(t.id) ? "bg-primary/5" : ""}>
                                         <TableCell>
                                             <Checkbox
                                                 checked={selectedIds.includes(t.id)}
                                                 onCheckedChange={v => toggleRow(t.id, v as boolean)}
                                             />
                                         </TableCell>
-                                        <TableCell className="text-muted-foreground text-xs tabular-nums">{index + 1}</TableCell>
+                                        <TableCell className="text-muted-foreground text-xs tabular-nums">
+                                            {(page - 1) * PAGE_SIZE + index + 1}
+                                        </TableCell>
                                         <TableCell className="font-mono text-xs font-medium">
                                             <RefCell t={t} />
                                         </TableCell>
@@ -325,14 +387,14 @@ export default function TransactionsTable({ transactions, categories }: { transa
                         </Table>
                     </div>
 
-                    {/* Mobile: card list */}
+                    {/* Mobile card list */}
                     <div className="md:hidden">
                         <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30 text-xs text-muted-foreground">
-                            <Checkbox checked={allSelected} onCheckedChange={v => toggleAll(v as boolean)} />
-                            <span>{allSelected ? "Deselect all" : "Select all"}</span>
+                            <Checkbox checked={allPageSelected} onCheckedChange={v => toggleAll(v as boolean)} />
+                            <span>{allPageSelected ? "Deselect page" : "Select page"}</span>
                         </div>
                         <ul className="divide-y divide-border">
-                            {transactions.map((t) => (
+                            {paged.map((t) => (
                                 <li
                                     key={t.id}
                                     className={cn("flex items-center gap-2.5 px-3 py-2", selectedIds.includes(t.id) && "bg-primary/5")}
@@ -343,11 +405,8 @@ export default function TransactionsTable({ transactions, categories }: { transa
                                         className="shrink-0"
                                     />
                                     <div className="min-w-0 flex-1">
-                                        {/* Code + amount + actions */}
                                         <div className="flex items-center gap-2">
-                                            <div className="min-w-0 flex-1">
-                                                <RefCell t={t} />
-                                            </div>
+                                            <div className="min-w-0 flex-1"><RefCell t={t} /></div>
                                             <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums whitespace-nowrap shrink-0">
                                                 Ksh {t.amount.toLocaleString()}
                                             </span>
@@ -358,7 +417,6 @@ export default function TransactionsTable({ transactions, categories }: { transa
                                                 onDelete={setDeleteSingleId}
                                             />
                                         </div>
-                                        {/* Category + date + time */}
                                         <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
                                             <Badge variant="secondary" className="min-w-0 truncate text-[10px] px-1.5 py-0">
                                                 {t.category?.name || "Uncategorized"}
@@ -372,6 +430,30 @@ export default function TransactionsTable({ transactions, categories }: { transa
                             ))}
                         </ul>
                     </div>
+
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-between px-4 py-3 border-t border-border text-xs text-muted-foreground">
+                            <span>
+                                {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, sorted.length)} of {sorted.length}
+                            </span>
+                            <div className="flex items-center gap-1">
+                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setPage(1)} disabled={page === 1}>
+                                    <ChevronsLeft className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setPage(p => p - 1)} disabled={page === 1}>
+                                    <ChevronLeft className="h-3.5 w-3.5" />
+                                </Button>
+                                <span className="px-2 tabular-nums">{page} / {totalPages}</span>
+                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setPage(p => p + 1)} disabled={page === totalPages}>
+                                    <ChevronRight className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setPage(totalPages)} disabled={page === totalPages}>
+                                    <ChevronsRight className="h-3.5 w-3.5" />
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </>
             )}
 
@@ -385,7 +467,6 @@ export default function TransactionsTable({ transactions, categories }: { transa
                 variant="danger"
                 loading={loading}
             />
-
             <ConfirmationDialog
                 open={!!deleteSingleId}
                 onOpenChange={open => { if (!open) setDeleteSingleId(null); }}
