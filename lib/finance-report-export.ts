@@ -17,23 +17,18 @@ export { loadLogo } from "@/lib/report-shared";
 export type { LoadedLogo } from "@/lib/report-shared";
 
 const ksh = (n: number) => `Ksh ${Math.round(n).toLocaleString()}`;
-const stamp = () => format(new Date(), "yyyy-MM-dd");
 
 function groupByMonth(transactions: CategoryContributionReport["transactions"]) {
     const map = new Map<string, { label: string; txns: typeof transactions; total: number }>();
     for (const t of transactions) {
         const month = t.date.slice(0, 7);
-        const entry = map.get(month) ?? {
-            label: monthLabel(month),
-            txns: [],
-            total: 0,
-        };
+        const entry = map.get(month) ?? { label: monthLabel(month), txns: [], total: 0 };
         entry.txns.push(t);
         entry.total += t.amount;
         map.set(month, entry);
     }
     return Array.from(map.entries())
-        .sort(([a], [b]) => b.localeCompare(a)) // newest first
+        .sort(([a], [b]) => b.localeCompare(a))
         .map(([, v]) => v);
 }
 
@@ -46,8 +41,30 @@ function periodLabel(report: CategoryContributionReport): string {
 }
 
 function monthLabel(m: string) {
-    // m is yyyy-MM
     return format(new Date(`${m}-01T00:00:00`), "MMM yyyy");
+}
+
+function buildFileName(report: CategoryContributionReport, branding: ReportBranding | undefined, ext: string): string {
+    const org = (branding?.name || "CHURCH").toUpperCase().trim();
+    const scope = report.scope.toUpperCase();
+
+    const { from, to } = report.period;
+    let period: string;
+    if (from && to) {
+        const f = format(new Date(from), "MMM yyyy").toUpperCase();
+        const t = format(new Date(to), "MMM yyyy").toUpperCase();
+        period = f === t ? f : `${f} - ${t}`;
+    } else if (from) {
+        period = `FROM ${format(new Date(from), "MMM yyyy").toUpperCase()}`;
+    } else if (to) {
+        period = `TO ${format(new Date(to), "MMM yyyy").toUpperCase()}`;
+    } else {
+        period = new Date().getFullYear().toString();
+    }
+
+    // Strip characters that are illegal in filenames on Windows/Mac
+    const raw = `${org} ${scope} CONTRIBUTION REPORT ${period}.${ext}`;
+    return raw.replace(/[<>:"/\\|?*]/g, "").replace(/\s+/g, " ").trim();
 }
 
 /* ── CSV ────────────────────────────────────────────────────────────────── */
@@ -80,23 +97,26 @@ export function exportFinanceReportCsv(report: CategoryContributionReport, brand
             rows.push([]);
             rows.push([label, `${txns.length} transaction(s)`, `Total: Ksh ${Math.round(total).toLocaleString()}`]);
             rows.push(multiCat
-                ? ["Date", "Reference", "Category", "Member", "Amount (Ksh)"]
-                : ["Date", "Reference", "Member", "Amount (Ksh)"]
+                ? ["Date", "Reference", "Category", "Amount (Ksh)"]
+                : ["Date", "Reference", "Amount (Ksh)"]
             );
             for (const t of txns) {
                 rows.push(multiCat
-                    ? [format(new Date(t.date), "yyyy-MM-dd"), t.reference, t.categoryName, t.memberName || "", Math.round(t.amount)]
-                    : [format(new Date(t.date), "yyyy-MM-dd"), t.reference, t.memberName || "", Math.round(t.amount)]
+                    ? [format(new Date(t.date), "yyyy-MM-dd"), t.reference, t.categoryName, Math.round(t.amount)]
+                    : [format(new Date(t.date), "yyyy-MM-dd"), t.reference, Math.round(t.amount)]
                 );
             }
             rows.push(multiCat
-                ? ["Subtotal", "", "", "", Math.round(total)]
-                : ["Subtotal", "", "", Math.round(total)]
+                ? ["Subtotal", "", "", Math.round(total)]
+                : ["Subtotal", "", Math.round(total)]
             );
         }
     }
 
-    downloadBlob(new Blob([toCsv(rows)], { type: "text/csv;charset=utf-8" }), `contributions_${stamp()}.csv`);
+    downloadBlob(
+        new Blob([toCsv(rows)], { type: "text/csv;charset=utf-8" }),
+        buildFileName(report, branding, "csv"),
+    );
 }
 
 /* ── Excel ──────────────────────────────────────────────────────────────── */
@@ -135,51 +155,47 @@ export async function exportFinanceReportExcel(report: CategoryContributionRepor
         report.monthlyTrend.forEach(m => trend.addRow([monthLabel(m.month), Math.round(m.total)]));
     }
 
-    // Detailed transactions sheet — grouped by month
+    // Detailed transactions sheet — grouped by month, no member column
     if (detailed) {
         const multiCat = report.categories.length > 1;
         const tx = workbook.addWorksheet("Transactions by Month");
-        (multiCat ? [16, 24, 26, 22, 16] : [16, 24, 22, 16]).forEach((w, i) => (tx.getColumn(i + 1).width = w));
+        (multiCat ? [16, 26, 24, 16] : [16, 26, 16]).forEach((w, i) => (tx.getColumn(i + 1).width = w));
 
         const months = groupByMonth(report.transactions);
         for (const { label, txns, total } of months) {
-            // Month header
-            const mRow = tx.addRow([label, `${txns.length} transaction(s)`, ...(multiCat ? ["", ""] : [""]), `Ksh ${Math.round(total).toLocaleString()}`]);
+            const mRow = tx.addRow([label, `${txns.length} transaction(s)`, ...(multiCat ? [""] : []), `Ksh ${Math.round(total).toLocaleString()}`]);
             mRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
             mRow.eachCell(cell => {
                 cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF10B981" } };
             });
 
-            // Column headers
             styleHeader(tx.addRow(multiCat
-                ? ["Date", "Reference", "Category", "Member", "Amount"]
-                : ["Date", "Reference", "Member", "Amount"]
+                ? ["Date", "Reference", "Category", "Amount"]
+                : ["Date", "Reference", "Amount"]
             ));
 
-            // Rows
             txns.forEach(t => tx.addRow(multiCat
-                ? [format(new Date(t.date), "yyyy-MM-dd"), t.reference, t.categoryName, t.memberName || "", Math.round(t.amount)]
-                : [format(new Date(t.date), "yyyy-MM-dd"), t.reference, t.memberName || "", Math.round(t.amount)]
+                ? [format(new Date(t.date), "yyyy-MM-dd"), t.reference, t.categoryName, Math.round(t.amount)]
+                : [format(new Date(t.date), "yyyy-MM-dd"), t.reference, Math.round(t.amount)]
             ));
 
-            // Subtotal
             const subRow = tx.addRow(multiCat
-                ? ["Subtotal", "", "", "", Math.round(total)]
-                : ["Subtotal", "", "", Math.round(total)]
+                ? ["Subtotal", "", "", Math.round(total)]
+                : ["Subtotal", "", Math.round(total)]
             );
             subRow.font = { bold: true };
             subRow.eachCell(cell => {
                 cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF0FDF4" } };
             });
 
-            tx.addRow([]); // spacer
+            tx.addRow([]);
         }
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
     downloadBlob(
         new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
-        `contributions_${stamp()}.xlsx`
+        buildFileName(report, branding, "xlsx"),
     );
 }
 
@@ -228,7 +244,7 @@ export function exportFinanceReportPdf(report: CategoryContributionReport, brand
         y = doc.lastAutoTable.finalY + 8;
     }
 
-    // Detailed transactions, grouped by month
+    // Detailed transactions grouped by month — no member column
     if (detailed && report.transactions.length > 0) {
         const multiCat = report.categories.length > 1;
         const months = groupByMonth(report.transactions);
@@ -246,15 +262,15 @@ export function exportFinanceReportPdf(report: CategoryContributionReport, brand
             doc.setFont("helvetica", "normal");
 
             const head = multiCat
-                ? [["Date", "Reference", "Category", "Member", "Amount"]]
-                : [["Date", "Reference", "Member", "Amount"]];
+                ? [["Date", "Reference", "Category", "Amount"]]
+                : [["Date", "Reference", "Amount"]];
             const body = txns.map(t => multiCat
-                ? [format(new Date(t.date), "dd MMM yyyy"), t.reference, t.categoryName, t.memberName || "", ksh(t.amount)]
-                : [format(new Date(t.date), "dd MMM yyyy"), t.reference, t.memberName || "", ksh(t.amount)]
+                ? [format(new Date(t.date), "dd MMM yyyy"), t.reference, t.categoryName, ksh(t.amount)]
+                : [format(new Date(t.date), "dd MMM yyyy"), t.reference, ksh(t.amount)]
             );
             const foot = multiCat
-                ? [["Subtotal", "", "", "", ksh(total)]]
-                : [["Subtotal", "", "", ksh(total)]];
+                ? [["Subtotal", "", "", ksh(total)]]
+                : [["Subtotal", "", ksh(total)]];
 
             autoTable(doc, {
                 startY: y + 3,
@@ -271,5 +287,5 @@ export function exportFinanceReportPdf(report: CategoryContributionReport, brand
     }
 
     pdfFooter(doc, generatedBy);
-    downloadBlob(doc.output("blob"), `contributions_${stamp()}.pdf`);
+    downloadBlob(doc.output("blob"), buildFileName(report, branding, "pdf"));
 }

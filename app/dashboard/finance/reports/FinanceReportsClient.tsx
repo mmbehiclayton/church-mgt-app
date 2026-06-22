@@ -398,7 +398,6 @@ function DetailedTransactions({ report }: { report: CategoryContributionReport }
                                         <th className="px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Date</th>
                                         <th className="px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Reference</th>
                                         {multiCat && <th className="px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Category</th>}
-                                        <th className="px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Member</th>
                                         <th className="px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider text-right">Amount</th>
                                     </tr>
                                 </thead>
@@ -408,14 +407,13 @@ function DetailedTransactions({ report }: { report: CategoryContributionReport }
                                             <td className="px-4 py-2 whitespace-nowrap">{format(new Date(t.date), "dd MMM yyyy")}</td>
                                             <td className="px-4 py-2 font-mono text-xs">{t.reference}</td>
                                             {multiCat && <td className="px-4 py-2 text-muted-foreground">{t.categoryName}</td>}
-                                            <td className="px-4 py-2 text-muted-foreground">{t.memberName || "—"}</td>
                                             <td className="px-4 py-2 text-right tabular-nums whitespace-nowrap text-emerald-600 dark:text-emerald-400">{ksh(t.amount)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
                                 <tfoot>
                                     <tr className="border-t border-border bg-muted/20 font-semibold text-sm">
-                                        <td colSpan={multiCat ? 4 : 3} className="px-4 py-2 text-xs text-muted-foreground">Month total</td>
+                                        <td colSpan={multiCat ? 3 : 2} className="px-4 py-2 text-xs text-muted-foreground">Month total</td>
                                         <td className="px-4 py-2 text-right tabular-nums whitespace-nowrap">{ksh(total)}</td>
                                     </tr>
                                 </tfoot>
