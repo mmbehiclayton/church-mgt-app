@@ -62,8 +62,9 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
         );
     }
 
-    const [categories, transactions, stats, branding] = await Promise.all([
+    const [allCategories, activeCategories, transactions, stats, branding] = await Promise.all([
         canReadCategories ? getCategories() : Promise.resolve([]),
+        canReadCategories ? getCategories({ activeOnly: true }) : Promise.resolve([]),
         getTransactions(filters),
         getDashboardStats(filters),
         canExportReports ? getFinanceReportBranding() : Promise.resolve(undefined),
@@ -94,24 +95,24 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
                                     <DropdownMenuContent align="end" className="w-52">
                                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                         <DropdownMenuSeparator />
-                                        {canManageCategories && <CategoryModal initialCategories={categories} asMenuItem />}
+                                        {canManageCategories && <CategoryModal initialCategories={allCategories} asMenuItem />}
                                         {canCreateTransactions && <ImportButton asMenuItem />}
-                                        {canExportReports && <ExportButtons categories={categories} branding={branding} asMenuItem />}
+                                        {canExportReports && <ExportButtons categories={activeCategories} branding={branding} asMenuItem />}
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </div>
 
                             {/* Desktop secondary buttons */}
                             <div className="hidden md:flex gap-2 flex-wrap">
-                                {canManageCategories && <CategoryModal initialCategories={categories} />}
+                                {canManageCategories && <CategoryModal initialCategories={allCategories} />}
                                 {canCreateTransactions && <ImportButton />}
-                                {canExportReports && <ExportButtons categories={categories} branding={branding} />}
+                                {canExportReports && <ExportButtons categories={activeCategories} branding={branding} />}
                             </div>
                         </>
                     )}
 
                     {/* Primary action — standalone, before Reports */}
-                    {canCreateTransactions && <TransactionModal categories={categories} />}
+                    {canCreateTransactions && <TransactionModal categories={activeCategories} />}
 
                     <Link href="/dashboard/finance/reports">
                         <Button variant="outline" size="sm">
@@ -123,7 +124,7 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
             </div>
 
             {/* Filters */}
-            <DashboardFilters categories={categories} />
+            <DashboardFilters categories={activeCategories} />
 
             {/* KPI strip */}
             <KPIGrid
@@ -151,7 +152,7 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
                     </div>
                 </div>
                 <div className="rounded-xl border border-border bg-card overflow-hidden">
-                    <TransactionsTable transactions={transactions} categories={categories} />
+                    <TransactionsTable transactions={transactions} categories={activeCategories} />
                 </div>
             </div>
         </div>

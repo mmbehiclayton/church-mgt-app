@@ -358,14 +358,24 @@ function periodText(report: CategoryContributionReport) {
 }
 
 function DetailedTransactions({ report }: { report: CategoryContributionReport }) {
+    const multiCat = report.categories.length > 1;
+
     const grouped = useMemo(() => {
-        const map = new Map<string, CategoryContributionReport["transactions"]>();
+        const map = new Map<string, { label: string; txns: CategoryContributionReport["transactions"]; total: number }>();
         for (const t of report.transactions) {
-            const list = map.get(t.categoryName) ?? [];
-            list.push(t);
-            map.set(t.categoryName, list);
+            const month = t.date.slice(0, 7); // yyyy-MM
+            const entry = map.get(month) ?? {
+                label: format(new Date(`${month}-01T00:00:00`), "MMM yyyy"),
+                txns: [],
+                total: 0,
+            };
+            entry.txns.push(t);
+            entry.total += t.amount;
+            map.set(month, entry);
         }
-        return Array.from(map.entries());
+        return Array.from(map.entries())
+            .sort(([a], [b]) => b.localeCompare(a)) // newest first
+            .map(([, v]) => v);
     }, [report]);
 
     if (grouped.length === 0) {
@@ -374,41 +384,46 @@ function DetailedTransactions({ report }: { report: CategoryContributionReport }
 
     return (
         <div className="space-y-4">
-            {grouped.map(([catName, list]) => {
-                const subtotal = list.reduce((s, t) => s + t.amount, 0);
-                return (
-                    <Card key={catName} className="print:break-inside-avoid">
-                        <CardContent className="p-0">
-                            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/30">
-                                <h3 className="text-sm font-semibold">{catName}</h3>
-                                <span className="text-sm text-muted-foreground">{ksh(subtotal)} · {list.length} txns</span>
-                            </div>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="border-b border-border bg-muted/20 text-left">
-                                            <th className="px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Date</th>
-                                            <th className="px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Reference</th>
-                                            <th className="px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Member</th>
-                                            <th className="px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider text-right">Amount</th>
+            {grouped.map(({ label, txns, total }) => (
+                <Card key={label} className="print:break-inside-avoid">
+                    <CardContent className="p-0">
+                        <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/30">
+                            <h3 className="text-sm font-semibold">{label}</h3>
+                            <span className="text-sm text-muted-foreground">{ksh(total)} · {txns.length} txns</span>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b border-border bg-muted/20 text-left">
+                                        <th className="px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Date</th>
+                                        <th className="px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Reference</th>
+                                        {multiCat && <th className="px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Category</th>}
+                                        <th className="px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Member</th>
+                                        <th className="px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider text-right">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border">
+                                    {txns.map((t, i) => (
+                                        <tr key={`${t.reference}-${i}`} className="hover:bg-muted/30">
+                                            <td className="px-4 py-2 whitespace-nowrap">{format(new Date(t.date), "dd MMM yyyy")}</td>
+                                            <td className="px-4 py-2 font-mono text-xs">{t.reference}</td>
+                                            {multiCat && <td className="px-4 py-2 text-muted-foreground">{t.categoryName}</td>}
+                                            <td className="px-4 py-2 text-muted-foreground">{t.memberName || "—"}</td>
+                                            <td className="px-4 py-2 text-right tabular-nums whitespace-nowrap text-emerald-600 dark:text-emerald-400">{ksh(t.amount)}</td>
                                         </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-border">
-                                        {list.map((t, i) => (
-                                            <tr key={`${t.reference}-${i}`} className="hover:bg-muted/30">
-                                                <td className="px-4 py-2 whitespace-nowrap">{format(new Date(t.date), "dd MMM yyyy")}</td>
-                                                <td className="px-4 py-2 font-mono text-xs">{t.reference}</td>
-                                                <td className="px-4 py-2 text-muted-foreground">{t.memberName || "—"}</td>
-                                                <td className="px-4 py-2 text-right tabular-nums whitespace-nowrap text-emerald-600 dark:text-emerald-400">{ksh(t.amount)}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </CardContent>
-                    </Card>
-                );
-            })}
+                                    ))}
+                                </tbody>
+                                <tfoot>
+                                    <tr className="border-t border-border bg-muted/20 font-semibold text-sm">
+                                        <td colSpan={multiCat ? 4 : 3} className="px-4 py-2 text-xs text-muted-foreground">Month total</td>
+                                        <td className="px-4 py-2 text-right tabular-nums whitespace-nowrap">{ksh(total)}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </CardContent>
+                </Card>
+            ))}
         </div>
     );
 }
