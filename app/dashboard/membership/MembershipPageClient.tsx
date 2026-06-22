@@ -5,7 +5,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 
 interface HomeFellowship { id: string; name: string; }
 interface Department { id: string; name: string; description: string | null; _count: { members: number }; }
-interface AccountabilityGroup { id: string; name: string; leader: string | null; description: string | null; _count: { members: number }; }
+interface AccountabilityGroup { id: string; name: string; description: string | null; leaders: { member: { id: string; fullName: string; phoneNumber: string } }[]; _count: { members: number }; }
 
 interface Member {
     id: string;

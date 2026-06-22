@@ -56,8 +56,8 @@ interface HomeFellowship {
 interface AccountabilityGroup {
     id: string;
     name: string;
-    leader: string | null;
     description: string | null;
+    leaders: { member: { id: string; fullName: string; phoneNumber: string } }[];
     _count: { members: number };
 }
 

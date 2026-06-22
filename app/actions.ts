@@ -1932,10 +1932,14 @@ export async function getAccountabilityGroups() {
             select: {
                 id: true,
                 name: true,
-                leader: true,
                 description: true,
                 createdAt: true,
                 updatedAt: true,
+                leaders: {
+                    select: {
+                        member: { select: { id: true, fullName: true, phoneNumber: true } }
+                    }
+                },
                 _count: { select: { members: true } }
             },
             orderBy: { name: 'asc' }
@@ -1947,7 +1951,7 @@ export async function getAccountabilityGroups() {
     }
 }
 
-export async function createAccountabilityGroup(data: { name: string; leader?: string; description?: string }) {
+export async function createAccountabilityGroup(data: { name: string; leaderIds?: string[]; description?: string }) {
     try {
         await requirePermission('members', 'create');
         if (!data.name || data.name.trim().length < 2) {
@@ -1959,8 +1963,10 @@ export async function createAccountabilityGroup(data: { name: string; leader?: s
         const group = await prisma.accountabilityGroup.create({
             data: {
                 name: data.name.trim(),
-                leader: data.leader?.trim() || null,
                 description: data.description?.trim() || null,
+                leaders: data.leaderIds?.length
+                    ? { create: data.leaderIds.map(memberId => ({ memberId })) }
+                    : undefined,
             }
         });
         revalidatePath("/dashboard/membership");
@@ -1971,7 +1977,7 @@ export async function createAccountabilityGroup(data: { name: string; leader?: s
     }
 }
 
-export async function updateAccountabilityGroup(id: string, data: { name?: string; leader?: string; description?: string }) {
+export async function updateAccountabilityGroup(id: string, data: { name?: string; leaderIds?: string[]; description?: string }) {
     try {
         await requirePermission('members', 'update');
         if (data.name && data.name.trim().length < 2) {
@@ -1981,8 +1987,14 @@ export async function updateAccountabilityGroup(id: string, data: { name?: strin
             where: { id },
             data: {
                 name: data.name?.trim(),
-                leader: data.leader?.trim() ?? undefined,
                 description: data.description?.trim() ?? undefined,
+                // Replace all leaders when leaderIds is provided
+                ...(data.leaderIds !== undefined && {
+                    leaders: {
+                        deleteMany: {},
+                        create: data.leaderIds.map(memberId => ({ memberId })),
+                    }
+                }),
             }
         });
         revalidatePath("/dashboard/membership");

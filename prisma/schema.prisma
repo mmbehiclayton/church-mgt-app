@@ -158,6 +158,7 @@ model Member {
   accountabilityGroup    AccountabilityGroup? @relation(fields: [accountabilityGroupId], references: [id])
   departments            MemberDepartment[]
   attendance             AttendanceRecord[]
+  ledGroups              AccountabilityGroupLeader[]
   createdAt              DateTime            @default(now())
   updatedAt              DateTime            @updatedAt
 
@@ -171,13 +172,25 @@ model Member {
 model AccountabilityGroup {
   id          String   @id @default(cuid())
   name        String   @unique
-  leader      String?
   description String?
   members     Member[]
+  leaders     AccountabilityGroupLeader[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([name])
+}
+
+model AccountabilityGroupLeader {
+  id       String              @id @default(cuid())
+  group    AccountabilityGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId  String
+  member   Member              @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId String
+
+  @@unique([groupId, memberId])
+  @@index([groupId])
+  @@index([memberId])
 }
 
 model HomeFellowship {
