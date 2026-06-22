@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/db";
@@ -13,9 +14,10 @@ export interface UserPermissions {
 }
 
 /**
- * Get all permissions for the current user
+ * Get all permissions for the current user.
+ * Wrapped in React cache() so multiple callers in the same request share one DB query.
  */
-export async function getUserPermissions(): Promise<UserPermissions> {
+export const getUserPermissions = cache(async (): Promise<UserPermissions> => {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -70,7 +72,7 @@ export async function getUserPermissions(): Promise<UserPermissions> {
     console.error('Error getting user permissions:', error);
     return {};
   }
-}
+});
 
 /**
  * Get all permissions for a specific user by ID
