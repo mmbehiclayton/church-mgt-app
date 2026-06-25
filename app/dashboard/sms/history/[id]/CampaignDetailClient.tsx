@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { ArrowLeft, RefreshCw, Download, Search } from 'lucide-react'
+import { ArrowLeft, RefreshCw, Download, Search, Copy } from 'lucide-react'
 import { refreshCampaignDelivery } from '@/app/sms/actions'
 import { useRouter } from 'next/navigation'
 
@@ -54,6 +54,7 @@ export default function CampaignDetailClient({ campaign }: { campaign: Campaign 
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<string>('ALL')
   const [isPending, startTransition] = useTransition()
+  const [lastSynced, setLastSynced] = useState<Date | null>(null)
 
   const filtered = useMemo(() => {
     return campaign.messages.filter(m => {
@@ -96,9 +97,17 @@ export default function CampaignDetailClient({ campaign }: { campaign: Campaign 
         toast.error(res.error || 'Failed to refresh')
         return
       }
+      setLastSynced(new Date())
       toast.success(`Updated ${res.updated} delivery statuses`)
       router.refresh()
     })
+  }
+
+  function copyPhone(phone: string) {
+    navigator.clipboard?.writeText(phone).then(
+      () => toast.success('Phone number copied'),
+      () => toast.error('Could not copy')
+    )
   }
 
   const counts = useMemo(() => {
@@ -108,6 +117,15 @@ export default function CampaignDetailClient({ campaign }: { campaign: Campaign 
     }
     return c
   }, [campaign.messages])
+
+  const totalTracked = counts.DELIVERED + counts.SENT + counts.PENDING + counts.FAILED
+  const pct = (n: number) => (totalTracked > 0 ? (n / totalTracked) * 100 : 0)
+  const deliverySegments = [
+    { key: 'DELIVERED', label: 'Delivered', count: counts.DELIVERED, bar: 'bg-emerald-500', dot: 'bg-emerald-500' },
+    { key: 'SENT', label: 'Sent (awaiting report)', count: counts.SENT, bar: 'bg-blue-500', dot: 'bg-blue-500' },
+    { key: 'PENDING', label: 'Pending', count: counts.PENDING, bar: 'bg-gray-300', dot: 'bg-gray-300' },
+    { key: 'FAILED', label: 'Failed', count: counts.FAILED, bar: 'bg-red-500', dot: 'bg-red-500' },
+  ]
 
   return (
     <div className="space-y-6">
@@ -128,14 +146,19 @@ export default function CampaignDetailClient({ campaign }: { campaign: Campaign 
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={refresh} disabled={isPending}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${isPending ? 'animate-spin' : ''}`} />
-            Sync Delivery
-          </Button>
-          <Button variant="outline" size="sm" onClick={exportCsv}>
-            <Download className="h-4 w-4 mr-2" /> Export CSV
-          </Button>
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={refresh} disabled={isPending}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${isPending ? 'animate-spin' : ''}`} />
+              Sync Delivery
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportCsv}>
+              <Download className="h-4 w-4 mr-2" /> Export CSV
+            </Button>
+          </div>
+          {lastSynced && (
+            <span className="text-[11px] text-gray-400">Last synced {format(lastSynced, 'HH:mm:ss')}</span>
+          )}
         </div>
       </div>
 
@@ -151,18 +174,48 @@ export default function CampaignDetailClient({ campaign }: { campaign: Campaign 
           <CardContent className="p-4 pt-0"><div className="text-2xl font-bold">{campaign.totalRecipients}</div></CardContent>
         </Card>
         <Card>
-          <CardHeader className="p-4 pb-2"><CardTitle className="text-sm">Sent</CardTitle></CardHeader>
-          <CardContent className="p-4 pt-0"><div className="text-2xl font-bold">{campaign.sentCount + counts.DELIVERED}</div></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="p-4 pb-2"><CardTitle className="text-sm">Delivered</CardTitle></CardHeader>
+          <CardHeader className="p-4 pb-2"><CardTitle className="text-sm text-emerald-700">Delivered</CardTitle></CardHeader>
           <CardContent className="p-4 pt-0"><div className="text-2xl font-bold">{counts.DELIVERED}</div></CardContent>
         </Card>
         <Card>
-          <CardHeader className="p-4 pb-2"><CardTitle className="text-sm">Failed</CardTitle></CardHeader>
+          <CardHeader className="p-4 pb-2"><CardTitle className="text-sm text-blue-700">Awaiting report</CardTitle></CardHeader>
+          <CardContent className="p-4 pt-0"><div className="text-2xl font-bold">{counts.SENT}</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="p-4 pb-2"><CardTitle className="text-sm text-red-700">Failed</CardTitle></CardHeader>
           <CardContent className="p-4 pt-0"><div className="text-2xl font-bold">{counts.FAILED}</div></CardContent>
         </Card>
       </div>
+
+      {/* Delivery progress */}
+      {totalTracked > 0 && (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Delivery progress</span>
+              <span className="text-xs text-muted-foreground">
+                {counts.DELIVERED} of {totalTracked} delivered
+                {counts.PENDING + counts.SENT > 0 && ' · sync to refresh carrier status'}
+              </span>
+            </div>
+            <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
+              {deliverySegments.map(s =>
+                s.count > 0 ? (
+                  <div key={s.key} className={s.bar} style={{ width: `${pct(s.count)}%` }} title={`${s.label}: ${s.count}`} />
+                ) : null
+              )}
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {deliverySegments.map(s => (
+                <div key={s.key} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className={`h-2 w-2 rounded-full ${s.dot}`} />
+                  {s.label} <span className="font-medium text-foreground">{s.count}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -219,7 +272,17 @@ export default function CampaignDetailClient({ campaign }: { campaign: Campaign 
                 filtered.map(m => (
                   <TableRow key={m.id}>
                     <TableCell className="font-medium">{m.recipientName || '—'}</TableCell>
-                    <TableCell className="font-mono text-xs">{m.phoneNumber}</TableCell>
+                    <TableCell>
+                      <button
+                        type="button"
+                        onClick={() => copyPhone(m.phoneNumber)}
+                        className="group inline-flex items-center gap-1 font-mono text-xs hover:text-primary"
+                        title="Copy phone number"
+                      >
+                        {m.phoneNumber}
+                        <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </button>
+                    </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className={STATUS_STYLES[m.status] || ''}>{m.status}</Badge>
                     </TableCell>

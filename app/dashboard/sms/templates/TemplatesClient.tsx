@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -27,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { ArrowLeft, Plus, Trash2, Pencil } from 'lucide-react'
+import { Plus, Trash2, Pencil, Search, Send } from 'lucide-react'
 import { analyzeSmsBody } from '@/lib/sms/segments'
 import { createSmsTemplate, updateSmsTemplate, deleteSmsTemplate } from '@/app/sms/actions'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -57,13 +57,39 @@ export default function TemplatesClient({ templates }: { templates: Template[] }
   const router = useRouter()
   const { hasPermission } = usePermissions()
   const canManage = hasPermission('sms', 'manage')
+  const canSend = hasPermission('sms', 'create')
 
   const [editing, setEditing] = useState<Template | null>(null)
   const [creating, setCreating] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const [search, setSearch] = useState('')
 
   const [form, setForm] = useState({ name: '', category: '', body: '' })
+  const nameRef = useRef<HTMLInputElement>(null)
+
+  // Filter, then group templates by category for easier scanning.
+  const grouped = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    const matches = templates.filter(t =>
+      !q ||
+      t.name.toLowerCase().includes(q) ||
+      t.body.toLowerCase().includes(q) ||
+      (t.category ?? '').toLowerCase().includes(q)
+    )
+    const map = new Map<string, Template[]>()
+    for (const t of matches) {
+      const key = t.category?.trim() || 'Uncategorized'
+      const list = map.get(key) ?? []
+      list.push(t)
+      map.set(key, list)
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => {
+      if (a === 'Uncategorized') return 1
+      if (b === 'Uncategorized') return -1
+      return a.localeCompare(b)
+    })
+  }, [templates, search])
 
   if (!hasPermission('sms', 'read')) {
     return (
@@ -130,16 +156,9 @@ export default function TemplatesClient({ templates }: { templates: Template[] }
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Link href="/dashboard/sms">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-1" /> Back
-            </Button>
-          </Link>
-          <div className="ml-2">
-            <h1 className="text-2xl font-bold">SMS Templates</h1>
-            <p className="text-sm text-gray-500">Reusable messages for common scenarios</p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold">SMS Templates</h1>
+          <p className="text-sm text-gray-500">Reusable messages for common scenarios</p>
         </div>
         {canManage && (
           <Button onClick={openCreate}>
@@ -155,45 +174,86 @@ export default function TemplatesClient({ templates }: { templates: Template[] }
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {templates.map(t => {
-            const seg = analyzeSmsBody(t.body)
-            return (
-              <Card key={t.id}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-base">{t.name}</CardTitle>
-                    {canManage && (
-                      <div className="flex items-center gap-1">
-                        <Button size="icon" variant="ghost" onClick={() => openEdit(t)}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button size="icon" variant="ghost" onClick={() => setDeletingId(t.id)}>
-                          <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                  {t.category && (
-                    <Badge variant="secondary" className="w-fit text-xs">{t.category}</Badge>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  <pre className="whitespace-pre-wrap text-sm text-gray-700 bg-gray-50 p-2 rounded border max-h-32 overflow-y-auto font-mono">
-                    {t.body}
-                  </pre>
-                  <div className="text-xs text-gray-400 mt-2">
-                    {seg.length} chars · {seg.segments} SMS ({seg.encoding})
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
+        <>
+          <div className="relative max-w-sm">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              className="pl-8 h-9"
+              placeholder="Search templates..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+
+          {grouped.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                No templates match &quot;{search}&quot;.
+              </CardContent>
+            </Card>
+          ) : (
+            grouped.map(([category, items]) => (
+              <div key={category} className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{category}</h2>
+                  <span className="text-xs text-muted-foreground">({items.length})</span>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {items.map(t => {
+                    const seg = analyzeSmsBody(t.body)
+                    return (
+                      <Card key={t.id} className="flex flex-col">
+                        <CardHeader className="pb-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <CardTitle className="text-base">{t.name}</CardTitle>
+                            {canManage && (
+                              <div className="flex items-center gap-1">
+                                <Button size="icon" variant="ghost" onClick={() => openEdit(t)}>
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button size="icon" variant="ghost" onClick={() => setDeletingId(t.id)}>
+                                  <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                          {t.category && (
+                            <Badge variant="secondary" className="w-fit text-xs">{t.category}</Badge>
+                          )}
+                        </CardHeader>
+                        <CardContent className="flex flex-1 flex-col">
+                          <pre className="whitespace-pre-wrap text-sm text-gray-700 bg-gray-50 p-2 rounded border max-h-32 overflow-y-auto font-mono">
+                            {t.body}
+                          </pre>
+                          <div className="text-xs text-gray-400 mt-2">
+                            {seg.length} chars · {seg.segments} SMS ({seg.encoding})
+                          </div>
+                          {canSend && (
+                            <Link href={`/dashboard/sms/compose?template=${t.id}`} className="mt-3">
+                              <Button variant="outline" size="sm" className="w-full">
+                                <Send className="h-3.5 w-3.5 mr-2" /> Use in compose
+                              </Button>
+                            </Link>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              </div>
+            ))
+          )}
+        </>
       )}
 
       <Dialog open={creating} onOpenChange={open => (open ? null : closeModal())}>
-        <DialogContent className="max-w-lg">
+        <DialogContent
+          className="max-w-lg"
+          onOpenAutoFocus={e => {
+            e.preventDefault()
+            nameRef.current?.focus()
+          }}
+        >
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit Template' : 'New Template'}</DialogTitle>
             <DialogDescription>
@@ -203,7 +263,7 @@ export default function TemplatesClient({ templates }: { templates: Template[] }
           <div className="space-y-4">
             <div>
               <Label htmlFor="tpl-name">Name</Label>
-              <Input id="tpl-name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="mt-1" />
+              <Input ref={nameRef} id="tpl-name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="mt-1" />
             </div>
             <div>
               <Label htmlFor="tpl-cat">Category</Label>

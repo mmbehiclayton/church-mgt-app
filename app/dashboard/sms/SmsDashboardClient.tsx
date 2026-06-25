@@ -15,7 +15,6 @@ import {
   Plus,
   ArrowRight,
   RefreshCw,
-  FileText,
 } from 'lucide-react'
 import {
   BarChart,
@@ -93,27 +92,14 @@ export default function SmsDashboardClient({ credits, threshold, clientName, bal
           <h1 className="text-3xl font-bold tracking-tight">SMS</h1>
           <p className="text-muted-foreground mt-1">Send messages to groups, departments and fellowships.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Link href="/dashboard/sms/templates">
-            <Button variant="outline">
-              <FileText className="h-4 w-4 mr-2" />
-              Templates
+        {canSend && (
+          <Link href="/dashboard/sms/compose">
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              New Message
             </Button>
           </Link>
-          <Link href="/dashboard/sms/history">
-            <Button variant="outline">
-              History
-            </Button>
-          </Link>
-          {canSend && (
-            <Link href="/dashboard/sms/compose">
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                New Message
-              </Button>
-            </Link>
-          )}
-        </div>
+        )}
       </div>
 
       {/* KPI cards */}

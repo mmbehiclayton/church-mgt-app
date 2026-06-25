@@ -1,11 +1,13 @@
 'use client'
 
 import Link from 'next/link'
+import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, ArrowRight, Plus } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { ArrowRight, Plus, Search } from 'lucide-react'
 import { usePermissions } from '@/hooks/usePermissions'
 
 interface Campaign {
@@ -31,8 +33,24 @@ const STATUS_STYLES: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-600',
 }
 
+const STATUS_FILTERS = ['ALL', 'SENT', 'PARTIAL', 'SENDING', 'FAILED', 'DRAFT'] as const
+
 export default function HistoryClient({ campaigns, total }: { campaigns: Campaign[]; total: number }) {
   const { hasPermission } = usePermissions()
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState<string>('ALL')
+
+  const filtered = useMemo(() => {
+    return campaigns.filter(c => {
+      if (status !== 'ALL' && c.status !== status) return false
+      if (search) {
+        const q = search.toLowerCase()
+        const haystack = `${c.name ?? ''} ${c.message} ${c.createdByName ?? ''}`.toLowerCase()
+        if (!haystack.includes(q)) return false
+      }
+      return true
+    })
+  }, [campaigns, search, status])
 
   if (!hasPermission('sms', 'read')) {
     return (
@@ -48,16 +66,9 @@ export default function HistoryClient({ campaigns, total }: { campaigns: Campaig
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Link href="/dashboard/sms">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-1" /> Back
-            </Button>
-          </Link>
-          <div className="ml-2">
-            <h1 className="text-2xl font-bold">SMS History</h1>
-            <p className="text-sm text-gray-500">{total} campaigns total</p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold">SMS History</h1>
+          <p className="text-sm text-gray-500">{total} campaigns total</p>
         </div>
         {hasPermission('sms', 'create') && (
           <Link href="/dashboard/sms/compose">
@@ -70,16 +81,52 @@ export default function HistoryClient({ campaigns, total }: { campaigns: Campaig
 
       <Card>
         <CardHeader>
-          <CardTitle>Campaigns</CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <CardTitle>
+              Campaigns
+              {(search || status !== 'ALL') && (
+                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  {filtered.length} of {campaigns.length}
+                </span>
+              )}
+            </CardTitle>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  className="pl-8 h-9 w-56"
+                  placeholder="Search name, message, sender..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-1">
+                {STATUS_FILTERS.map(s => (
+                  <Button
+                    key={s}
+                    size="sm"
+                    variant={status === s ? 'default' : 'outline'}
+                    onClick={() => setStatus(s)}
+                  >
+                    {s}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           {campaigns.length === 0 ? (
             <div className="p-10 text-center text-sm text-muted-foreground">
               No campaigns yet.
             </div>
+          ) : filtered.length === 0 ? (
+            <div className="p-10 text-center text-sm text-muted-foreground">
+              No campaigns match your search or filter.
+            </div>
           ) : (
             <div className="divide-y">
-              {campaigns.map(c => (
+              {filtered.map(c => (
                 <Link
                   key={c.id}
                   href={`/dashboard/sms/history/${c.id}`}
