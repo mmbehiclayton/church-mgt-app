@@ -14,8 +14,83 @@ export interface UserPermissions {
 }
 
 /**
+ * Shape returned by the lean authorization query. Only the fields needed for
+ * access control — never the password hash or reset tokens.
+ */
+interface UserAuthzRow {
+  role: string;
+  isActive: boolean;
+  userRoles: { role: { rolePermissions: { permission: { name: string } }[] } }[];
+  userPermissions: { permission: { name: string } }[];
+}
+
+export interface UserAuthz {
+  role: string;
+  isActive: boolean;
+  permissions: UserPermissions;
+}
+
+/**
+ * Merge role-based and direct user permissions into a flat lookup map.
+ * Pure function — shared between the DB loader here and the NextAuth authorize() flow.
+ */
+export function buildPermissionMap(user: Pick<UserAuthzRow, 'userRoles' | 'userPermissions'>): UserPermissions {
+  const permissions: UserPermissions = {};
+  for (const userRole of user.userRoles) {
+    for (const rolePerm of userRole.role.rolePermissions) {
+      permissions[rolePerm.permission.name] = true;
+    }
+  }
+  // Direct user permissions override/extend role permissions
+  for (const userPerm of user.userPermissions) {
+    permissions[userPerm.permission.name] = true;
+  }
+  return permissions;
+}
+
+/**
+ * Load a user's authorization context (role, active flag, permission map) in a
+ * single lean query. Explicitly selects only the fields needed — the password
+ * hash and password-reset tokens are never pulled into memory.
+ * Returns null if the user no longer exists.
+ */
+export async function loadUserAuthz(userId: string): Promise<UserAuthz | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      role: true,
+      isActive: true,
+      userRoles: {
+        select: {
+          role: {
+            select: {
+              rolePermissions: {
+                select: { permission: { select: { name: true } } },
+              },
+            },
+          },
+        },
+      },
+      userPermissions: {
+        select: { permission: { select: { name: true } } },
+      },
+    },
+  });
+
+  if (!user) return null;
+
+  return {
+    role: user.role,
+    isActive: user.isActive,
+    permissions: buildPermissionMap(user),
+  };
+}
+
+/**
  * Get all permissions for the current user.
  * Wrapped in React cache() so multiple callers in the same request share one DB query.
+ * Returns an empty map for missing OR deactivated users, so a user toggled
+ * "Inactive" immediately loses all server-side access.
  */
 export const getUserPermissions = cache(async (): Promise<UserPermissions> => {
   try {
@@ -24,110 +99,16 @@ export const getUserPermissions = cache(async (): Promise<UserPermissions> => {
       return {};
     }
 
-    // Get user with roles and permissions
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: {
-        userRoles: {
-          include: {
-            role: {
-              include: {
-                rolePermissions: {
-                  include: {
-                    permission: true
-                  }
-                }
-              }
-            }
-          }
-        },
-        userPermissions: {
-          include: {
-            permission: true
-          }
-        }
-      }
-    });
-
-    if (!user) {
+    const authz = await loadUserAuthz(session.user.id);
+    if (!authz || !authz.isActive) {
       return {};
     }
-
-    const permissions: UserPermissions = {};
-
-    // Add role-based permissions
-    user.userRoles.forEach(userRole => {
-      userRole.role.rolePermissions.forEach(rolePerm => {
-        permissions[rolePerm.permission.name] = true;
-      });
-    });
-
-    // Add direct user permissions (override role permissions)
-    user.userPermissions.forEach(userPerm => {
-      permissions[userPerm.permission.name] = true;
-    });
-
-    return permissions;
+    return authz.permissions;
   } catch (error) {
     console.error('Error getting user permissions:', error);
     return {};
   }
 });
-
-/**
- * Get all permissions for a specific user by ID
- */
-export async function getUserPermissionsById(userId: string): Promise<UserPermissions> {
-  try {
-    // Get user with roles and permissions
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        userRoles: {
-          include: {
-            role: {
-              include: {
-                rolePermissions: {
-                  include: {
-                    permission: true
-                  }
-                }
-              }
-            }
-          }
-        },
-        userPermissions: {
-          include: {
-            permission: true
-          }
-        }
-      }
-    });
-
-    if (!user) {
-      return {};
-    }
-
-    const permissions: UserPermissions = {};
-
-    // Add role-based permissions
-    user.userRoles.forEach(userRole => {
-      userRole.role.rolePermissions.forEach(rolePerm => {
-        permissions[rolePerm.permission.name] = true;
-      });
-    });
-
-    // Add direct user permissions (override role permissions)
-    user.userPermissions.forEach(userPerm => {
-      permissions[userPerm.permission.name] = true;
-    });
-
-    return permissions;
-  } catch (error) {
-    console.error('Error getting user permissions by ID:', error);
-    return {};
-  }
-}
 
 /**
  * Check if user has a specific permission
@@ -182,13 +163,11 @@ export async function getUserRoles(): Promise<string[]> {
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      include: {
+      select: {
         userRoles: {
-          include: {
-            role: true
-          }
-        }
-      }
+          select: { role: { select: { name: true } } },
+        },
+      },
     });
 
     return user?.userRoles.map(ur => ur.role.name) || [];
