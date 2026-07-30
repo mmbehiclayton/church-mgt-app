@@ -86,6 +86,8 @@ export async function sendSms(opts: { to: string; message: string }): Promise<Bo
   }
 
   const obj = (json && typeof json === 'object' ? (json as Record<string, unknown>) : {}) as Record<string, unknown>
+  // TEMP DEBUG — remove once we confirm the real unique-id field name from Bonga.
+  console.log('[bonga:send-sms raw response]', JSON.stringify(json))
   const statusCode = typeof obj.status === 'number' ? obj.status : undefined
   const uniqueId =
     typeof obj.unique_id === 'string'
