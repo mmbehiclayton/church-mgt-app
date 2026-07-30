@@ -7,8 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ArrowRight, Plus, Search } from 'lucide-react'
+import { ArrowRight, Plus, Search, X } from 'lucide-react'
 import { usePermissions } from '@/hooks/usePermissions'
+import { cn } from '@/lib/utils'
 
 interface Campaign {
   id: string
@@ -65,54 +66,62 @@ export default function HistoryClient({ campaigns, total }: { campaigns: Campaig
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">SMS History</h1>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold">SMS History</h1>
           <p className="text-sm text-gray-500">{total} campaigns total</p>
         </div>
         {hasPermission('sms', 'create') && (
-          <Link href="/dashboard/sms/compose">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" /> New Message
+          <Link href="/dashboard/sms/compose" className="shrink-0">
+            <Button size="sm" className="sm:h-10 sm:px-4 sm:text-sm">
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">New Message</span>
             </Button>
           </Link>
         )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <CardTitle>
-              Campaigns
-              {(search || status !== 'ALL') && (
-                <span className="ml-2 text-sm font-normal text-muted-foreground">
-                  {filtered.length} of {campaigns.length}
-                </span>
-              )}
-            </CardTitle>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  className="pl-8 h-9 w-56"
-                  placeholder="Search name, message, sender..."
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                />
-              </div>
-              <div className="flex flex-wrap items-center gap-1">
-                {STATUS_FILTERS.map(s => (
-                  <Button
-                    key={s}
-                    size="sm"
-                    variant={status === s ? 'default' : 'outline'}
-                    onClick={() => setStatus(s)}
-                  >
-                    {s}
-                  </Button>
-                ))}
-              </div>
-            </div>
+      <Card className="gap-4">
+        <CardHeader className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle>Campaigns</CardTitle>
+            {(search || status !== 'ALL') && (
+              <span className="text-sm font-normal text-muted-foreground shrink-0">
+                {filtered.length} of {campaigns.length}
+              </span>
+            )}
+          </div>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              className="pl-8 h-9 w-full sm:w-72 pr-8"
+              placeholder="Search name, message, sender..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-0.5">
+            {STATUS_FILTERS.map(s => (
+              <Button
+                key={s}
+                size="sm"
+                variant={status === s ? 'default' : 'outline'}
+                className="shrink-0"
+                onClick={() => setStatus(s)}
+              >
+                {s}
+              </Button>
+            ))}
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -130,14 +139,14 @@ export default function HistoryClient({ campaigns, total }: { campaigns: Campaig
                 <Link
                   key={c.id}
                   href={`/dashboard/sms/history/${c.id}`}
-                  className="flex items-center justify-between p-4 hover:bg-gray-50"
+                  className="flex flex-col gap-2 p-4 hover:bg-gray-50 sm:flex-row sm:items-center sm:gap-4"
                 >
-                  <div className="min-w-0 pr-4 flex-1">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <div className="font-medium text-gray-900 truncate">
                         {c.name || c.message.slice(0, 80)}
                       </div>
-                      <Badge variant="secondary" className={STATUS_STYLES[c.status] || ''}>
+                      <Badge variant="secondary" className={cn('shrink-0', STATUS_STYLES[c.status] || '')}>
                         {c.status}
                       </Badge>
                     </div>
@@ -146,15 +155,17 @@ export default function HistoryClient({ campaigns, total }: { campaigns: Campaig
                       by {c.createdByName || 'system'} · {format(new Date(c.createdAt), 'MMM d, yyyy HH:mm')}
                     </div>
                   </div>
-                  <div className="text-right shrink-0 hidden sm:block mr-4">
-                    <div className="text-sm font-medium">
-                      {c.sentCount} / {c.totalRecipients} sent
+                  <div className="flex items-center justify-between gap-3 sm:justify-end sm:shrink-0">
+                    <div className="text-left sm:text-right">
+                      <div className="text-sm font-medium">
+                        {c.sentCount} / {c.totalRecipients} sent
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {c.deliveredCount} delivered · {c.failedCount} failed
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-500">
-                      {c.deliveredCount} delivered · {c.failedCount} failed
-                    </div>
+                    <ArrowRight className="h-4 w-4 text-gray-400 shrink-0" />
                   </div>
-                  <ArrowRight className="h-4 w-4 text-gray-400 shrink-0" />
                 </Link>
               ))}
             </div>

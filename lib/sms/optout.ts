@@ -7,7 +7,7 @@
  * same template may be reused for a promotional blast or a one-off
  * personal message where it doesn't apply.
  */
-export const OPT_OUT_SUFFIX = '\n\ndial *456*9*5# to opt out'
+export const OPT_OUT_SUFFIX = '\n\n@MWIKI MAIN ALTAR. Dial *456*9*5# to STOP'
 
 export function appendOptOut(message: string, enabled: boolean): string {
   if (!enabled) return message
