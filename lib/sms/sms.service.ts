@@ -161,57 +161,176 @@ export async function getBalance() {
   return checkCredits()
 }
 
+// ---------------- Delivery sync ----------------
+
+const DELIVERY_BATCH_SIZE = 20 // concurrent fetch-delivery calls per round — keeps one poll fast enough to fit a serverless timeout
+const DEFAULT_SYNC_LIMIT = 300 // messages processed per call — bounds worst-case duration; callers get back `remaining` to know if more is left
+
 /**
- * Sync delivery status for a campaign by polling Bonga for each SENT message
- * that has a uniqueId. Updates rows to DELIVERED / FAILED accordingly.
+ * Classify a raw Bonga DLR status string into our tri-state model.
+ *
+ * Failure-ish keywords are checked BEFORE the generic "DELIV" check on purpose:
+ * "UNDELIVERED" contains "DELIV" as a substring, so checking DELIV first (as
+ * the previous implementation did) silently misclassified undelivered
+ * messages as successfully delivered.
+ *
+ * Returns null for anything unrecognized (e.g. still in transit) — callers
+ * keep the message at SENT but stash the raw text so it isn't lost.
  */
-export async function syncCampaignDelivery(campaignId: string): Promise<{ updated: number }> {
-  const messages = await prisma.smsMessage.findMany({
-    where: {
-      campaignId,
-      status: 'SENT',
-      bongaUniqueId: { not: null },
-    },
-    select: { id: true, bongaUniqueId: true },
-  })
+function classifyDeliveryStatus(rawStatus: string): 'DELIVERED' | 'FAILED' | null {
+  const status = rawStatus.toUpperCase()
+  if (
+    status.includes('UNDELIV') ||
+    status.includes('FAIL') ||
+    status.includes('EXPIR') ||
+    status.includes('REJECT') ||
+    status.includes('INVALID') ||
+    status.includes('BLACKLIST') ||
+    status.includes('DND')
+  ) {
+    return 'FAILED'
+  }
+  if (status.includes('DELIV')) {
+    return 'DELIVERED'
+  }
+  return null
+}
 
+interface DeliverySyncRow {
+  id: string
+  campaignId: string | null
+  bongaUniqueId: string
+}
+
+/**
+ * Poll Bonga's fetch-delivery endpoint for a set of messages, in bounded
+ * concurrent batches (rather than one-at-a-time), and persist whatever comes
+ * back — including the raw carrier text when we can't classify it.
+ */
+async function syncMessagesDelivery(rows: DeliverySyncRow[]): Promise<{ updated: number; campaignIds: string[] }> {
   let updated = 0
-  for (const m of messages) {
-    if (!m.bongaUniqueId) continue
-    const res = await fetchDelivery(m.bongaUniqueId)
-    if (!res.ok || res.reports.length === 0) continue
-    const status = res.reports[0].status.toUpperCase()
-    if (status.includes('DELIV')) {
-      await prisma.smsMessage.update({
-        where: { id: m.id },
-        data: {
-          status: 'DELIVERED',
-          deliveredAt: res.reports[0].deliveredAt ? new Date(res.reports[0].deliveredAt) : new Date(),
-        },
+  const campaignIds = new Set<string>()
+
+  for (let i = 0; i < rows.length; i += DELIVERY_BATCH_SIZE) {
+    const batch = rows.slice(i, i + DELIVERY_BATCH_SIZE)
+    const results = await Promise.all(
+      batch.map(async row => ({ row, res: await fetchDelivery(row.bongaUniqueId) }))
+    )
+
+    await Promise.all(
+      results.map(async ({ row, res }) => {
+        if (!res.ok || res.reports.length === 0) return
+        const report = res.reports[0]
+        const classification = classifyDeliveryStatus(report.status)
+
+        if (classification === 'DELIVERED') {
+          await prisma.smsMessage.update({
+            where: { id: row.id },
+            data: {
+              status: 'DELIVERED',
+              deliveryStatusRaw: report.status,
+              deliveredAt: report.deliveredAt ? new Date(report.deliveredAt) : new Date(),
+            },
+          })
+        } else if (classification === 'FAILED') {
+          await prisma.smsMessage.update({
+            where: { id: row.id },
+            data: { status: 'FAILED', deliveryStatusRaw: report.status, errorMessage: report.status },
+          })
+        } else {
+          await prisma.smsMessage.update({
+            where: { id: row.id },
+            data: { deliveryStatusRaw: report.status },
+          })
+          return // not a status change — don't count it or touch campaign aggregates
+        }
+        updated++
+        if (row.campaignId) campaignIds.add(row.campaignId)
       })
-      updated++
-    } else if (status.includes('FAIL') || status.includes('EXPIR') || status.includes('REJECT')) {
-      await prisma.smsMessage.update({
-        where: { id: m.id },
-        data: { status: 'FAILED', errorMessage: res.reports[0].status },
-      })
-      updated++
-    }
+    )
   }
 
-  if (updated > 0) {
-    const agg = await prisma.smsMessage.groupBy({
-      by: ['status'],
-      where: { campaignId },
-      _count: { status: true },
-    })
-    const delivered = agg.find(a => a.status === 'DELIVERED')?._count.status ?? 0
-    const failed = agg.find(a => a.status === 'FAILED')?._count.status ?? 0
-    await prisma.smsCampaign.update({
-      where: { id: campaignId },
-      data: { deliveredCount: delivered, failedCount: failed },
-    })
-  }
+  return { updated, campaignIds: Array.from(campaignIds) }
+}
 
-  return { updated }
+async function refreshCampaignAggregates(campaignIds: string[]): Promise<void> {
+  await Promise.all(
+    campaignIds.map(async campaignId => {
+      const agg = await prisma.smsMessage.groupBy({
+        by: ['status'],
+        where: { campaignId },
+        _count: { status: true },
+      })
+      const delivered = agg.find(a => a.status === 'DELIVERED')?._count.status ?? 0
+      const failed = agg.find(a => a.status === 'FAILED')?._count.status ?? 0
+      await prisma.smsCampaign.update({
+        where: { id: campaignId },
+        data: { deliveredCount: delivered, failedCount: failed },
+      })
+    })
+  )
+}
+
+export interface DeliverySyncResult {
+  updated: number
+  processed: number
+  remaining: number
+}
+
+/**
+ * Sync delivery status for one campaign by polling Bonga for each SENT
+ * message that has a uniqueId. Bounded by `limit` (default 300) so a large
+ * campaign can't run past a serverless function's time budget — call again
+ * (the UI does, via the `remaining` count) to keep draining the backlog.
+ */
+export async function syncCampaignDelivery(campaignId: string, opts?: { limit?: number }): Promise<DeliverySyncResult> {
+  const limit = opts?.limit ?? DEFAULT_SYNC_LIMIT
+  const where = { campaignId, status: 'SENT' as const, bongaUniqueId: { not: null } }
+
+  const total = await prisma.smsMessage.count({ where })
+  const messages = await prisma.smsMessage.findMany({
+    where,
+    select: { id: true, campaignId: true, bongaUniqueId: true },
+    orderBy: { createdAt: 'asc' },
+    take: limit,
+  })
+  const rows = messages.filter((m): m is DeliverySyncRow => !!m.bongaUniqueId)
+
+  const { updated, campaignIds } = await syncMessagesDelivery(rows)
+  if (campaignIds.length > 0) await refreshCampaignAggregates(campaignIds)
+
+  return { updated, processed: rows.length, remaining: Math.max(0, total - rows.length) }
+}
+
+/**
+ * Sync delivery status across ALL campaigns with outstanding SENT messages.
+ * Used by the scheduled cron and the "Sync all pending" action on the
+ * Delivery Reports page — the per-campaign button above is for a human
+ * looking at one campaign; this is for reconciling everything at once
+ * without anyone needing to open each campaign individually.
+ *
+ * Scoped to messages sent within `maxAgeDays` (default 14) since a carrier
+ * report that never arrived after two weeks is not going to arrive.
+ */
+export async function syncAllPendingDeliveries(opts?: { limit?: number; maxAgeDays?: number }): Promise<DeliverySyncResult> {
+  const limit = opts?.limit ?? DEFAULT_SYNC_LIMIT
+  const maxAgeDays = opts?.maxAgeDays ?? 14
+  const since = new Date()
+  since.setDate(since.getDate() - maxAgeDays)
+
+  const where = { status: 'SENT' as const, bongaUniqueId: { not: null }, createdAt: { gte: since } }
+
+  const total = await prisma.smsMessage.count({ where })
+  const messages = await prisma.smsMessage.findMany({
+    where,
+    select: { id: true, campaignId: true, bongaUniqueId: true },
+    orderBy: { createdAt: 'asc' },
+    take: limit,
+  })
+  const rows = messages.filter((m): m is DeliverySyncRow => !!m.bongaUniqueId)
+
+  const { updated, campaignIds } = await syncMessagesDelivery(rows)
+  if (campaignIds.length > 0) await refreshCampaignAggregates(campaignIds)
+
+  return { updated, processed: rows.length, remaining: Math.max(0, total - rows.length) }
 }

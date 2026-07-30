@@ -10,6 +10,7 @@ import {
   previewAudience,
   getBalance,
   syncCampaignDelivery,
+  syncAllPendingDeliveries,
 } from '@/lib/sms/sms.service'
 import { analyzeSmsBody } from '@/lib/sms/segments'
 import type { RecipientFilter } from '@/lib/sms/recipients'
@@ -159,6 +160,7 @@ export async function getSmsCampaignById(id: string) {
             segments: true,
             bongaUniqueId: true,
             errorMessage: true,
+            deliveryStatusRaw: true,
             sentAt: true,
             deliveredAt: true,
           },
@@ -177,9 +179,125 @@ export async function refreshCampaignDelivery(id: string) {
     await requirePermission('sms', 'read')
     const result = await syncCampaignDelivery(id)
     revalidatePath(`/dashboard/sms/history/${id}`)
-    return { success: true as const, updated: result.updated }
+    revalidatePath('/dashboard/sms/history')
+    revalidatePath('/dashboard/sms')
+    return { success: true as const, ...result }
   } catch (e) {
     return { success: false as const, error: e instanceof Error ? e.message : 'Failed' }
+  }
+}
+
+// ---------------- Delivery reports (cross-campaign) ----------------
+
+export interface DeliveryReportFilter {
+  status?: 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED'
+  campaignId?: string
+  search?: string
+  from?: string // ISO date
+  to?: string // ISO date
+}
+
+export async function getDeliveryReport(filter: DeliveryReportFilter, opts?: { take?: number; skip?: number }) {
+  try {
+    await requirePermission('sms', 'read')
+    const take = Math.min(opts?.take ?? 50, 200)
+    const skip = opts?.skip ?? 0
+
+    const where: Record<string, unknown> = {}
+    if (filter.status) where.status = filter.status
+    if (filter.campaignId) where.campaignId = filter.campaignId
+    if (filter.from || filter.to) {
+      where.createdAt = {
+        ...(filter.from ? { gte: new Date(filter.from) } : {}),
+        ...(filter.to ? { lte: new Date(filter.to) } : {}),
+      }
+    }
+    if (filter.search) {
+      where.OR = [
+        { phoneNumber: { contains: filter.search, mode: 'insensitive' } },
+        { recipientName: { contains: filter.search, mode: 'insensitive' } },
+      ]
+    }
+
+    const [messages, total, statusCounts] = await Promise.all([
+      prisma.smsMessage.findMany({
+        where,
+        select: {
+          id: true,
+          phoneNumber: true,
+          recipientName: true,
+          status: true,
+          deliveryStatusRaw: true,
+          errorMessage: true,
+          sentAt: true,
+          deliveredAt: true,
+          createdAt: true,
+          campaign: { select: { id: true, name: true, message: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take,
+        skip,
+      }),
+      prisma.smsMessage.count({ where }),
+      prisma.smsMessage.groupBy({ by: ['status'], where, _count: { status: true } }),
+    ])
+
+    const counts = { PENDING: 0, SENT: 0, DELIVERED: 0, FAILED: 0 }
+    for (const row of statusCounts) {
+      counts[row.status as keyof typeof counts] = row._count.status
+    }
+
+    return { success: true as const, messages, total, counts }
+  } catch (e) {
+    return { success: false as const, error: e instanceof Error ? e.message : 'Failed to load delivery report' }
+  }
+}
+
+export async function getDeliveryReportCampaignOptions() {
+  try {
+    await requirePermission('sms', 'read')
+    return await prisma.smsCampaign.findMany({
+      select: { id: true, name: true, message: true },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    })
+  } catch {
+    return []
+  }
+}
+
+export async function syncAllPendingDeliveriesAction(opts?: { limit?: number }) {
+  try {
+    await requirePermission('sms', 'read')
+    const result = await syncAllPendingDeliveries(opts)
+    revalidatePath('/dashboard/sms/reports')
+    revalidatePath('/dashboard/sms/history')
+    revalidatePath('/dashboard/sms')
+    return { success: true as const, ...result }
+  } catch (e) {
+    return { success: false as const, error: e instanceof Error ? e.message : 'Failed to sync deliveries' }
+  }
+}
+
+/**
+ * Small, fast, fire-and-forget style sync used by SmsNav's background
+ * trigger (throttled client-side) so delivery statuses drift toward
+ * accurate while anyone is actively using the SMS module — without
+ * depending solely on the once-a-day cron (Vercel Hobby plan only allows
+ * daily cron schedules).
+ */
+export async function triggerBackgroundDeliverySync() {
+  try {
+    await requirePermission('sms', 'read')
+    const result = await syncAllPendingDeliveries({ limit: 50 })
+    if (result.updated > 0) {
+      revalidatePath('/dashboard/sms/reports')
+      revalidatePath('/dashboard/sms/history')
+      revalidatePath('/dashboard/sms')
+    }
+    return { success: true as const, ...result }
+  } catch {
+    return { success: false as const }
   }
 }
 

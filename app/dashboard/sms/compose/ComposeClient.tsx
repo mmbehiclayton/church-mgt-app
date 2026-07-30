@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { analyzeSmsBody } from '@/lib/sms/segments'
+import { OPT_OUT_SUFFIX, appendOptOut } from '@/lib/sms/optout'
 import { previewSmsAudience, sendSmsCampaign } from '@/app/sms/actions'
 import { usePermissions } from '@/hooks/usePermissions'
 import { Send, Users, Search, Sparkles, RefreshCw, Eye } from 'lucide-react'
@@ -66,6 +67,7 @@ export default function ComposeClient({ departments, fellowships, totalMembers, 
 
   const [name, setName] = useState('')
   const [message, setMessage] = useState('')
+  const [appendOptOutText, setAppendOptOutText] = useState(true)
   const [allMembers, setAllMembers] = useState(false)
   const [selectedDepts, setSelectedDepts] = useState<Set<string>>(new Set())
   const [selectedFellowships, setSelectedFellowships] = useState<Set<string>>(new Set())
@@ -98,7 +100,11 @@ export default function ComposeClient({ departments, fellowships, totalMembers, 
   const [previewLoading, setPreviewLoading] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
 
-  const segInfo = useMemo(() => analyzeSmsBody(message), [message])
+  const finalMessage = useMemo(
+    () => appendOptOut(message, appendOptOutText),
+    [message, appendOptOutText]
+  )
+  const segInfo = useMemo(() => analyzeSmsBody(finalMessage), [finalMessage])
   const overLimit = segInfo.length > MAX_CHARS
   const manySegments = segInfo.segments >= 4
 
@@ -251,12 +257,13 @@ export default function ComposeClient({ departments, fellowships, totalMembers, 
 
   // Client-side personalization preview (display only — server does the real substitution).
   const personalizedPreview = useMemo(() => {
-    if (!/\{name\}|\{phone\}/i.test(message)) return null
+    if (!message.trim()) return null
+    if (!/\{name\}|\{phone\}/i.test(message) && !appendOptOutText) return null
     const s = preview?.sample?.[0]
     const name = s?.fullName || 'Mary Wanjiku'
     const phone = s?.phoneNumber || '254712345678'
-    return message.replace(/\{name\}/gi, name).replace(/\{phone\}/gi, phone)
-  }, [message, preview])
+    return finalMessage.replace(/\{name\}/gi, name).replace(/\{phone\}/gi, phone)
+  }, [message, finalMessage, appendOptOutText, preview])
 
   if (!hasPermission('sms', 'create')) {
     return (
@@ -297,7 +304,7 @@ export default function ComposeClient({ departments, fellowships, totalMembers, 
     setConfirmOpen(false)
     startTransition(async () => {
       const res = await sendSmsCampaign({
-        message,
+        message: finalMessage,
         name: name.trim() || undefined,
         filter: buildFilter(),
       })
@@ -608,6 +615,24 @@ export default function ComposeClient({ departments, fellowships, totalMembers, 
                 Placeholders: <code>{'{name}'}</code> <code>{'{phone}'}</code>
               </div>
             </div>
+
+            <label className="flex items-start gap-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50">
+              <Checkbox
+                checked={appendOptOutText}
+                onCheckedChange={v => setAppendOptOutText(Boolean(v))}
+                className="mt-0.5"
+              />
+              <div className="flex-1">
+                <div className="text-sm font-medium">Append opt-out instructions</div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  Required by mobile network operators for bulk/promotional SMS — leaving it off risks the
+                  sender ID being suspended. Turn off only for one-off personal messages.
+                </div>
+                <div className="text-xs text-gray-400 mt-1 font-mono whitespace-pre-wrap">
+                  {OPT_OUT_SUFFIX.trim()}
+                </div>
+              </div>
+            </label>
 
             {personalizedPreview && (
               <div className="rounded-md border border-dashed bg-muted/30 p-3">

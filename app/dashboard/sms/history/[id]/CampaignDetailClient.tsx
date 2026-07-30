@@ -21,6 +21,7 @@ interface Message {
   segments: number
   bongaUniqueId: string | null
   errorMessage: string | null
+  deliveryStatusRaw: string | null
   sentAt: Date | string | null
   deliveredAt: Date | string | null
 }
@@ -70,7 +71,7 @@ export default function CampaignDetailClient({ campaign }: { campaign: Campaign 
   }, [campaign.messages, search, filter])
 
   function exportCsv() {
-    const headers = ['Name', 'Phone', 'Status', 'Sent At', 'Delivered At', 'Error', 'Bonga ID']
+    const headers = ['Name', 'Phone', 'Status', 'Sent At', 'Delivered At', 'Error', 'Carrier Status', 'Bonga ID']
     const rows = campaign.messages.map(m => [
       m.recipientName ?? '',
       m.phoneNumber,
@@ -78,6 +79,7 @@ export default function CampaignDetailClient({ campaign }: { campaign: Campaign 
       m.sentAt ? format(new Date(m.sentAt), 'yyyy-MM-dd HH:mm') : '',
       m.deliveredAt ? format(new Date(m.deliveredAt), 'yyyy-MM-dd HH:mm') : '',
       m.errorMessage ?? '',
+      m.deliveryStatusRaw ?? '',
       m.bongaUniqueId ?? '',
     ])
     const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
@@ -98,7 +100,8 @@ export default function CampaignDetailClient({ campaign }: { campaign: Campaign 
         return
       }
       setLastSynced(new Date())
-      toast.success(`Updated ${res.updated} delivery statuses`)
+      const suffix = res.remaining > 0 ? ` — ${res.remaining} still awaiting a report, click Sync again` : ''
+      toast.success(`Updated ${res.updated} of ${res.processed} checked${suffix}`)
       router.refresh()
     })
   }
@@ -285,6 +288,11 @@ export default function CampaignDetailClient({ campaign }: { campaign: Campaign 
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className={STATUS_STYLES[m.status] || ''}>{m.status}</Badge>
+                      {m.status === 'SENT' && m.deliveryStatusRaw && (
+                        <div className="text-[11px] text-gray-400 mt-0.5" title="Raw carrier report — not yet a final status">
+                          carrier: {m.deliveryStatusRaw}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="text-xs text-gray-600">{m.sentAt ? format(new Date(m.sentAt), 'MMM d, HH:mm:ss') : '—'}</TableCell>
                     <TableCell className="text-xs text-gray-600">{m.deliveredAt ? format(new Date(m.deliveredAt), 'MMM d, HH:mm:ss') : '—'}</TableCell>

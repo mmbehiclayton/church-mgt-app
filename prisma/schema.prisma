@@ -333,6 +333,10 @@ model SmsMessage {
   bongaUniqueId   String?          // returned from Bonga API
   bongaStatusCode Int?
   errorMessage    String?
+  // Raw DLR status text from Bonga's fetch-delivery report, kept verbatim even
+  // when it doesn't match a known DELIVERED/FAILED keyword (see syncMessagesDelivery).
+  // Lets the UI show the carrier's real answer instead of leaving status stuck at SENT.
+  deliveryStatusRaw String?
   sentAt          DateTime?
   deliveredAt     DateTime?
   createdAt       DateTime         @default(now())
