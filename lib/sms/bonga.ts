@@ -86,23 +86,30 @@ export async function sendSms(opts: { to: string; message: string }): Promise<Bo
   }
 
   const obj = (json && typeof json === 'object' ? (json as Record<string, unknown>) : {}) as Record<string, unknown>
-  // TEMP DEBUG — remove once we confirm the real unique-id field name from Bonga.
-  console.log('[bonga:send-sms raw response]', JSON.stringify(json))
   const statusCode = typeof obj.status === 'number' ? obj.status : undefined
+  // Bonga returns unique_id as a number on send-sms but as a string on
+  // fetch-delivery — accept either and normalize to string since
+  // bongaUniqueId is stored/compared as String in the DB.
   const uniqueId =
     typeof obj.unique_id === 'string'
       ? obj.unique_id
-      : typeof obj.uniqueId === 'string'
-        ? obj.uniqueId
-        : undefined
+      : typeof obj.unique_id === 'number'
+        ? String(obj.unique_id)
+        : typeof obj.uniqueId === 'string'
+          ? obj.uniqueId
+          : typeof obj.uniqueId === 'number'
+            ? String(obj.uniqueId)
+            : undefined
   const description =
     typeof obj.Description === 'string'
       ? obj.Description
       : typeof obj.description === 'string'
         ? obj.description
-        : typeof obj.message === 'string'
-          ? (obj.message as string)
-          : undefined
+        : typeof obj.status_message === 'string'
+          ? obj.status_message
+          : typeof obj.message === 'string'
+            ? (obj.message as string)
+            : undefined
 
   const ok = res.ok && statusCode === 222
 
@@ -229,14 +236,34 @@ export async function fetchDelivery(uniqueId: string): Promise<BongaDeliveryResu
 
   const reports: BongaDeliveryStatus[] = raw
     .map(r => {
-      const id = typeof r.unique_id === 'string' ? r.unique_id : typeof r.uniqueId === 'string' ? r.uniqueId : uniqueId
-      const status = typeof r.status === 'string' ? r.status : typeof r.delivery_status === 'string' ? r.delivery_status : ''
+      const id =
+        typeof r.unique_id === 'string'
+          ? r.unique_id
+          : typeof r.unique_id === 'number'
+            ? String(r.unique_id)
+            : typeof r.uniqueId === 'string'
+              ? r.uniqueId
+              : uniqueId
+      // `status` on this endpoint is a numeric request-outcome code (e.g. 222),
+      // not the delivery outcome — the actual carrier DLR text lives under
+      // `delivery_status_desc` (e.g. "DeliveredToTerminal"). Keep the old
+      // field names as fallbacks in case Bonga's shape varies by report type.
+      const status =
+        typeof r.delivery_status_desc === 'string'
+          ? r.delivery_status_desc
+          : typeof r.delivery_status === 'string'
+            ? r.delivery_status
+            : typeof r.status === 'string'
+              ? r.status
+              : ''
       const deliveredAt =
-        typeof r.delivered_at === 'string'
-          ? r.delivered_at
-          : typeof r.deliveredAt === 'string'
-            ? r.deliveredAt
-            : undefined
+        typeof r.date_received === 'string'
+          ? r.date_received
+          : typeof r.delivered_at === 'string'
+            ? r.delivered_at
+            : typeof r.deliveredAt === 'string'
+              ? r.deliveredAt
+              : undefined
       return { uniqueId: id, status, deliveredAt }
     })
     .filter(r => r.status.length > 0)

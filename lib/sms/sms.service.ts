@@ -181,6 +181,7 @@ function classifyDeliveryStatus(rawStatus: string): 'DELIVERED' | 'FAILED' | nul
   const status = rawStatus.toUpperCase()
   if (
     status.includes('UNDELIV') ||
+    status.includes('IMPOSSIBLE') ||
     status.includes('FAIL') ||
     status.includes('EXPIR') ||
     status.includes('REJECT') ||
