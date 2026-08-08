@@ -379,8 +379,8 @@ export default function MembersTable({
                     </div>
                 </div>
 
-                {/* ── Table ── */}
-                <div className="overflow-x-auto">
+                {/* ── Table (desktop) ── */}
+                <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="border-b border-border bg-muted/40">
@@ -481,6 +481,82 @@ export default function MembersTable({
                             )}
                         </tbody>
                     </table>
+                </div>
+
+                {/* ── Cards (mobile) ── */}
+                <div className="md:hidden">
+                    {members.length > 0 && (
+                        <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-muted/30 text-xs text-muted-foreground">
+                            <Checkbox
+                                checked={members.length > 0 && selectedIds.length === members.length}
+                                onCheckedChange={c => handleSelectAll(c as boolean)}
+                            />
+                            <span>{selectedIds.length === members.length ? "Deselect all" : "Select all"}</span>
+                        </div>
+                    )}
+                    {members.length === 0 ? (
+                        <div className="flex flex-col items-center gap-2 px-6 py-16 text-center text-muted-foreground">
+                            <User className="h-10 w-10 text-muted-foreground/30" />
+                            <p className="text-sm font-medium">No members found</p>
+                            <p className="text-xs">
+                                {hasActiveFilters || searchInput ? "Try adjusting your search or filters" : "Get started by adding your first member"}
+                            </p>
+                        </div>
+                    ) : (
+                        <ul className="divide-y divide-border">
+                            {members.map(member => (
+                                <li
+                                    key={member.id}
+                                    className={cn("flex items-start gap-2.5 px-4 py-3", selectedIds.includes(member.id) && "bg-primary/5")}
+                                >
+                                    <Checkbox
+                                        checked={selectedIds.includes(member.id)}
+                                        onCheckedChange={c => handleSelectRow(member.id, c as boolean)}
+                                        className="mt-0.5 shrink-0"
+                                    />
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <p className="font-medium text-foreground truncate">{member.fullName}</p>
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                <Button variant="ghost" size="sm" onClick={() => setEditingMember(member)}
+                                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-primary">
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                </Button>
+                                                <Button variant="ghost" size="sm" onClick={() => setDeletingMember(member)}
+                                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive">
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mt-0.5">{member.phoneNumber}</p>
+                                        <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                            <span className={cn(
+                                                "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium",
+                                                STATUS_STYLES[member.status ?? "Active"] ?? STATUS_STYLES.Active
+                                            )}>
+                                                {member.status ?? "Active"}
+                                            </span>
+                                            <span className={cn(
+                                                "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium",
+                                                member.gender === "Male"
+                                                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                                                    : "bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300"
+                                            )}>
+                                                {member.gender}
+                                            </span>
+                                        </div>
+                                        {(member.accountabilityGroup || member.homeFellowship || member.departments.length > 0) && (
+                                            <p className="text-[11px] text-muted-foreground mt-1 truncate">
+                                                {[member.accountabilityGroup?.name, member.homeFellowship?.name, ...member.departments.map(d => d.department.name)]
+                                                    .filter(Boolean)
+                                                    .join(" · ")}
+                                            </p>
+                                        )}
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                 </div>
 
                 {pagination.pages > 1 && (

@@ -8,6 +8,7 @@ import DashboardFilters from "@/components/dashboard/DashboardFilters";
 import KPIGrid from "@/components/dashboard/KPIGrid";
 import CategorySummary from "@/components/dashboard/CategorySummary";
 import { hasPermission } from "@/lib/rbac";
+import { AccessDenied } from "@/components/ui/access-denied";
 import { Menu, Wallet, FileBarChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -51,13 +52,7 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
     if (!canReadTransactions) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="text-center space-y-2">
-                    <div className="h-12 w-12 mx-auto rounded-full bg-muted flex items-center justify-center">
-                        <Wallet className="h-6 w-6 text-muted-foreground" />
-                    </div>
-                    <h2 className="text-lg font-semibold">Access Denied</h2>
-                    <p className="text-sm text-muted-foreground">You don&apos;t have permission to view finance data.</p>
-                </div>
+                <AccessDenied icon={Wallet} description="You don't have permission to view finance data." />
             </div>
         );
     }

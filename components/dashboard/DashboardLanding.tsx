@@ -22,6 +22,7 @@ interface AccessMap {
     members: boolean;
     attendance: boolean;
     sms: boolean;
+    minutes: boolean;
     users: boolean;
     rbac: boolean;
     settings: boolean;
@@ -89,6 +90,15 @@ const MODULES = [
         icon: MessageSquare,
         colour: "text-violet-600 dark:text-violet-400",
         bg: "bg-violet-500/10",
+    },
+    {
+        key: "minutes" as const,
+        title: "Meeting Minutes",
+        description: "Upload & browse PDF records",
+        href: "/dashboard/minutes",
+        icon: BookOpen,
+        colour: "text-teal-600 dark:text-teal-400",
+        bg: "bg-teal-500/10",
     },
     {
         key: "users" as const,
@@ -300,20 +310,6 @@ export default function DashboardLanding({ userName, access, stats }: Props) {
                             </Link>
                         );
                     })}
-
-                    {/* Meeting Minutes — always shown if visible in sidebar */}
-                    <Link href="/dashboard/minutes" className="group">
-                        <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-3.5 py-3 hover:border-primary/40 hover:bg-muted/30 transition-colors h-full">
-                            <div className="h-8 w-8 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
-                                <BookOpen className="h-4 w-4" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium leading-tight group-hover:text-primary transition-colors">Meeting Minutes</p>
-                                <p className="text-[11px] text-muted-foreground leading-tight mt-0.5 truncate">Upload & browse PDF records</p>
-                            </div>
-                            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </div>
-                    </Link>
                 </div>
             </div>
         </div>

@@ -2,6 +2,7 @@
 
 import MembersTable from "@/components/membership/MembersTable";
 import { usePermissions } from "@/hooks/usePermissions";
+import { AccessDenied } from "@/components/ui/access-denied";
 
 interface HomeFellowship { id: string; name: string; }
 interface Department { id: string; name: string; description: string | null; _count: { members: number }; }
@@ -38,10 +39,7 @@ export default function MembershipPageClient({ members, pagination, departments,
     if (!hasPermission("members:read")) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="text-center">
-                    <h2 className="text-xl font-semibold">Access Denied</h2>
-                    <p className="text-muted-foreground mt-2">You don&apos;t have permission to view members.</p>
-                </div>
+                <AccessDenied description="You don't have permission to view members." />
             </div>
         );
     }

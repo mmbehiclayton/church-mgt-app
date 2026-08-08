@@ -31,6 +31,7 @@ import { Plus, Trash2, Pencil, Search, Send } from 'lucide-react'
 import { analyzeSmsBody } from '@/lib/sms/segments'
 import { createSmsTemplate, updateSmsTemplate, deleteSmsTemplate } from '@/app/sms/actions'
 import { usePermissions } from '@/hooks/usePermissions'
+import { AccessDenied } from '@/components/ui/access-denied'
 import { useRouter } from 'next/navigation'
 
 interface Template {
@@ -94,10 +95,7 @@ export default function TemplatesClient({ templates }: { templates: Template[] }
   if (!hasPermission('sms', 'read')) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900">Access Denied</h2>
-          <p className="text-gray-500 mt-2">You don&apos;t have permission to view templates.</p>
-        </div>
+        <AccessDenied description="You don't have permission to view templates." />
       </div>
     )
   }

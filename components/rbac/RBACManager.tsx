@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Shield, Users, Trash2, Edit, Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
+import { AccessDenied } from "@/components/ui/access-denied";
 import { cn } from "@/lib/utils";
 
 interface Role {
@@ -183,13 +184,7 @@ export default function RBACManager() {
   if (!hasPermission("rbac", "manage")) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-center space-y-2">
-          <div className="h-12 w-12 mx-auto rounded-full bg-muted flex items-center justify-center">
-            <Shield className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <h3 className="text-base font-semibold">Access Denied</h3>
-          <p className="text-sm text-muted-foreground">You don&apos;t have permission to manage roles.</p>
-        </div>
+        <AccessDenied icon={Shield} description="You don't have permission to manage roles." />
       </div>
     );
   }

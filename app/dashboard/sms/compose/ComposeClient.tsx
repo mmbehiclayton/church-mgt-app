@@ -25,6 +25,7 @@ import { analyzeSmsBody } from '@/lib/sms/segments'
 import { OPT_OUT_SUFFIX, appendOptOut } from '@/lib/sms/optout'
 import { previewSmsAudience, sendSmsCampaign } from '@/app/sms/actions'
 import { usePermissions } from '@/hooks/usePermissions'
+import { AccessDenied } from '@/components/ui/access-denied'
 import { Send, Users, Search, Sparkles, RefreshCw, Eye } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -268,10 +269,7 @@ export default function ComposeClient({ departments, fellowships, totalMembers, 
   if (!hasPermission('sms', 'create')) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900">Access Denied</h2>
-          <p className="text-gray-500 mt-2">You don&apos;t have permission to send SMS.</p>
-        </div>
+        <AccessDenied description="You don't have permission to send SMS." />
       </div>
     )
   }
