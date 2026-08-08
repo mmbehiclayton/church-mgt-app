@@ -2,9 +2,9 @@
 // Run with: node scripts/gen-icons.mjs
 //
 // The source (public/dove.jpg) is an opaque white-background dove, so it is
-// placed as a rounded white tile on the indigo brand square (matching the
-// sidebar mark). favicon.ico is assembled manually (sharp can't write ICO) by
-// wrapping a 32x32 PNG in a single-image ICO container.
+// placed as a circular tile on the indigo brand badge, centered. favicon.ico
+// is assembled manually (sharp can't write ICO) by wrapping a 32x32 PNG in a
+// single-image ICO container.
 
 import sharp from "sharp";
 import { readFile, writeFile } from "node:fs/promises";
@@ -22,34 +22,38 @@ const INDIGO_BOTTOM = "#4338CA";
 const logoBuf = await readFile(LOGO);
 
 function bgSvg(size, rounded) {
-  const rx = rounded ? Math.round(size * 0.22) : 0;
+  // `rounded` icons (favicon/apple-touch/PWA "any") render as a full circle badge.
+  // Maskable icons stay a full-bleed square — the OS applies its own mask shape.
+  const shape = rounded
+    ? `<circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="url(#g)"/>`
+    : `<rect width="${size}" height="${size}" fill="url(#g)"/>`;
   return Buffer.from(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
       <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0" stop-color="${INDIGO_TOP}"/>
         <stop offset="1" stop-color="${INDIGO_BOTTOM}"/>
       </linearGradient></defs>
-      <rect width="${size}" height="${size}" rx="${rx}" fill="url(#g)"/>
+      ${shape}
     </svg>`
   );
 }
 
-// Resize the dove tile and round its corners via a dest-in alpha mask.
-async function roundedTile(tile) {
+// Resize the dove tile and clip it to a circle via a dest-in alpha mask.
+async function circularTile(tile) {
   const dove = await sharp(logoBuf).resize(tile, tile, { fit: "cover" }).png().toBuffer();
   const mask = Buffer.from(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${tile}" height="${tile}">
-      <rect width="${tile}" height="${tile}" rx="${Math.round(tile * 0.18)}" fill="#fff"/>
+      <circle cx="${tile / 2}" cy="${tile / 2}" r="${tile / 2}" fill="#fff"/>
     </svg>`
   );
   return sharp(dove).composite([{ input: mask, blend: "dest-in" }]).png().toBuffer();
 }
 
-// `rounded` => browser/app icons (rounded square, tile at 62%).
-// maskable   => Android adaptive icons (full-bleed bg, tile at 50% safe zone).
+// `rounded` => browser/app icons (circle badge, dove tile at 74%, centered).
+// maskable   => Android adaptive icons (full-bleed square bg, dove tile at 58% safe zone).
 async function brandIcon(size, { rounded }) {
   const bg = await sharp(bgSvg(size, rounded)).png().toBuffer();
-  const tile = await roundedTile(Math.round(size * (rounded ? 0.62 : 0.5)));
+  const tile = await circularTile(Math.round(size * (rounded ? 0.74 : 0.58)));
   return sharp(bg).composite([{ input: tile, gravity: "center" }]).png().toBuffer();
 }
 
@@ -86,20 +90,19 @@ for (const t of targets) {
   console.log("wrote", t.out);
 }
 
-// Self-contained scalable favicon: indigo square + the dove tile embedded.
+// Self-contained scalable favicon: indigo circle + the dove tile embedded, centered.
 const dataUri = `data:image/jpeg;base64,${logoBuf.toString("base64")}`;
-const tileW = Math.round(512 * 0.62);
+const tileW = Math.round(512 * 0.74);
 const off = Math.round((512 - tileW) / 2);
-const tileR = Math.round(tileW * 0.18);
 const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mwiki Altar dove logo">
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="${INDIGO_TOP}"/>
       <stop offset="1" stop-color="${INDIGO_BOTTOM}"/>
     </linearGradient>
-    <clipPath id="tile"><rect x="${off}" y="${off}" width="${tileW}" height="${tileW}" rx="${tileR}"/></clipPath>
+    <clipPath id="tile"><circle cx="256" cy="256" r="${tileW / 2}"/></clipPath>
   </defs>
-  <rect width="512" height="512" rx="112" fill="url(#g)"/>
+  <circle cx="256" cy="256" r="256" fill="url(#g)"/>
   <image href="${dataUri}" x="${off}" y="${off}" width="${tileW}" height="${tileW}" preserveAspectRatio="xMidYMid slice" clip-path="url(#tile)"/>
 </svg>
 `;
