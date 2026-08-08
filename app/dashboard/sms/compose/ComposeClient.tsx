@@ -326,8 +326,8 @@ export default function ComposeClient({ departments, fellowships, totalMembers, 
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Audience column — second on mobile so the message + send are reachable first */}
-        <Card className="lg:col-span-2 order-2 lg:order-1">
+        {/* Audience column — first on mobile so audience is picked before composing/sending */}
+        <Card className="lg:col-span-2">
           <CardHeader>
             <div className="flex items-center justify-between gap-2">
               <CardTitle className="flex items-center gap-2">
@@ -541,8 +541,8 @@ export default function ComposeClient({ departments, fellowships, totalMembers, 
           </CardContent>
         </Card>
 
-        {/* Message column — first on mobile */}
-        <Card className="order-1 lg:order-2">
+        {/* Message column — second on mobile, after audience is picked */}
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Send className="h-4 w-4" />

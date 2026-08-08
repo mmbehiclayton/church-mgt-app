@@ -72,7 +72,7 @@ export default function TransactionModal({
                     ) : (
                         <Button className="flex items-center gap-2">
                             <PlusCircle className="h-4 w-4" />
-                            <span className="sm:hidden">New</span>
+                            <span className="sm:hidden">Add New</span>
                             <span className="hidden sm:inline">New Transaction</span>
                         </Button>
                     )}

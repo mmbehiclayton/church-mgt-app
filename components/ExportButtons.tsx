@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Download, Calendar as CalendarIcon, Loader2, Check, ChevronsUpDown, FileText, FileSpreadsheet } from "lucide-react";
+import { Download, Calendar as CalendarIcon, Loader2, Check, ChevronsUpDown, FileSpreadsheet } from "lucide-react";
 import {
     Dialog,
     DialogContent,
@@ -29,8 +29,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import ExcelJS from "exceljs";
 import { getTransactions } from "@/app/actions";
 import { toast } from "sonner";
@@ -59,6 +57,16 @@ export default function ExportButtons({ categories, branding, asMenuItem = false
         );
     };
 
+    const noCategorySelected = selectedCategories.length === 0;
+
+    function requireCategory() {
+        if (noCategorySelected) {
+            toast.error("Select a category first", { description: "Choose at least one category before downloading." });
+            return true;
+        }
+        return false;
+    }
+
     async function fetchData() {
         const filters = {
             startDate,
@@ -80,8 +88,8 @@ export default function ExportButtons({ categories, branding, asMenuItem = false
         return selectedCategories.length > 1 ? "COMBINED" : "GENERAL";
     }
 
-    function fileName(ext: string) {
-        return `${orgLabel()} ${categoryLabel()} SUPPORT ${new Date().getFullYear()}.${ext}`;
+    function fileName() {
+        return `${orgLabel()} ${categoryLabel()} SUPPORT ${new Date().getFullYear()}.xlsx`;
     }
 
     function downloadBlob(blob: Blob, name: string) {
@@ -99,7 +107,8 @@ export default function ExportButtons({ categories, branding, asMenuItem = false
         return rawMessage.match(/at\s+(\d{1,2}:\d{2}(?:\s?[AP]M)?)/i)?.[1] ?? null;
     }
 
-    async function handleExportExcel() {
+    async function handleDownload() {
+        if (requireCategory()) return;
         setLoading(true);
         try {
             const transactions = await fetchData();
@@ -159,101 +168,11 @@ export default function ExportButtons({ categories, branding, asMenuItem = false
             }
 
             const buffer = await workbook.xlsx.writeBuffer();
-            downloadBlob(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), fileName("xlsx"));
+            downloadBlob(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), fileName());
             setOpen(false);
         } catch (e) {
             console.error(e);
-            toast.error("Export failed");
-        } finally {
-            setLoading(false);
-        }
-    }
-
-    async function handleExportPDF() {
-        setLoading(true);
-        try {
-            const transactions = await fetchData();
-            if (transactions.length === 0) {
-                toast.warning("No transactions found", { description: "Adjust the filters and try again." });
-                return;
-            }
-
-            const doc = new jsPDF();
-            doc.setFontSize(14);
-            doc.text(`${branding?.name || "Church"} — Transactions Report`, 14, 20);
-            doc.setFontSize(10);
-            doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 28);
-            if (startDate && endDate) {
-                doc.text(`Period: ${format(startDate, "PPP")} – ${format(endDate, "PPP")}`, 14, 34);
-            }
-
-            autoTable(doc, {
-                startY: startDate && endDate ? 40 : 34,
-                head: [["Date", "Reference", "Category", "Bank", "Amount"]],
-                body: transactions.map(t => [
-                    format(new Date(t.transactionDate), "dd MMM yyyy"),
-                    t.reference,
-                    t.category?.name || "—",
-                    t.bank || "—",
-                    `Ksh ${t.amount.toLocaleString()}`,
-                ]),
-                foot: [["", "", "", "TOTAL", `Ksh ${transactions.reduce((s, t) => s + t.amount, 0).toLocaleString()}`]],
-                styles: { fontSize: 8 },
-                headStyles: { fillColor: [37, 99, 235] },
-                footStyles: { fillColor: [226, 232, 240], fontStyle: "bold" },
-            });
-
-            downloadBlob(doc.output("blob"), fileName("pdf"));
-            setOpen(false);
-        } catch (e) {
-            console.error(e);
-            toast.error("Export failed");
-        } finally {
-            setLoading(false);
-        }
-    }
-
-    async function handleExportCsv() {
-        setLoading(true);
-        try {
-            const transactions = await fetchData();
-            if (transactions.length === 0) {
-                toast.warning("No transactions found", { description: "Adjust the filters and try again." });
-                return;
-            }
-
-            const escape = (v: string | number) => {
-                const s = String(v);
-                return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
-            };
-            const row = (cells: (string | number)[]) => cells.map(escape).join(",");
-
-            const catNames = selectedCategories.length > 0
-                ? categories.filter(c => selectedCategories.includes(c.id)).map(c => c.name).join("; ")
-                : "All Categories";
-
-            const lines: string[] = [
-                row([branding?.name || "Church"]),
-                row([`Category: ${catNames}`]),
-                row([`Generated: ${format(new Date(), "PPP p")}`]),
-                "",
-                row(["Date", "Reference", "Category", "Bank", "Account", "Amount (Ksh)"]),
-                ...transactions.map(t => row([
-                    format(new Date(t.transactionDate), "yyyy-MM-dd"),
-                    t.reference,
-                    t.category?.name || "",
-                    t.bank || "",
-                    t.account || "",
-                    Math.round(t.amount),
-                ])),
-                row(["", "", "", "", "TOTAL", Math.round(transactions.reduce((s, t) => s + t.amount, 0))]),
-            ];
-
-            downloadBlob(new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" }), fileName("csv"));
-            setOpen(false);
-        } catch (e) {
-            console.error(e);
-            toast.error("Export failed");
+            toast.error("Download failed");
         } finally {
             setLoading(false);
         }
@@ -264,22 +183,22 @@ export default function ExportButtons({ categories, branding, asMenuItem = false
             {asMenuItem ? (
                 <DialogTrigger asChild>
                     <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                        <Download className="mr-2 h-4 w-4" /> Export
+                        <Download className="mr-2 h-4 w-4" /> Download
                     </DropdownMenuItem>
                 </DialogTrigger>
             ) : (
                 <DialogTrigger asChild>
                     <Button variant="outline" size="sm">
-                        <Download className="mr-2 h-4 w-4" /> Export
+                        <Download className="mr-2 h-4 w-4" /> Download
                     </Button>
                 </DialogTrigger>
             )}
 
             <DialogContent className="sm:max-w-[450px]">
                 <DialogHeader>
-                    <DialogTitle>Export Transactions</DialogTitle>
+                    <DialogTitle>Download Transactions</DialogTitle>
                     <DialogDescription>
-                        Filter by category and date range, then choose your export format.
+                        Choose a category and an optional date range, then download as Excel.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -321,11 +240,17 @@ export default function ExportButtons({ categories, branding, asMenuItem = false
 
                     {/* Category filter */}
                     <div className="grid gap-2">
-                        <Label>Categories</Label>
+                        <Label>
+                            Categories <span className="text-red-500">*</span>
+                        </Label>
                         <Popover open={openCategory} onOpenChange={setOpenCategory}>
                             <PopoverTrigger asChild>
-                                <Button variant="outline" role="combobox" className="w-full justify-between">
-                                    {selectedCategories.length > 0 ? `${selectedCategories.length} selected` : "All categories"}
+                                <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    className={cn("w-full justify-between", noCategorySelected && "border-red-400")}
+                                >
+                                    {selectedCategories.length > 0 ? `${selectedCategories.length} selected` : "Select a category..."}
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
                             </PopoverTrigger>
@@ -354,21 +279,16 @@ export default function ExportButtons({ categories, branding, asMenuItem = false
                                 </Command>
                             </PopoverContent>
                         </Popover>
+                        {noCategorySelected && (
+                            <p className="text-xs text-red-500">Select at least one category to download.</p>
+                        )}
                     </div>
                 </div>
 
-                <DialogFooter className="flex-col sm:flex-row gap-2">
-                    <Button variant="outline" onClick={handleExportCsv} disabled={loading} className="w-full sm:w-auto">
-                        {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                        CSV
-                    </Button>
-                    <Button variant="secondary" onClick={handleExportExcel} disabled={loading} className="w-full sm:w-auto">
+                <DialogFooter>
+                    <Button onClick={handleDownload} disabled={loading || noCategorySelected} className="w-full">
                         {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4" />}
-                        Excel
-                    </Button>
-                    <Button onClick={handleExportPDF} disabled={loading} className="w-full sm:w-auto">
-                        {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
-                        PDF
+                        {loading ? "Downloading…" : "Download Excel"}
                     </Button>
                 </DialogFooter>
             </DialogContent>

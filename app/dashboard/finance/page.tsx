@@ -15,6 +15,7 @@ import Link from "next/link";
 import {
     DropdownMenu,
     DropdownMenuContent,
+    DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
@@ -65,8 +66,10 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
         canExportReports ? getFinanceReportBranding() : Promise.resolve(undefined),
     ]);
 
-    // Categories / Import / Export live in the secondary actions menu (New Transaction is now standalone).
-    const hasSecondaryActions = canManageCategories || canCreateTransactions || canExportReports;
+    // Categories / Import live in the secondary actions menu; Reports moves into that
+    // same menu on mobile so the header row stays short, but stays a standalone button
+    // on desktop. New Transaction + Download are always the standalone primary actions.
+    const hasDesktopSecondaryActions = canManageCategories || canCreateTransactions;
 
     return (
         <div className="space-y-5 pb-10">
@@ -78,38 +81,41 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap">
-                    {/* Secondary actions: Categories / Import / Export */}
-                    {hasSecondaryActions && (
-                        <>
-                            {/* Mobile actions menu */}
-                            <div className="md:hidden">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" size="icon"><Menu className="h-4 w-4" /></Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-52">
-                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                        <DropdownMenuSeparator />
-                                        {canManageCategories && <CategoryModal initialCategories={allCategories} asMenuItem />}
-                                        {canCreateTransactions && <ImportButton asMenuItem />}
-                                        {canExportReports && <ExportButtons categories={activeCategories} branding={branding} asMenuItem />}
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
+                    {/* Mobile actions menu — Categories / Import / Reports */}
+                    <div className="md:hidden">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="icon"><Menu className="h-4 w-4" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                {canManageCategories && <CategoryModal initialCategories={allCategories} asMenuItem />}
+                                {canCreateTransactions && <ImportButton asMenuItem />}
+                                <DropdownMenuItem asChild>
+                                    <Link href="/dashboard/finance/reports">
+                                        <FileBarChart className="mr-2 h-4 w-4" />
+                                        Reports
+                                    </Link>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
 
-                            {/* Desktop secondary buttons */}
-                            <div className="hidden md:flex gap-2 flex-wrap">
-                                {canManageCategories && <CategoryModal initialCategories={allCategories} />}
-                                {canCreateTransactions && <ImportButton />}
-                                {canExportReports && <ExportButtons categories={activeCategories} branding={branding} />}
-                            </div>
-                        </>
+                    {/* Desktop secondary buttons */}
+                    {hasDesktopSecondaryActions && (
+                        <div className="hidden md:flex gap-2 flex-wrap">
+                            {canManageCategories && <CategoryModal initialCategories={allCategories} />}
+                            {canCreateTransactions && <ImportButton />}
+                        </div>
                     )}
 
-                    {/* Primary action — standalone, before Reports */}
+                    {/* Primary actions — New Transaction + Download, side by side */}
                     {canCreateTransactions && <TransactionModal categories={activeCategories} />}
+                    {canExportReports && <ExportButtons categories={activeCategories} branding={branding} />}
 
-                    <Link href="/dashboard/finance/reports">
+                    {/* Reports — desktop only; mobile has it in the actions menu above */}
+                    <Link href="/dashboard/finance/reports" className="hidden md:block">
                         <Button variant="outline" size="sm">
                             <FileBarChart className="h-4 w-4 mr-1.5" />
                             Reports
