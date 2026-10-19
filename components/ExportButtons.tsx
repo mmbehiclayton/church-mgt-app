@@ -134,9 +134,9 @@ export default function ExportButtons({ categories, branding, asMenuItem = false
 
             for (let i = 1; i <= metaCount; i++) ws.getCell(`A${i}`).font = { bold: true };
 
-            [20, 15, 15, 20, 15, 10].forEach((w, i) => (ws.getColumn(i + 1).width = w));
+            [20, 28, 15, 15, 20, 15, 10].forEach((w, i) => (ws.getColumn(i + 1).width = w));
 
-            const headerRow = ws.addRow(["Reference Number", "Amount", "Bank", "Account Number", "Date", "Time"]);
+            const headerRow = ws.addRow(["Reference Number", "Member Name", "Amount", "Bank", "Account Number", "Date", "Time"]);
             headerRow.font = { bold: true };
             headerRow.eachCell(cell => {
                 cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFC000" } };
@@ -148,6 +148,7 @@ export default function ExportButtons({ categories, branding, asMenuItem = false
                 total += t.amount;
                 ws.addRow([
                     t.reference,
+                    t.memberName || "",
                     t.amount,
                     t.bank || "",
                     t.account || "",
@@ -156,14 +157,14 @@ export default function ExportButtons({ categories, branding, asMenuItem = false
                 ]);
             });
 
-            const totalRow = ws.addRow(["TOTAL", total]);
+            const totalRow = ws.addRow(["TOTAL", "", total]);
             totalRow.font = { bold: true };
 
             const startR = headerRow.number;
             const endR = totalRow.number;
             for (let i = startR; i <= endR; i++) {
                 ws.getRow(i).eachCell({ includeEmpty: true }, (cell, col) => {
-                    if (col <= 6) cell.border = { top: { style: "thin" }, left: { style: "thin" }, bottom: { style: "thin" }, right: { style: "thin" } };
+                    if (col <= 7) cell.border = { top: { style: "thin" }, left: { style: "thin" }, bottom: { style: "thin" }, right: { style: "thin" } };
                 });
             }
 
