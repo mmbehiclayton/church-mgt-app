@@ -306,7 +306,7 @@ export default function WatchlistClient({ members, canSms }: Props) {
 
       {/* Sticky bulk action bar when selected */}
       {selected.size > 0 && canSms && (
-        <div className="sticky bottom-4 z-20 mx-auto max-w-md">
+        <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] md:bottom-4 z-20 mx-auto max-w-md">
           <div className="rounded-xl bg-card border border-border shadow-lg px-4 py-3 flex items-center justify-between gap-3">
             <div className="text-sm">
               <strong>{selected.size}</strong> selected

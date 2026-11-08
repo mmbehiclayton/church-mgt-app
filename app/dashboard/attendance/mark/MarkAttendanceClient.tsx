@@ -316,8 +316,8 @@ export default function MarkAttendanceClient({ members, departments, fellowships
           {/* Toolbar */}
           <Card>
             <CardContent className="p-3 sm:p-4">
-              <div className="flex flex-wrap gap-2 items-center">
-                <div className="relative flex-1 min-w-[200px]">
+              <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 items-center">
+                <div className="relative col-span-2 sm:flex-1 sm:min-w-[200px]">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Search by name..."
@@ -327,7 +327,7 @@ export default function MarkAttendanceClient({ members, departments, fellowships
                   />
                 </div>
                 <Select value={filterFellowship} onValueChange={setFilterFellowship}>
-                  <SelectTrigger className="w-auto min-w-[140px]">
+                  <SelectTrigger className="w-full sm:w-auto sm:min-w-[140px]">
                     <SelectValue placeholder="All fellowships" />
                   </SelectTrigger>
                   <SelectContent>
@@ -341,7 +341,7 @@ export default function MarkAttendanceClient({ members, departments, fellowships
                   </SelectContent>
                 </Select>
                 <Select value={filterDept} onValueChange={setFilterDept}>
-                  <SelectTrigger className="w-auto min-w-[140px]">
+                  <SelectTrigger className="w-full sm:w-auto sm:min-w-[140px]">
                     <SelectValue placeholder="All depts" />
                   </SelectTrigger>
                   <SelectContent>
@@ -354,7 +354,7 @@ export default function MarkAttendanceClient({ members, departments, fellowships
                   </SelectContent>
                 </Select>
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="w-auto min-w-[120px]">
+                  <SelectTrigger className="w-full sm:w-auto sm:min-w-[120px]">
                     <SelectValue placeholder="All status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -445,7 +445,7 @@ export default function MarkAttendanceClient({ members, departments, fellowships
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 text-xs"
+                              className="h-9 sm:h-7 text-xs"
                               onClick={() => bulkSet(groupIds, "PRESENT")}
                             >
                               All P
@@ -453,7 +453,7 @@ export default function MarkAttendanceClient({ members, departments, fellowships
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 text-xs"
+                              className="h-9 sm:h-7 text-xs"
                               onClick={() => bulkSet(groupIds, "ABSENT")}
                             >
                               All A
@@ -524,23 +524,23 @@ export default function MarkAttendanceClient({ members, departments, fellowships
           </Card>
 
           {/* Footer actions */}
-          <div className="sticky bottom-0 -mx-4 md:-mx-6 px-4 md:px-6 py-3 border-t border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 flex flex-wrap items-center justify-between gap-3">
+          <div className="sticky bottom-[calc(3.75rem+env(safe-area-inset-bottom))] md:bottom-0 z-20 -mx-4 md:-mx-6 px-4 md:px-6 py-3 border-t border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 flex flex-wrap items-center justify-between gap-3">
             <div className="text-sm text-muted-foreground flex items-center gap-3">
               <span className="hidden sm:inline">
                 <Keyboard className="h-3.5 w-3.5 inline mr-1" />
                 Click P/A/E to mark status. Unmarked → Absent at submit.
               </span>
             </div>
-            <div className="flex gap-2 ml-auto">
+            <div className="flex gap-2 w-full sm:w-auto sm:ml-auto">
               <Button variant="ghost" onClick={() => setStep(1)} disabled={isPending}>
                 Back
               </Button>
-              <Button variant="outline" onClick={() => save("DRAFT")} disabled={isPending}>
-                <Save className="h-4 w-4 mr-2" /> Save draft
+              <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => save("DRAFT")} disabled={isPending}>
+                <Save className="h-4 w-4 mr-2" /> <span className="sm:hidden">Draft</span><span className="hidden sm:inline">Save draft</span>
               </Button>
-              <Button onClick={() => save("SUBMITTED")} disabled={isPending}>
+              <Button className="flex-1 sm:flex-none" onClick={() => save("SUBMITTED")} disabled={isPending}>
                 <Send className="h-4 w-4 mr-2" />
-                {isPending ? "Submitting…" : "Submit attendance"}
+                {isPending ? "Submitting…" : <><span className="sm:hidden">Submit</span><span className="hidden sm:inline">Submit attendance</span></>}
               </Button>
             </div>
           </div>
@@ -636,7 +636,7 @@ function StatusButton({
       onClick={onClick}
       data-active={active}
       className={cn(
-        "h-8 w-8 sm:w-auto sm:px-2.5 rounded-md border border-input bg-background text-xs font-semibold transition-colors flex items-center justify-center gap-1 hover:bg-muted",
+        "h-10 w-10 sm:h-8 sm:w-auto sm:px-2.5 rounded-md border border-input bg-background text-xs font-semibold transition-colors flex items-center justify-center gap-1 hover:bg-muted",
         colorClass
       )}
       aria-pressed={active}

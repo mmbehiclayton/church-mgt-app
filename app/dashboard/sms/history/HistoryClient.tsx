@@ -32,7 +32,7 @@ const STATUS_STYLES: Record<string, string> = {
   PARTIAL: 'bg-amber-100 text-amber-700',
   SENDING: 'bg-blue-100 text-blue-700',
   FAILED: 'bg-red-100 text-red-700',
-  DRAFT: 'bg-gray-100 text-gray-600',
+  DRAFT: 'bg-muted text-muted-foreground',
 }
 
 const STATUS_FILTERS = ['ALL', 'SENT', 'PARTIAL', 'SENDING', 'FAILED', 'DRAFT'] as const
@@ -67,7 +67,7 @@ export default function HistoryClient({ campaigns, total }: { campaigns: Campaig
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-xl sm:text-2xl font-bold">SMS History</h1>
-          <p className="text-sm text-gray-500">{total} campaigns total</p>
+          <p className="text-sm text-muted-foreground">{total} campaigns total</p>
         </div>
         {hasPermission('sms', 'create') && (
           <Link href="/dashboard/sms/compose" className="shrink-0">
@@ -90,7 +90,7 @@ export default function HistoryClient({ campaigns, total }: { campaigns: Campaig
             )}
           </div>
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
             <Input
               className="pl-8 h-9 w-full sm:w-72 pr-8"
               placeholder="Search name, message, sender..."
@@ -101,7 +101,7 @@ export default function HistoryClient({ campaigns, total }: { campaigns: Campaig
               <button
                 type="button"
                 onClick={() => setSearch('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/70 hover:text-foreground"
                 aria-label="Clear search"
               >
                 <X className="h-4 w-4" />
@@ -137,19 +137,19 @@ export default function HistoryClient({ campaigns, total }: { campaigns: Campaig
                 <Link
                   key={c.id}
                   href={`/dashboard/sms/history/${c.id}`}
-                  className="flex flex-col gap-2 p-4 hover:bg-gray-50 sm:flex-row sm:items-center sm:gap-4"
+                  className="flex flex-col gap-2 p-4 hover:bg-muted/50 sm:flex-row sm:items-center sm:gap-4"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <div className="font-medium text-gray-900 truncate">
+                      <div className="font-medium text-foreground truncate">
                         {c.name || c.message.slice(0, 80)}
                       </div>
                       <Badge variant="secondary" className={cn('shrink-0', STATUS_STYLES[c.status] || '')}>
                         {c.status}
                       </Badge>
                     </div>
-                    <div className="text-sm text-gray-500 truncate mt-0.5">{c.message}</div>
-                    <div className="text-xs text-gray-400 mt-1">
+                    <div className="text-sm text-muted-foreground truncate mt-0.5">{c.message}</div>
+                    <div className="text-xs text-muted-foreground/70 mt-1">
                       by {c.createdByName || 'system'} · {format(new Date(c.createdAt), 'MMM d, yyyy HH:mm')}
                     </div>
                   </div>
@@ -158,11 +158,11 @@ export default function HistoryClient({ campaigns, total }: { campaigns: Campaig
                       <div className="text-sm font-medium">
                         {c.sentCount} / {c.totalRecipients} sent
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-muted-foreground">
                         {c.deliveredCount} delivered · {c.failedCount} failed
                       </div>
                     </div>
-                    <ArrowRight className="h-4 w-4 text-gray-400 shrink-0" />
+                    <ArrowRight className="h-4 w-4 text-muted-foreground/70 shrink-0" />
                   </div>
                 </Link>
               ))}

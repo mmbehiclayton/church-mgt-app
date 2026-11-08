@@ -64,7 +64,7 @@ const STATUS_STYLES: Record<string, string> = {
   PARTIAL: 'bg-amber-100 text-amber-700',
   SENDING: 'bg-blue-100 text-blue-700',
   FAILED: 'bg-red-100 text-red-700',
-  DRAFT: 'bg-gray-100 text-gray-600',
+  DRAFT: 'bg-muted text-muted-foreground',
 }
 
 export default function SmsDashboardClient({ credits, threshold, clientName, balanceError, stats }: Props) {

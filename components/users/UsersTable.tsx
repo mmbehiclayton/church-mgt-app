@@ -89,7 +89,7 @@ export default function UsersTable({ users }: UsersTableProps) {
         <>
             <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                 {/* Toolbar */}
-                <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
+                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-border flex flex-wrap items-center justify-between gap-2 sm:gap-3">
                     <p className="text-sm font-semibold text-foreground">
                         {users.length} user{users.length !== 1 ? "s" : ""}
                         {selectedIds.length > 0 && (
@@ -120,7 +120,7 @@ export default function UsersTable({ users }: UsersTableProps) {
                                         onCheckedChange={(c) => handleSelectAll(c as boolean)}
                                     />
                                 </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-10">#</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-10 hidden sm:table-cell">#</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">User</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Role</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
@@ -140,7 +140,7 @@ export default function UsersTable({ users }: UsersTableProps) {
                                             onCheckedChange={(c) => handleSelectRow(user.id, c as boolean)}
                                         />
                                     </td>
-                                    <td className="px-4 py-3 text-muted-foreground tabular-nums">{index + 1}</td>
+                                    <td className="px-4 py-3 text-muted-foreground tabular-nums hidden sm:table-cell">{index + 1}</td>
                                     <td className="px-4 py-3 whitespace-nowrap">
                                         <div className="flex items-center gap-3">
                                             <div className={cn("h-9 w-9 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0", getAvatarColor(user.name, user.email))}>
@@ -185,15 +185,15 @@ export default function UsersTable({ users }: UsersTableProps) {
                                     <td className="px-4 py-3 whitespace-nowrap text-right">
                                         <div className="flex items-center justify-end gap-1">
                                             <Button variant="ghost" size="sm" onClick={() => setEditingUser(user)}
-                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-primary" title="Edit">
+                                                className="h-9 w-9 sm:h-8 sm:w-8 p-0 text-muted-foreground hover:text-primary" title="Edit">
                                                 <Pencil className="h-3.5 w-3.5" />
                                             </Button>
                                             <Button variant="ghost" size="sm" onClick={() => setResetPasswordUser(user)}
-                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-amber-500" title="Reset password">
+                                                className="h-9 w-9 sm:h-8 sm:w-8 p-0 text-muted-foreground hover:text-amber-500" title="Reset password">
                                                 <KeyRound className="h-3.5 w-3.5" />
                                             </Button>
                                             <Button variant="ghost" size="sm" onClick={() => setDeletingUser(user)}
-                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive" title="Delete">
+                                                className="h-9 w-9 sm:h-8 sm:w-8 p-0 text-muted-foreground hover:text-destructive" title="Delete">
                                                 <Trash2 className="h-3.5 w-3.5" />
                                             </Button>
                                         </div>

@@ -41,7 +41,7 @@ export function Header({ onMenuClick, organization }: HeaderProps) {
     const initials = getInitials(user?.name, user?.email);
 
     return (
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60 px-4 md:px-6 justify-between">
+        <header className="sticky top-0 z-30 flex h-14 md:h-16 items-center gap-2 md:gap-3 border-b border-border bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60 px-4 md:px-6 justify-between">
             <div className="flex items-center gap-3 min-w-0">
                 <Button
                     variant="ghost"

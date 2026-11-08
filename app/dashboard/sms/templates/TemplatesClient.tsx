@@ -156,7 +156,7 @@ export default function TemplatesClient({ templates }: { templates: Template[] }
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">SMS Templates</h1>
-          <p className="text-sm text-gray-500">Reusable messages for common scenarios</p>
+          <p className="text-sm text-muted-foreground">Reusable messages for common scenarios</p>
         </div>
         {canManage && (
           <Button onClick={openCreate}>
@@ -174,7 +174,7 @@ export default function TemplatesClient({ templates }: { templates: Template[] }
       ) : (
         <>
           <div className="relative max-w-sm">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
             <Input
               className="pl-8 h-9"
               placeholder="Search templates..."
@@ -220,10 +220,10 @@ export default function TemplatesClient({ templates }: { templates: Template[] }
                           )}
                         </CardHeader>
                         <CardContent className="flex flex-1 flex-col">
-                          <pre className="whitespace-pre-wrap text-sm text-gray-700 bg-gray-50 p-2 rounded border max-h-32 overflow-y-auto font-mono">
+                          <pre className="whitespace-pre-wrap text-sm text-foreground bg-muted/40 p-2 rounded border max-h-32 overflow-y-auto font-mono">
                             {t.body}
                           </pre>
-                          <div className="text-xs text-gray-400 mt-2">
+                          <div className="text-xs text-muted-foreground/70 mt-2">
                             {seg.length} chars · {seg.segments} SMS ({seg.encoding})
                           </div>
                           {canSend && (
@@ -286,7 +286,7 @@ export default function TemplatesClient({ templates }: { templates: Template[] }
                 onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
                 className="mt-1 font-mono text-sm"
               />
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="text-xs text-muted-foreground mt-1">
                 {segInfo.length} chars · {segInfo.segments} SMS ({segInfo.encoding})
               </div>
             </div>

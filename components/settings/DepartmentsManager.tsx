@@ -133,9 +133,9 @@ export default function DepartmentsManager({ initialDepartments, onSuccess }: { 
                     <Table>
                         <TableHeader className="bg-muted/50">
                             <TableRow>
-                                <TableHead className="font-semibold text-slate-700">Name</TableHead>
-                                <TableHead className="font-semibold text-slate-700">Members</TableHead>
-                                <TableHead className="w-[120px] text-right font-semibold text-slate-700">Actions</TableHead>
+                                <TableHead className="font-semibold text-foreground">Name</TableHead>
+                                <TableHead className="font-semibold text-foreground">Members</TableHead>
+                                <TableHead className="w-[120px] text-right font-semibold text-foreground">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -143,17 +143,17 @@ export default function DepartmentsManager({ initialDepartments, onSuccess }: { 
                                 <TableRow>
                                     <TableCell colSpan={3} className="h-32">
                                         <div className="flex flex-col items-center justify-center text-center text-muted-foreground">
-                                            <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-                                                <Layers className="h-5 w-5 text-slate-300" />
+                                            <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
+                                                <Layers className="h-5 w-5 text-muted-foreground/50" />
                                             </div>
-                                            <p className="font-medium text-slate-600">No departments found</p>
+                                            <p className="font-medium text-muted-foreground">No departments found</p>
                                             <p className="text-sm">Add your first department to get started.</p>
                                         </div>
                                     </TableCell>
                                 </TableRow>
                             ) : (
                                 departments.map((dept) => (
-                                    <TableRow key={dept.id} className="group transition-colors hover:bg-slate-50">
+                                    <TableRow key={dept.id} className="group transition-colors hover:bg-muted/40">
                                         <TableCell>
                                             {editingDeptId === dept.id ? (
                                                 <Input
@@ -167,7 +167,7 @@ export default function DepartmentsManager({ initialDepartments, onSuccess }: { 
                                                     }}
                                                 />
                                             ) : (
-                                                <span className="font-medium text-slate-700">{dept.name}</span>
+                                                <span className="font-medium text-foreground">{dept.name}</span>
                                             )}
                                         </TableCell>
                                         <TableCell>
@@ -178,19 +178,19 @@ export default function DepartmentsManager({ initialDepartments, onSuccess }: { 
                                         <TableCell className="text-right">
                                             {editingDeptId === dept.id ? (
                                                 <div className="flex justify-end gap-1">
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-100" onClick={() => handleEditSave(dept.id)}>
+                                                    <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8 text-green-600 hover:text-green-700 hover:bg-green-100" onClick={() => handleEditSave(dept.id)}>
                                                         <Check className="h-4 w-4" />
                                                     </Button>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-600 hover:bg-slate-200" onClick={handleEditCancel}>
+                                                    <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8 text-muted-foreground hover:text-muted-foreground hover:bg-muted" onClick={handleEditCancel}>
                                                         <X className="h-4 w-4" />
                                                     </Button>
                                                 </div>
                                             ) : (
-                                                <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50" onClick={() => handleEditStart(dept)}>
+                                                <div className="flex justify-end gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                                    <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8 text-muted-foreground hover:text-blue-600 hover:bg-blue-50" onClick={() => handleEditStart(dept)}>
                                                         <Pencil className="h-4 w-4" />
                                                     </Button>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50" onClick={() => setDeptToDelete(dept.id)}>
+                                                    <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8 text-muted-foreground hover:text-red-600 hover:bg-red-50" onClick={() => setDeptToDelete(dept.id)}>
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
                                                 </div>

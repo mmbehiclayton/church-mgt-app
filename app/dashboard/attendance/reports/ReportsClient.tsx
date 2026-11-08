@@ -326,7 +326,7 @@ function SingleReport({ sessions, branding, logo, canSms, generatedBy }: SubProp
             {/* Session picker + exports */}
             <Card className="print:hidden">
                 <CardContent className="p-4 flex flex-wrap items-end gap-3">
-                    <div className="flex-1 min-w-[240px] space-y-1.5">
+                    <div className="flex-1 basis-full sm:basis-auto sm:min-w-[240px] space-y-1.5">
                         <label className="text-xs font-medium text-muted-foreground">Service</label>
                         <Select value={sessionId} onValueChange={setSessionId}>
                             <SelectTrigger><SelectValue placeholder="Choose a service…" /></SelectTrigger>
@@ -339,7 +339,7 @@ function SingleReport({ sessions, branding, logo, canSms, generatedBy }: SubProp
                             </SelectContent>
                         </Select>
                     </div>
-                    <Button onClick={generate} disabled={!sessionId || loading}>
+                    <Button className="w-full sm:w-auto" onClick={generate} disabled={!sessionId || loading}>
                         {loading ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <FileBarChart className="h-4 w-4 mr-1.5" />}
                         Generate Report
                     </Button>
@@ -398,23 +398,23 @@ function SingleReport({ sessions, branding, logo, canSms, generatedBy }: SubProp
                     </div>
 
                     {/* Filters */}
-                    <div className="flex flex-wrap gap-2 print:hidden">
+                    <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 print:hidden">
                         <Select value={fellowship} onValueChange={setFellowship}>
-                            <SelectTrigger className="h-9 w-[180px] text-sm"><SelectValue placeholder="Fellowship" /></SelectTrigger>
+                            <SelectTrigger className="h-9 w-full sm:w-[180px] text-sm"><SelectValue placeholder="Fellowship" /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value={ALL}>All fellowships</SelectItem>
                                 {fellowshipOptions.map(o => <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>)}
                             </SelectContent>
                         </Select>
                         <Select value={department} onValueChange={setDepartment}>
-                            <SelectTrigger className="h-9 w-[180px] text-sm"><SelectValue placeholder="Department" /></SelectTrigger>
+                            <SelectTrigger className="h-9 w-full sm:w-[180px] text-sm"><SelectValue placeholder="Department" /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value={ALL}>All departments</SelectItem>
                                 {departmentOptions.map(o => <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>)}
                             </SelectContent>
                         </Select>
                         <Select value={gender} onValueChange={setGender}>
-                            <SelectTrigger className="h-9 w-[140px] text-sm"><SelectValue placeholder="Gender" /></SelectTrigger>
+                            <SelectTrigger className="h-9 w-full sm:w-[140px] text-sm"><SelectValue placeholder="Gender" /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value={ALL}>All genders</SelectItem>
                                 <SelectItem value="Male">Male</SelectItem>
@@ -469,7 +469,7 @@ function SingleReport({ sessions, branding, logo, canSms, generatedBy }: SubProp
                         <Card className="print:break-inside-avoid">
                             <CardContent className="p-4">
                                 <h3 className="text-sm font-semibold mb-3">Present vs Absent by Fellowship</h3>
-                                <div style={{ height: 280 }}>
+                                <div className="h-[240px] sm:h-[280px]">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <BarChart data={fellowshipChart}>
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} />

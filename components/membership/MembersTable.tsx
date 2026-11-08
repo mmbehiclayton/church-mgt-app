@@ -299,7 +299,7 @@ export default function MembersTable({
 
                     {/* Filters row */}
                     <div className="flex flex-wrap gap-2">
-                        <div className="relative flex-1 min-w-[200px] max-w-xs">
+                        <div className="relative flex-1 basis-full sm:basis-auto min-w-[200px] sm:max-w-xs">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                             <Input
                                 placeholder="Search name, phone, estate…"
@@ -519,11 +519,11 @@ export default function MembersTable({
                                             <p className="font-medium text-foreground truncate">{member.fullName}</p>
                                             <div className="flex items-center gap-1 shrink-0">
                                                 <Button variant="ghost" size="sm" onClick={() => setEditingMember(member)}
-                                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-primary">
+                                                    className="h-9 w-9 p-0 text-muted-foreground hover:text-primary">
                                                     <Pencil className="h-3.5 w-3.5" />
                                                 </Button>
                                                 <Button variant="ghost" size="sm" onClick={() => setDeletingMember(member)}
-                                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive">
+                                                    className="h-9 w-9 p-0 text-muted-foreground hover:text-destructive">
                                                     <Trash2 className="h-3.5 w-3.5" />
                                                 </Button>
                                             </div>

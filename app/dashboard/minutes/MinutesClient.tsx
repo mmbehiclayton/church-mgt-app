@@ -216,7 +216,7 @@ export default function MinutesClient({ initialMinutes, initialPagination, meeti
 
                 {/* Toolbar */}
                 <div className="flex flex-wrap gap-2 items-center">
-                    <div className="relative flex-1 min-w-[200px] max-w-xs">
+                    <div className="relative flex-1 basis-full sm:basis-auto min-w-[200px] sm:max-w-xs">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                         <Input
                             placeholder="Search title or notes…"
@@ -291,15 +291,15 @@ export default function MinutesClient({ initialMinutes, initialPagination, meeti
                                 {minutes.map((doc) => (
                                     <tr key={doc.id} className="hover:bg-muted/20 transition-colors group">
                                         {/* Document title + mobile meta */}
-                                        <td className="px-4 py-3">
+                                        <td className="px-3 sm:px-4 py-3">
                                             <div className="flex items-center gap-3">
                                                 <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
                                                     <FileText className="h-4 w-4" />
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <p className="font-medium truncate max-w-[200px] sm:max-w-[280px]">{doc.title}</p>
+                                                    <p className="font-medium truncate max-w-[34vw] sm:max-w-[280px]">{doc.title}</p>
                                                     {doc.description && (
-                                                        <p className="text-xs text-muted-foreground truncate max-w-[200px] sm:max-w-[280px] mt-0.5">{doc.description}</p>
+                                                        <p className="text-xs text-muted-foreground truncate max-w-[34vw] sm:max-w-[280px] mt-0.5">{doc.description}</p>
                                                     )}
                                                     {/* Mobile-only meta */}
                                                     <div className="flex items-center gap-2 mt-1 sm:hidden">
@@ -340,7 +340,7 @@ export default function MinutesClient({ initialMinutes, initialPagination, meeti
                                         </td>
 
                                         {/* Actions */}
-                                        <td className="px-4 py-3 text-right">
+                                        <td className="px-2 sm:px-4 py-3 text-right">
                                             <div className="flex items-center justify-end gap-1">
                                                 <a href={`/api/minutes/${doc.id}/file`} target="_blank" rel="noopener noreferrer">
                                                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-primary" title="View PDF">

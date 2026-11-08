@@ -51,7 +51,7 @@ interface Props {
 const STATUS_STYLES: Record<string, string> = {
   DELIVERED: 'bg-emerald-100 text-emerald-700',
   SENT: 'bg-blue-100 text-blue-700',
-  PENDING: 'bg-gray-100 text-gray-600',
+  PENDING: 'bg-muted text-muted-foreground',
   FAILED: 'bg-red-100 text-red-700',
 }
 
@@ -184,8 +184,8 @@ export default function DeliveryReportsClient({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Delivery Reports</h1>
-          <p className="text-sm text-gray-500">Message-level delivery status across every campaign.</p>
+          <h1 className="text-xl sm:text-2xl font-bold">Delivery Reports</h1>
+          <p className="text-sm text-muted-foreground">Message-level delivery status across every campaign.</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={syncAllPending} disabled={isSyncing}>
@@ -198,7 +198,7 @@ export default function DeliveryReportsClient({
         </div>
       </div>
 
-      {lastSynced && <p className="text-xs text-gray-400 -mt-4">Last synced {format(lastSynced, 'HH:mm:ss')}</p>}
+      {lastSynced && <p className="text-xs text-muted-foreground/70 -mt-4">Last synced {format(lastSynced, 'HH:mm:ss')}</p>}
 
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
         {(['DELIVERED', 'SENT', 'PENDING', 'FAILED'] as const).map(s => (
@@ -215,23 +215,25 @@ export default function DeliveryReportsClient({
 
       <Card>
         <CardHeader>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+            <div className="relative col-span-2 sm:col-span-1">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
               <Input
-                className="pl-8 h-9 w-56"
+                className="pl-8 h-10 sm:h-9 w-full sm:w-56 text-base sm:text-sm"
                 placeholder="Search name or phone..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
+            <div className="col-span-2 sm:col-span-1 flex gap-2 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-0.5">
             {(['ALL', 'DELIVERED', 'SENT', 'PENDING', 'FAILED'] as const).map(s => (
-              <Button key={s} size="sm" variant={status === s ? 'default' : 'outline'} onClick={() => setStatus(s)}>
+              <Button key={s} size="sm" className="shrink-0" variant={status === s ? 'default' : 'outline'} onClick={() => setStatus(s)}>
                 {s}
               </Button>
             ))}
+            </div>
             <Select value={campaignId} onValueChange={setCampaignId}>
-              <SelectTrigger className="h-9 w-56">
+              <SelectTrigger className="h-10 sm:h-9 w-full sm:w-56 col-span-2 sm:col-span-1">
                 <SelectValue placeholder="All campaigns" />
               </SelectTrigger>
               <SelectContent>
@@ -243,11 +245,11 @@ export default function DeliveryReportsClient({
                 ))}
               </SelectContent>
             </Select>
-            <div className="flex items-center gap-1 text-sm">
+            <div className="col-span-2 sm:col-span-1 grid grid-cols-[auto_1fr] sm:flex items-center gap-x-2 gap-y-2 text-sm">
               <Label htmlFor="from" className="text-xs text-muted-foreground">From</Label>
-              <Input id="from" type="date" className="h-9 w-36" value={from} onChange={e => setFrom(e.target.value)} />
-              <Label htmlFor="to" className="text-xs text-muted-foreground ml-2">To</Label>
-              <Input id="to" type="date" className="h-9 w-36" value={to} onChange={e => setTo(e.target.value)} />
+              <Input id="from" type="date" className="h-10 sm:h-9 sm:w-36" value={from} onChange={e => setFrom(e.target.value)} />
+              <Label htmlFor="to" className="text-xs text-muted-foreground sm:ml-2">To</Label>
+              <Input id="to" type="date" className="h-10 sm:h-9 sm:w-36" value={to} onChange={e => setTo(e.target.value)} />
             </div>
           </div>
         </CardHeader>
@@ -260,6 +262,38 @@ export default function DeliveryReportsClient({
             <div className="p-10 text-center text-sm text-muted-foreground">No messages match these filters.</div>
           ) : (
             <>
+              {/* Phones: one card per message */}
+              <ul className="md:hidden divide-y divide-border">
+                {messages.map(m => (
+                  <li key={m.id} className="px-4 py-3 space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-sm truncate">{m.recipientName || '—'}</span>
+                      <Badge variant="secondary" className={STATUS_STYLES[m.status] || ''}>{m.status}</Badge>
+                    </div>
+                    <div className="font-mono text-xs text-muted-foreground">{m.phoneNumber}</div>
+                    {m.campaign && (
+                      <Link href={`/dashboard/sms/history/${m.campaign.id}`} className="block text-xs text-primary truncate">
+                        {m.campaign.name || m.campaign.message.slice(0, 40)}
+                      </Link>
+                    )}
+                    <div className="text-[11px] text-muted-foreground">
+                      {m.deliveredAt
+                        ? `Delivered ${format(new Date(m.deliveredAt), 'MMM d, HH:mm')}`
+                        : m.sentAt
+                          ? `Sent ${format(new Date(m.sentAt), 'MMM d, HH:mm')}`
+                          : 'Not sent yet'}
+                    </div>
+                    {(m.errorMessage || m.deliveryStatusRaw) && (
+                      <div className={m.errorMessage ? 'text-xs text-red-600' : 'text-[11px] text-muted-foreground/70'}>
+                        {m.errorMessage || m.deliveryStatusRaw}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+
+              {/* Tablet / desktop: table */}
+              <div className="hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -291,17 +325,17 @@ export default function DeliveryReportsClient({
                           {m.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-xs text-gray-600">
+                      <TableCell className="text-xs text-muted-foreground">
                         {m.sentAt ? format(new Date(m.sentAt), 'MMM d, HH:mm:ss') : '—'}
                       </TableCell>
-                      <TableCell className="text-xs text-gray-600">
+                      <TableCell className="text-xs text-muted-foreground">
                         {m.deliveredAt ? format(new Date(m.deliveredAt), 'MMM d, HH:mm:ss') : '—'}
                       </TableCell>
                       <TableCell
                         className="text-xs max-w-xs truncate"
                         title={m.errorMessage || m.deliveryStatusRaw || ''}
                       >
-                        <span className={m.errorMessage ? 'text-red-600' : 'text-gray-400'}>
+                        <span className={m.errorMessage ? 'text-red-600' : 'text-muted-foreground/70'}>
                           {m.errorMessage || m.deliveryStatusRaw || ''}
                         </span>
                       </TableCell>
@@ -309,6 +343,7 @@ export default function DeliveryReportsClient({
                   ))}
                 </TableBody>
               </Table>
+              </div>
               <div className="flex items-center justify-between p-3 border-t text-sm">
                 <span className="text-muted-foreground">
                   {total.toLocaleString()} messages · page {page + 1} of {totalPages}

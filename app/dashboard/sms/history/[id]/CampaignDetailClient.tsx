@@ -46,7 +46,7 @@ interface Campaign {
 const STATUS_STYLES: Record<string, string> = {
   DELIVERED: 'bg-emerald-100 text-emerald-700',
   SENT: 'bg-blue-100 text-blue-700',
-  PENDING: 'bg-gray-100 text-gray-600',
+  PENDING: 'bg-muted text-muted-foreground',
   FAILED: 'bg-red-100 text-red-700',
 }
 
@@ -132,7 +132,7 @@ export default function CampaignDetailClient({ campaign }: { campaign: Campaign 
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="flex items-center gap-2 min-w-0">
           <Link href="/dashboard/sms/history">
             <Button variant="ghost" size="sm">
@@ -140,16 +140,16 @@ export default function CampaignDetailClient({ campaign }: { campaign: Campaign 
             </Button>
           </Link>
           <div className="ml-2 min-w-0">
-            <h1 className="text-2xl font-bold truncate">
+            <h1 className="text-xl sm:text-2xl font-bold truncate">
               {campaign.name || campaign.message.slice(0, 80)}
             </h1>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-muted-foreground">
               {campaign.createdByName || 'system'} · {format(new Date(campaign.createdAt), 'MMM d, yyyy HH:mm')}
               {campaign.completedAt && ` · completed ${format(new Date(campaign.completedAt), 'HH:mm')}`}
             </p>
           </div>
         </div>
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex flex-col sm:items-end gap-1">
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={refresh} disabled={isPending}>
               <RefreshCw className={`h-4 w-4 mr-2 ${isPending ? 'animate-spin' : ''}`} />
@@ -160,16 +160,16 @@ export default function CampaignDetailClient({ campaign }: { campaign: Campaign 
             </Button>
           </div>
           {lastSynced && (
-            <span className="text-[11px] text-gray-400">Last synced {format(lastSynced, 'HH:mm:ss')}</span>
+            <span className="text-[11px] text-muted-foreground/70">Last synced {format(lastSynced, 'HH:mm:ss')}</span>
           )}
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-5">
-        <Card>
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-5">
+        <Card className="col-span-2 md:col-span-1">
           <CardHeader className="p-4 pb-2"><CardTitle className="text-sm">Status</CardTitle></CardHeader>
           <CardContent className="p-4 pt-0">
-            <Badge className={STATUS_STYLES[campaign.status] || 'bg-gray-100 text-gray-700'}>{campaign.status}</Badge>
+            <Badge className={STATUS_STYLES[campaign.status] || 'bg-muted text-muted-foreground'}>{campaign.status}</Badge>
           </CardContent>
         </Card>
         <Card>
@@ -225,38 +225,76 @@ export default function CampaignDetailClient({ campaign }: { campaign: Campaign 
           <CardTitle>Message</CardTitle>
         </CardHeader>
         <CardContent>
-          <pre className="whitespace-pre-wrap font-mono text-sm bg-gray-50 p-3 rounded border">{campaign.message}</pre>
+          <pre className="whitespace-pre-wrap font-mono text-sm bg-muted/40 p-3 rounded border">{campaign.message}</pre>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col gap-3">
             <CardTitle>Recipients ({filtered.length})</CardTitle>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+              <div className="relative w-full sm:w-56">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
                 <Input
-                  className="pl-8 h-9 w-56"
+                  className="pl-8 h-10 sm:h-9 w-full text-base sm:text-sm"
                   placeholder="Search name or phone..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                 />
               </div>
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-0.5">
               {(['ALL', 'DELIVERED', 'SENT', 'PENDING', 'FAILED'] as const).map(s => (
                 <Button
                   key={s}
                   size="sm"
+                  className="shrink-0"
                   variant={filter === s ? 'default' : 'outline'}
                   onClick={() => setFilter(s)}
                 >
                   {s}
                 </Button>
               ))}
+              </div>
             </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
+          {/* Phones: one card per recipient */}
+          <ul className="md:hidden divide-y divide-border">
+            {filtered.length === 0 ? (
+              <li className="text-center text-sm text-muted-foreground/70 py-8">No messages match this filter</li>
+            ) : (
+              filtered.map(m => (
+                <li key={m.id} className="px-4 py-3 space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium text-sm truncate">{m.recipientName || '—'}</span>
+                    <Badge variant="secondary" className={STATUS_STYLES[m.status] || ''}>{m.status}</Badge>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => copyPhone(m.phoneNumber)}
+                    className="inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground active:text-primary py-0.5"
+                  >
+                    {m.phoneNumber}
+                    <Copy className="h-3 w-3" />
+                  </button>
+                  <div className="text-[11px] text-muted-foreground">
+                    {m.deliveredAt
+                      ? `Delivered ${format(new Date(m.deliveredAt), 'MMM d, HH:mm')}`
+                      : m.sentAt
+                        ? `Sent ${format(new Date(m.sentAt), 'MMM d, HH:mm')}`
+                        : 'Not sent yet'}
+                    {m.status === 'SENT' && m.deliveryStatusRaw && ` · carrier: ${m.deliveryStatusRaw}`}
+                  </div>
+                  {m.errorMessage && <div className="text-xs text-red-600">{m.errorMessage}</div>}
+                </li>
+              ))
+            )}
+          </ul>
+
+          {/* Tablet / desktop: table */}
+          <div className="hidden md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -270,7 +308,7 @@ export default function CampaignDetailClient({ campaign }: { campaign: Campaign 
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-sm text-gray-400 py-8">No messages match this filter</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center text-sm text-muted-foreground/70 py-8">No messages match this filter</TableCell></TableRow>
               ) : (
                 filtered.map(m => (
                   <TableRow key={m.id}>
@@ -289,19 +327,20 @@ export default function CampaignDetailClient({ campaign }: { campaign: Campaign 
                     <TableCell>
                       <Badge variant="secondary" className={STATUS_STYLES[m.status] || ''}>{m.status}</Badge>
                       {m.status === 'SENT' && m.deliveryStatusRaw && (
-                        <div className="text-[11px] text-gray-400 mt-0.5" title="Raw carrier report — not yet a final status">
+                        <div className="text-[11px] text-muted-foreground/70 mt-0.5" title="Raw carrier report — not yet a final status">
                           carrier: {m.deliveryStatusRaw}
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="text-xs text-gray-600">{m.sentAt ? format(new Date(m.sentAt), 'MMM d, HH:mm:ss') : '—'}</TableCell>
-                    <TableCell className="text-xs text-gray-600">{m.deliveredAt ? format(new Date(m.deliveredAt), 'MMM d, HH:mm:ss') : '—'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{m.sentAt ? format(new Date(m.sentAt), 'MMM d, HH:mm:ss') : '—'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{m.deliveredAt ? format(new Date(m.deliveredAt), 'MMM d, HH:mm:ss') : '—'}</TableCell>
                     <TableCell className="text-xs text-red-600 max-w-xs truncate" title={m.errorMessage ?? ''}>{m.errorMessage || ''}</TableCell>
                   </TableRow>
                 ))
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

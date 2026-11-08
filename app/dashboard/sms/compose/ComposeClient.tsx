@@ -315,14 +315,20 @@ export default function ComposeClient({ departments, fellowships, totalMembers, 
     })
   }
 
+  const sendLabel = isPending
+    ? 'Sending…'
+    : previewLoading
+      ? 'Counting recipients…'
+      : `Send to ${preview?.totalRecipients?.toLocaleString() ?? '—'} recipients`
+
   const sendDisabled =
     isPending || previewLoading || overLimit || !message.trim() || !preview || preview.totalRecipients === 0
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24 lg:pb-0">
       <div>
-        <h1 className="text-2xl font-bold">New SMS Campaign</h1>
-        <p className="text-sm text-gray-500">Pick an audience, write your message, review, then send.</p>
+        <h1 className="text-xl sm:text-2xl font-bold">New SMS Campaign</h1>
+        <p className="text-sm text-muted-foreground">Pick an audience, write your message, review, then send.</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -344,56 +350,56 @@ export default function ComposeClient({ departments, fellowships, totalMembers, 
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Quick presets */}
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => applyPreset('all')}>
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-0.5 sm:flex-wrap">
+              <Button variant="outline" size="sm" className="shrink-0" onClick={() => applyPreset('all')}>
                 Entire Church
               </Button>
-              <Button variant="outline" size="sm" onClick={() => applyPreset('men')}>
+              <Button variant="outline" size="sm" className="shrink-0" onClick={() => applyPreset('men')}>
                 Men
               </Button>
-              <Button variant="outline" size="sm" onClick={() => applyPreset('women')}>
+              <Button variant="outline" size="sm" className="shrink-0" onClick={() => applyPreset('women')}>
                 Women
               </Button>
-              <Button variant="outline" size="sm" onClick={() => applyPreset('youth')}>
+              <Button variant="outline" size="sm" className="shrink-0" onClick={() => applyPreset('youth')}>
                 Youth
               </Button>
-              <Button variant="outline" size="sm" onClick={() => applyPreset('pastors')}>
+              <Button variant="outline" size="sm" className="shrink-0" onClick={() => applyPreset('pastors')}>
                 Pastors
               </Button>
             </div>
 
             {/* Entire church */}
-            <label className="flex items-center gap-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50">
+            <label className="flex items-center gap-3 p-3 border rounded-md cursor-pointer hover:bg-muted/50">
               <Checkbox checked={allMembers} onCheckedChange={v => setAllMembers(Boolean(v))} />
               <div className="flex-1">
                 <div className="font-medium">Entire Church Membership</div>
-                <div className="text-xs text-gray-500">{totalMembers.toLocaleString()} members</div>
+                <div className="text-xs text-muted-foreground">{totalMembers.toLocaleString()} members</div>
               </div>
             </label>
 
             {/* Departments */}
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-2">
                 <Label>Departments / Ministries</Label>
-                <div className="relative">
-                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                <div className="relative w-full sm:w-56">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/70" />
                   <Input
-                    className="pl-7 h-8 text-xs w-56"
+                    className="pl-7 h-9 text-base sm:h-8 sm:text-xs w-full"
                     placeholder="Search departments..."
                     value={search.dept}
                     onChange={e => setSearch(s => ({ ...s, dept: e.target.value }))}
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-72 overflow-y-auto p-2 border rounded-md">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-60 sm:max-h-72 overflow-y-auto p-2 border rounded-md">
                 {filteredDepts.map(d => {
                   const checked = selectedDepts.has(d.id)
                   return (
                     <label
                       key={d.id}
                       className={cn(
-                        'flex items-center gap-2 p-2 rounded text-sm cursor-pointer',
-                        checked ? 'bg-primary/10' : 'hover:bg-gray-50'
+                        'flex items-center gap-2 px-2 py-2.5 sm:py-2 rounded text-sm cursor-pointer',
+                        checked ? 'bg-primary/10' : 'hover:bg-muted/50'
                       )}
                     >
                       <Checkbox
@@ -408,39 +414,39 @@ export default function ComposeClient({ departments, fellowships, totalMembers, 
                         }}
                       />
                       <span className="flex-1 truncate" title={d.name}>{d.name}</span>
-                      <span className="text-xs text-gray-400">{d._count.members}</span>
+                      <span className="text-xs text-muted-foreground/70">{d._count.members}</span>
                     </label>
                   )
                 })}
                 {filteredDepts.length === 0 && (
-                  <div className="col-span-full text-xs text-gray-400 text-center py-2">No departments</div>
+                  <div className="col-span-full text-xs text-muted-foreground/70 text-center py-2">No departments</div>
                 )}
               </div>
             </div>
 
             {/* Fellowships */}
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-2">
                 <Label>Home Fellowships</Label>
-                <div className="relative">
-                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                <div className="relative w-full sm:w-56">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/70" />
                   <Input
-                    className="pl-7 h-8 text-xs w-56"
+                    className="pl-7 h-9 text-base sm:h-8 sm:text-xs w-full"
                     placeholder="Search fellowships..."
                     value={search.fellowship}
                     onChange={e => setSearch(s => ({ ...s, fellowship: e.target.value }))}
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-2 border rounded-md">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-44 sm:max-h-48 overflow-y-auto p-2 border rounded-md">
                 {filteredFellowships.map(f => {
                   const checked = selectedFellowships.has(f.id)
                   return (
                     <label
                       key={f.id}
                       className={cn(
-                        'flex items-center gap-2 p-2 rounded text-sm cursor-pointer',
-                        checked ? 'bg-primary/10' : 'hover:bg-gray-50'
+                        'flex items-center gap-2 px-2 py-2.5 sm:py-2 rounded text-sm cursor-pointer',
+                        checked ? 'bg-primary/10' : 'hover:bg-muted/50'
                       )}
                     >
                       <Checkbox
@@ -455,12 +461,12 @@ export default function ComposeClient({ departments, fellowships, totalMembers, 
                         }}
                       />
                       <span className="flex-1 truncate" title={f.name}>{f.name}</span>
-                      <span className="text-xs text-gray-400">{f._count.members}</span>
+                      <span className="text-xs text-muted-foreground/70">{f._count.members}</span>
                     </label>
                   )
                 })}
                 {filteredFellowships.length === 0 && (
-                  <div className="col-span-full text-xs text-gray-400 text-center py-2">No fellowships</div>
+                  <div className="col-span-full text-xs text-muted-foreground/70 text-center py-2">No fellowships</div>
                 )}
               </div>
             </div>
@@ -469,11 +475,11 @@ export default function ComposeClient({ departments, fellowships, totalMembers, 
             <div>
               <Label className="mb-2 block">Gender filter (combines with above)</Label>
               <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2 text-sm">
+                <label className="flex items-center gap-2 text-sm py-1.5">
                   <Checkbox checked={genderMale} onCheckedChange={v => setGenderMale(Boolean(v))} />
                   Male
                 </label>
-                <label className="flex items-center gap-2 text-sm">
+                <label className="flex items-center gap-2 text-sm py-1.5">
                   <Checkbox checked={genderFemale} onCheckedChange={v => setGenderFemale(Boolean(v))} />
                   Female
                 </label>
@@ -492,7 +498,7 @@ export default function ComposeClient({ departments, fellowships, totalMembers, 
             </div>
 
             {/* Live preview */}
-            <div className="rounded-md border bg-gray-50 p-3 text-sm">
+            <div className="rounded-md border bg-muted/40 p-3 text-sm">
               <div className="flex items-center justify-between gap-2 mb-1">
                 <span className="text-xs font-medium text-muted-foreground">Recipients</span>
                 <Button
@@ -507,35 +513,35 @@ export default function ComposeClient({ departments, fellowships, totalMembers, 
                 </Button>
               </div>
               {!hasAnySelection() ? (
-                <p className="text-xs text-gray-500">Select an audience above to see the recipient count.</p>
+                <p className="text-xs text-muted-foreground">Select an audience above to see the recipient count.</p>
               ) : previewLoading && !preview ? (
-                <p className="text-xs text-gray-500">Counting recipients…</p>
+                <p className="text-xs text-muted-foreground">Counting recipients…</p>
               ) : preview ? (
                 <>
                   <div className="flex flex-wrap gap-3 items-center">
                     <Badge variant="secondary" className="bg-emerald-100 text-emerald-800">
                       {preview.totalRecipients.toLocaleString()} recipients
                     </Badge>
-                    <span className="text-xs text-gray-500">Matched {preview.matchedMembers} members</span>
+                    <span className="text-xs text-muted-foreground">Matched {preview.matchedMembers} members</span>
                     {preview.invalidPhoneCount > 0 && (
                       <span className="text-xs text-amber-700">
                         {preview.invalidPhoneCount} skipped (invalid phone)
                       </span>
                     )}
                     {preview.duplicateCount > 0 && (
-                      <span className="text-xs text-gray-500">{preview.duplicateCount} duplicates collapsed</span>
+                      <span className="text-xs text-muted-foreground">{preview.duplicateCount} duplicates collapsed</span>
                     )}
-                    {previewLoading && <span className="text-xs text-gray-400">updating…</span>}
+                    {previewLoading && <span className="text-xs text-muted-foreground/70">updating…</span>}
                   </div>
                   {preview.sample.length > 0 && (
-                    <div className="mt-2 text-xs text-gray-600">
+                    <div className="mt-2 text-xs text-muted-foreground">
                       Sample: {preview.sample.map(s => s.fullName || s.phoneNumber).slice(0, 5).join(', ')}
                       {preview.sample.length > 5 && '…'}
                     </div>
                   )}
                 </>
               ) : (
-                <p className="text-xs text-gray-500">No valid recipients matched this audience.</p>
+                <p className="text-xs text-muted-foreground">No valid recipients matched this audience.</p>
               )}
             </div>
           </CardContent>
@@ -585,17 +591,17 @@ export default function ComposeClient({ departments, fellowships, totalMembers, 
               <Label htmlFor="msg">Message body</Label>
               <Textarea
                 id="msg"
-                rows={9}
+                rows={7}
                 value={message}
                 onChange={e => setMessage(e.target.value)}
                 placeholder="Hi {name}, kindly join us for Sunday service at 9am. - Church"
                 className={cn('mt-1 font-mono text-sm', overLimit && 'border-red-400 focus-visible:ring-red-400')}
               />
               <div className="mt-2 flex items-center justify-between text-xs">
-                <div className={cn('text-gray-500', manySegments && 'text-amber-600', overLimit && 'text-red-600 font-medium')}>
+                <div className={cn('text-muted-foreground', manySegments && 'text-amber-600', overLimit && 'text-red-600 font-medium')}>
                   {segInfo.length} chars · {segInfo.segments} SMS ({segInfo.encoding})
                 </div>
-                <div className={cn('text-gray-500', overLimit && 'text-red-600 font-medium')}>
+                <div className={cn('text-muted-foreground', overLimit && 'text-red-600 font-medium')}>
                   {overLimit ? `${segInfo.length - MAX_CHARS} over limit` : `${segInfo.remaining} left in segment`}
                 </div>
               </div>
@@ -609,12 +615,12 @@ export default function ComposeClient({ departments, fellowships, totalMembers, 
                   This message spans {segInfo.segments} SMS segments — each recipient costs {segInfo.segments} credits.
                 </div>
               )}
-              <div className="text-xs text-gray-400 mt-1">
+              <div className="text-xs text-muted-foreground/70 mt-1">
                 Placeholders: <code>{'{name}'}</code> <code>{'{phone}'}</code>
               </div>
             </div>
 
-            <label className="flex items-start gap-3 p-3 border rounded-md cursor-pointer hover:bg-gray-50">
+            <label className="flex items-start gap-3 p-3 border rounded-md cursor-pointer hover:bg-muted/50">
               <Checkbox
                 checked={appendOptOutText}
                 onCheckedChange={v => setAppendOptOutText(Boolean(v))}
@@ -622,11 +628,11 @@ export default function ComposeClient({ departments, fellowships, totalMembers, 
               />
               <div className="flex-1">
                 <div className="text-sm font-medium">Append opt-out instructions</div>
-                <div className="text-xs text-gray-500 mt-0.5">
+                <div className="text-xs text-muted-foreground mt-0.5">
                   Required by mobile network operators for bulk/promotional SMS — leaving it off risks the
                   sender ID being suspended. Turn off only for one-off personal messages.
                 </div>
-                <div className="text-xs text-gray-400 mt-1 font-mono whitespace-pre-wrap">
+                <div className="text-xs text-muted-foreground/70 mt-1 font-mono whitespace-pre-wrap">
                   {OPT_OUT_SUFFIX.trim()}
                 </div>
               </div>
@@ -642,16 +648,29 @@ export default function ComposeClient({ departments, fellowships, totalMembers, 
               </div>
             )}
 
-            <Button className="w-full" size="lg" onClick={handleSend} disabled={sendDisabled}>
+            <Button className="hidden lg:flex w-full" size="lg" onClick={handleSend} disabled={sendDisabled}>
               <Send className="h-4 w-4 mr-2" />
-              {isPending
-                ? 'Sending…'
-                : previewLoading
-                  ? 'Counting recipients…'
-                  : `Send to ${preview?.totalRecipients?.toLocaleString() ?? '—'} recipients`}
+              {sendLabel}
             </Button>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Sticky send bar — phones/tablets only, sits above the bottom nav */}
+      <div className="lg:hidden fixed inset-x-0 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] md:bottom-0 md:left-64 z-20 border-t border-border bg-card/95 backdrop-blur px-4 py-2.5 flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold truncate">
+            {preview ? `${preview.totalRecipients.toLocaleString()} recipients` : 'No audience yet'}
+          </div>
+          <div className={cn('text-[11px] truncate', overLimit ? 'text-red-600' : manySegments ? 'text-amber-600' : 'text-muted-foreground')}>
+            {segInfo.length} chars · {segInfo.segments} SMS
+            {preview && preview.totalRecipients > 0 && ` · ~${(segInfo.segments * preview.totalRecipients).toLocaleString()} credits`}
+          </div>
+        </div>
+        <Button onClick={handleSend} disabled={sendDisabled} className="shrink-0 h-11 px-5">
+          <Send className="h-4 w-4 mr-2" />
+          {isPending ? 'Sending…' : 'Send'}
+        </Button>
       </div>
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>

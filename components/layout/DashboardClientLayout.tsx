@@ -26,7 +26,7 @@ export default function DashboardClientLayout({
 
     return (
         <CommandPaletteProvider>
-            <div className="flex h-screen bg-background overflow-hidden print:block print:h-auto print:overflow-visible">
+            <div className="flex h-dvh bg-background overflow-hidden print:block print:h-auto print:overflow-visible">
                 {/* Mobile sidebar overlay */}
                 {sidebarOpen && (
                     <div

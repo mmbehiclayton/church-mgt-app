@@ -36,10 +36,11 @@ export default function MobileBottomNav() {
               <Link
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors",
+                  "relative flex flex-col items-center justify-center gap-0.5 min-h-[3.75rem] py-2 text-[10px] font-medium transition-colors active:bg-muted/60",
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground"
                 )}
               >
+                {active && <span className="absolute top-0 h-0.5 w-8 rounded-b-full bg-primary" />}
                 <Icon className={cn("h-5 w-5", active && "stroke-[2.25]")} />
                 <span>{item.name}</span>
               </Link>

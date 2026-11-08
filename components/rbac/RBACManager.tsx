@@ -235,7 +235,7 @@ export default function RBACManager() {
               {roles.map((role, i) => (
                 <div
                   key={role.id}
-                  className={cn("flex items-start gap-4 px-4 py-3.5", i > 0 && "border-t border-border")}
+                  className={cn("flex items-start gap-3 sm:gap-4 px-3 sm:px-4 py-3.5", i > 0 && "border-t border-border")}
                 >
                   {/* Icon */}
                   <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
@@ -282,7 +282,7 @@ export default function RBACManager() {
                     {!role.isSystem && (
                       <Button
                         variant="ghost" size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        className="h-9 w-9 sm:h-7 sm:w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                         onClick={() => handleDeleteRole(role.id, role.name)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -316,9 +316,9 @@ export default function RBACManager() {
                           ACTION_COLOUR[perm.action] ?? "bg-muted text-muted-foreground")}>
                           {perm.action}
                         </span>
-                        <span className="text-sm font-mono text-muted-foreground">{perm.name}</span>
+                        <span className="text-sm font-mono text-muted-foreground min-w-0 truncate">{perm.name}</span>
                         {perm.description && (
-                          <span className="text-xs text-muted-foreground ml-auto truncate max-w-[240px]">{perm.description}</span>
+                          <span className="text-xs text-muted-foreground ml-auto truncate max-w-[240px] hidden sm:inline">{perm.description}</span>
                         )}
                         {perm.isSystem && (
                           <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0 ml-auto">System</Badge>
