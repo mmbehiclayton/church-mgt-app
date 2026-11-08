@@ -8,9 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { parseMpesaMessage, ParsedTransaction } from "@/lib/parser";
-import { saveTransaction, updateTransaction, searchMembers } from "@/app/actions";
+import { saveTransaction, updateTransaction, searchMembers, searchContributorLabels } from "@/app/actions";
 import { toast } from "sonner";
-import { Search, X, User, Loader2 } from "lucide-react";
+import { Search, X, User, Users, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Category {
@@ -61,6 +61,11 @@ export default function TransactionForm({
     const [selectedMember, setSelectedMember] = useState<MemberResult | null>(
         initialData?.memberId ? { id: initialData.memberId, fullName: initialData.memberName ?? "", phoneNumber: "" } : null
     );
+    // Non-member label (group / guest): saved as memberName with no memberId
+    const [selectedLabel, setSelectedLabel] = useState<string | null>(
+        !initialData?.memberId && initialData?.memberName ? initialData.memberName : null
+    );
+    const [labelResults, setLabelResults] = useState<string[]>([]);
     const [memberSearching, setMemberSearching] = useState(false);
     const [showDropdown, setShowDropdown] = useState(false);
     const memberSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -73,13 +78,16 @@ export default function TransactionForm({
 
     // Debounced member search
     const doSearch = useCallback(async (q: string) => {
-        if (!q.trim() || selectedMember) { setMemberResults([]); setShowDropdown(false); return; }
+        if (!q.trim() || selectedMember || selectedLabel) {
+            setMemberResults([]); setLabelResults([]); setShowDropdown(false); return;
+        }
         setMemberSearching(true);
-        const results = await searchMembers(q);
+        const [results, labels] = await Promise.all([searchMembers(q), searchContributorLabels(q)]);
         setMemberResults(results);
-        setShowDropdown(results.length > 0);
+        setLabelResults(labels);
+        setShowDropdown(true);
         setMemberSearching(false);
-    }, [selectedMember]);
+    }, [selectedMember, selectedLabel]);
 
     useEffect(() => {
         if (memberSearchTimer.current) clearTimeout(memberSearchTimer.current);
@@ -105,8 +113,18 @@ export default function TransactionForm({
         setShowDropdown(false);
     }
 
+    function selectLabel(label: string) {
+        setSelectedLabel(label.trim());
+        setMemberQuery(label.trim());
+        setMemberResults([]);
+        setLabelResults([]);
+        setShowDropdown(false);
+    }
+
     function clearMember() {
         setSelectedMember(null);
+        setSelectedLabel(null);
+        setLabelResults([]);
         setMemberQuery("");
         setMemberResults([]);
         setShowDropdown(false);
@@ -135,7 +153,7 @@ export default function TransactionForm({
             accountName: parsed.accountName ?? initialData?.accountName,
             rawMessage: message,
             memberId: selectedMember?.id ?? null,
-            memberName: selectedMember?.fullName ?? null,
+            memberName: selectedMember?.fullName ?? selectedLabel ?? null,
         };
 
         let res;
@@ -236,26 +254,27 @@ export default function TransactionForm({
             <div className="space-y-1.5">
                 <Label className="flex items-center gap-1.5">
                     <User className="h-3.5 w-3.5 text-muted-foreground" />
-                    Member
-                    <span className="text-xs text-muted-foreground font-normal">(optional — attribute to a specific member)</span>
+                    Member / contributor
+                    <span className="text-xs text-muted-foreground font-normal">(optional — a member, or a group / guest label)</span>
                 </Label>
                 <div className="relative" ref={dropdownRef}>
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                         <Input
-                            placeholder="Search by name or phone…"
+                            placeholder="Search members, or type a group / guest name…"
                             value={memberQuery}
                             onChange={(e) => {
                                 setMemberQuery(e.target.value);
                                 if (selectedMember) setSelectedMember(null);
+                                if (selectedLabel) setSelectedLabel(null);
                             }}
-                            onFocus={() => { if (memberResults.length > 0) setShowDropdown(true); }}
-                            className={cn("pl-9", selectedMember && "pr-9 bg-primary/5 border-primary/30 text-primary")}
+                            onFocus={() => { if (memberQuery.trim() && !selectedMember && !selectedLabel) setShowDropdown(true); }}
+                            className={cn("pl-9", (selectedMember || selectedLabel) && "pr-9 bg-primary/5 border-primary/30 text-primary")}
                         />
                         {memberSearching && (
                             <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
                         )}
-                        {selectedMember && !memberSearching && (
+                        {(selectedMember || selectedLabel) && !memberSearching && (
                             <button
                                 type="button"
                                 onClick={clearMember}
@@ -284,6 +303,40 @@ export default function TransactionForm({
                                     </div>
                                 </button>
                             ))}
+                            {labelResults
+                                .filter(l => !memberResults.some(m => m.fullName.toLowerCase() === l.toLowerCase()))
+                                .map((l) => (
+                                    <button
+                                        key={`label-${l}`}
+                                        type="button"
+                                        onClick={() => selectLabel(l)}
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted/60 transition-colors text-left border-t border-border/60"
+                                    >
+                                        <div className="h-7 w-7 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 flex items-center justify-center shrink-0">
+                                            <Users className="h-3.5 w-3.5" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-medium truncate">{l}</p>
+                                            <p className="text-xs text-muted-foreground">Group / guest (used before)</p>
+                                        </div>
+                                    </button>
+                                ))}
+                            {memberQuery.trim() &&
+                                !labelResults.some(l => l.toLowerCase() === memberQuery.trim().toLowerCase()) &&
+                                !memberResults.some(m => m.fullName.toLowerCase() === memberQuery.trim().toLowerCase()) && (
+                                <button
+                                    type="button"
+                                    onClick={() => selectLabel(memberQuery)}
+                                    className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted/60 transition-colors text-left border-t border-border/60"
+                                >
+                                    <div className="h-7 w-7 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 flex items-center justify-center shrink-0">
+                                        <Users className="h-3.5 w-3.5" />
+                                    </div>
+                                    <p className="text-sm min-w-0 truncate">
+                                        Use &ldquo;<span className="font-medium">{memberQuery.trim()}</span>&rdquo; as non-member (group / guest)
+                                    </p>
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>

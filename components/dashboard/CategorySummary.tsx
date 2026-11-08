@@ -54,15 +54,12 @@ export default function CategorySummary({ categoryStats }: CategorySummaryProps)
                                                 <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
                                                 <span className="truncate font-medium">{c.name}</span>
                                             </div>
-                                            <div className="mt-1.5 h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                                                <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
-                                            </div>
                                             {c.targetAmount ? (
                                                 <div className="mt-1.5">
                                                     <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                                                         <div
-                                                            className="h-full rounded-full bg-emerald-500"
-                                                            style={{ width: `${Math.min(100, (c.amount / c.targetAmount) * 100)}%` }}
+                                                            className="h-full rounded-full"
+                                                            style={{ width: `${Math.min(100, (c.amount / c.targetAmount) * 100)}%`, backgroundColor: color }}
                                                         />
                                                     </div>
                                                     <div className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">
@@ -72,7 +69,11 @@ export default function CategorySummary({ categoryStats }: CategorySummaryProps)
                                                             : " · target reached"}
                                                     </div>
                                                 </div>
-                                            ) : null}
+                                            ) : (
+                                                <div className="mt-1.5 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                                                    <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
+                                                </div>
+                                            )}
                                         </TableCell>
                                         <TableCell className="py-2.5 pr-4 pl-2 text-right align-top">
                                             <div className="font-semibold tabular-nums">Ksh {c.amount.toLocaleString()}</div>

@@ -393,6 +393,28 @@ export async function searchMembers(query: string): Promise<{ id: string; fullNa
     }
 }
 
+// Distinct non-member contributor labels (groups, guests) already used on transactions.
+export async function searchContributorLabels(query: string): Promise<string[]> {
+    try {
+        await requirePermission('transactions', 'read');
+        const rows = await prisma.transaction.findMany({
+            where: {
+                memberId: null,
+                memberName: query.trim()
+                    ? { contains: query.trim(), mode: 'insensitive' }
+                    : { not: null },
+            },
+            select: { memberName: true },
+            distinct: ['memberName'],
+            orderBy: { memberName: 'asc' },
+            take: 8,
+        });
+        return rows.map(r => r.memberName).filter((n): n is string => !!n && !!n.trim());
+    } catch {
+        return [];
+    }
+}
+
 export async function getTransactions(filter?: { categoryIds?: string[], startDate?: Date, endDate?: Date, ref?: string }) {
     try {
         await requirePermission('transactions', 'read');

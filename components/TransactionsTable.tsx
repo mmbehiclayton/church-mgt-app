@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import {
-    Trash2, MoreHorizontal, User, CheckCircle2, Circle,
+    Trash2, MoreHorizontal, User, Users, CheckCircle2, Circle,
     Copy, Check, ChevronUp, ChevronDown, ChevronsUpDown,
     ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
 } from "lucide-react";
@@ -352,7 +352,9 @@ export default function TransactionsTable({ transactions, categories }: { transa
                                         <TableCell className="hidden sm:table-cell">
                                             {t.memberName ? (
                                                 <span className="flex items-center gap-1.5 text-xs">
-                                                    <User className="h-3 w-3 text-muted-foreground shrink-0" />
+                                                    {t.memberId
+                                                        ? <User className="h-3 w-3 text-muted-foreground shrink-0" />
+                                                        : <Users className="h-3 w-3 text-amber-600 dark:text-amber-400 shrink-0" aria-label="Group / guest (not a member)" />}
                                                     <span className="truncate max-w-[120px]">{t.memberName}</span>
                                                 </span>
                                             ) : (
