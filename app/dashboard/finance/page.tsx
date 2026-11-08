@@ -2,6 +2,7 @@ import { getCategories, getTransactions, getDashboardStats, getFinanceReportBran
 import TransactionModal from "@/components/finance/TransactionModal";
 import CategoryModal from "@/components/finance/CategoryModal";
 import TransactionsTable from "@/components/TransactionsTable";
+import ShareContributions from "@/components/finance/ShareContributions";
 import ExportButtons from "@/components/ExportButtons";
 import ImportButton from "@/components/ImportButton";
 import DashboardFilters from "@/components/dashboard/DashboardFilters";
@@ -145,6 +146,7 @@ export default async function FinanceDashboardPage({ searchParams }: PageProps) 
                         Transactions
                     </h2>
                     <div className="flex items-center gap-3 flex-wrap">
+                        <ShareContributions transactions={transactions} categoryDetails={allCategories} />
                         {transactions.length > 0 && (
                             <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
                                 Ksh {transactions.reduce((s, t) => s + t.amount, 0).toLocaleString()}

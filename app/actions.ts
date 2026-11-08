@@ -207,6 +207,32 @@ export async function editCategory(id: string, newName: string) {
     }
 }
 
+export async function updateCategoryShareDetails(
+    id: string,
+    details: { targetAmount: number | null; paybill: string; accountNumber: string; shareNote: string }
+) {
+    try {
+        await requirePermission('categories', 'update');
+        if (details.targetAmount !== null && (!Number.isFinite(details.targetAmount) || details.targetAmount < 0)) {
+            return { error: "Target amount must be a positive number" };
+        }
+        await prisma.category.update({
+            where: { id },
+            data: {
+                targetAmount: details.targetAmount || null,
+                paybill: details.paybill.trim() || null,
+                accountNumber: details.accountNumber.trim() || null,
+                shareNote: details.shareNote.trim() || null,
+            },
+        });
+        revalidatePath("/dashboard");
+        revalidatePath("/dashboard/finance");
+        return { success: true };
+    } catch {
+        return { error: "Failed to save share details" };
+    }
+}
+
 // --- Transactions ---
 
 export async function deleteTransactions(ids: string[]) {
@@ -471,10 +497,11 @@ export async function getDashboardStats(filters?: DashboardFilters) {
                 name: cat?.name || "Unknown",
                 amount: item._sum.amount || 0,
                 isActive: cat?.isActive ?? true,
+                targetAmount: cat?.targetAmount ?? null,
             };
         })
         .filter(c => c.isActive)
-        .map(({ name, amount }) => ({ name, amount }));
+        .map(({ name, amount, targetAmount }) => ({ name, amount, targetAmount }));
 
     // Group by Date text (YYYY-MM-DD)
     const trendMap = new Map<string, number>();

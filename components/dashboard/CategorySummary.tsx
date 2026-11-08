@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 
 interface CategorySummaryProps {
-    categoryStats: { name: string; amount: number }[];
+    categoryStats: { name: string; amount: number; targetAmount?: number | null }[];
 }
 
 // A distinct accent per row — keeps the table scannable without a chart.
@@ -57,6 +57,22 @@ export default function CategorySummary({ categoryStats }: CategorySummaryProps)
                                             <div className="mt-1.5 h-1.5 w-full rounded-full bg-muted overflow-hidden">
                                                 <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
                                             </div>
+                                            {c.targetAmount ? (
+                                                <div className="mt-1.5">
+                                                    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                                                        <div
+                                                            className="h-full rounded-full bg-emerald-500"
+                                                            style={{ width: `${Math.min(100, (c.amount / c.targetAmount) * 100)}%` }}
+                                                        />
+                                                    </div>
+                                                    <div className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">
+                                                        {Math.round((c.amount / c.targetAmount) * 100)}% of Ksh {c.targetAmount.toLocaleString()} target
+                                                        {c.amount < c.targetAmount
+                                                            ? ` · Ksh ${(c.targetAmount - c.amount).toLocaleString()} to go`
+                                                            : " · target reached"}
+                                                    </div>
+                                                </div>
+                                            ) : null}
                                         </TableCell>
                                         <TableCell className="py-2.5 pr-4 pl-2 text-right align-top">
                                             <div className="font-semibold tabular-nums">Ksh {c.amount.toLocaleString()}</div>

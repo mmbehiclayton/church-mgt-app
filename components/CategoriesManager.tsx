@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Fragment, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { createCategory, deleteCategory, editCategory, setCategoryActive } from "@/app/actions";
-import { Trash2, Pencil, Check, X, Tag, Eye, EyeOff } from "lucide-react";
+import { createCategory, deleteCategory, editCategory, setCategoryActive, updateCategoryShareDetails } from "@/app/actions";
+import { Trash2, Pencil, Check, X, Tag, Eye, EyeOff, Share2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,10 @@ interface Category {
     id: string;
     name: string;
     isActive?: boolean;
+    targetAmount?: number | null;
+    paybill?: string | null;
+    accountNumber?: string | null;
+    shareNote?: string | null;
     createdAt: Date;
 }
 
@@ -27,6 +31,48 @@ export default function CategoriesManager({ initialCategories, onSuccess }: { in
     // Inline editing state
     const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
     const [editedName, setEditedName] = useState("");
+
+    // Share details editing state
+    const [shareId, setShareId] = useState<string | null>(null);
+    const [shareForm, setShareForm] = useState({ target: "", paybill: "", account: "", note: "" });
+    const [savingShare, setSavingShare] = useState(false);
+
+    const handleShareStart = (cat: Category) => {
+        setShareId(cat.id);
+        setShareForm({
+            target: cat.targetAmount ? String(cat.targetAmount) : "",
+            paybill: cat.paybill ?? "",
+            account: cat.accountNumber ?? "",
+            note: cat.shareNote ?? "",
+        });
+    };
+
+    const handleShareSave = async (id: string) => {
+        const raw = shareForm.target.replace(/[^\d.]/g, "");
+        const target = raw ? Number(raw) : null;
+        setSavingShare(true);
+        const res = await updateCategoryShareDetails(id, {
+            targetAmount: target,
+            paybill: shareForm.paybill,
+            accountNumber: shareForm.account,
+            shareNote: shareForm.note,
+        });
+        setSavingShare(false);
+        if (res.success) {
+            setCategories(prev => prev.map(c => c.id === id ? {
+                ...c,
+                targetAmount: target,
+                paybill: shareForm.paybill.trim() || null,
+                accountNumber: shareForm.account.trim() || null,
+                shareNote: shareForm.note.trim() || null,
+            } : c));
+            setShareId(null);
+            toast.success("Share details saved");
+            router.refresh();
+        } else {
+            toast.error(res.error || "Failed to save");
+        }
+    };
 
     // Sync local state if server data changes
     useEffect(() => {
@@ -159,7 +205,8 @@ export default function CategoriesManager({ initialCategories, onSuccess }: { in
                                 </TableRow>
                             ) : (
                                 categories.map((cat) => (
-                                    <TableRow key={cat.id} className="transition-colors hover:bg-muted/50">
+                                    <Fragment key={cat.id}>
+                                    <TableRow className="transition-colors hover:bg-muted/50">
                                         <TableCell>
                                             {editingCategoryId === cat.id ? (
                                                 <Input
@@ -198,6 +245,15 @@ export default function CategoriesManager({ initialCategories, onSuccess }: { in
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 dark:hover:text-emerald-400 dark:hover:bg-emerald-950/40"
+                                                        title="Target & payment details"
+                                                        onClick={() => shareId === cat.id ? setShareId(null) : handleShareStart(cat)}
+                                                    >
+                                                        <Share2 className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
                                                         className="h-8 w-8 text-muted-foreground hover:text-amber-600 hover:bg-amber-50 dark:hover:text-amber-400 dark:hover:bg-amber-950/40"
                                                         title={(cat.isActive ?? true) ? "Set inactive" : "Activate"}
                                                         onClick={() => handleToggleActive(cat)}
@@ -214,6 +270,26 @@ export default function CategoriesManager({ initialCategories, onSuccess }: { in
                                             )}
                                         </TableCell>
                                     </TableRow>
+                                    {shareId === cat.id && (
+                                        <TableRow className="hover:bg-transparent">
+                                            <TableCell colSpan={3} className="bg-muted/30">
+                                                <div className="space-y-2">
+                                                    <p className="text-xs text-muted-foreground">Optional — used when sharing this category&apos;s contributions.</p>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                                        <Input placeholder="Target amount" inputMode="numeric" value={shareForm.target} onChange={e => setShareForm(f => ({ ...f, target: e.target.value }))} />
+                                                        <Input placeholder="Paybill" value={shareForm.paybill} onChange={e => setShareForm(f => ({ ...f, paybill: e.target.value }))} />
+                                                        <Input placeholder="Account number" value={shareForm.account} onChange={e => setShareForm(f => ({ ...f, account: e.target.value }))} />
+                                                    </div>
+                                                    <Input placeholder="Footer note (e.g. Send KCB transaction msg to 07...)" value={shareForm.note} onChange={e => setShareForm(f => ({ ...f, note: e.target.value }))} />
+                                                    <div className="flex justify-end gap-2">
+                                                        <Button variant="ghost" size="sm" onClick={() => setShareId(null)}>Cancel</Button>
+                                                        <Button size="sm" onClick={() => handleShareSave(cat.id)} disabled={savingShare}>Save</Button>
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                    </Fragment>
                                 ))
                             )}
                         </TableBody>

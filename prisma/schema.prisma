@@ -93,6 +93,10 @@ model Category {
   id           String        @id @default(uuid())
   name         String        @unique
   isActive     Boolean       @default(true)
+  targetAmount Float?
+  paybill      String?
+  accountNumber String?
+  shareNote    String?
   transactions Transaction[]
   createdAt    DateTime      @default(now())
 }
